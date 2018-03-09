@@ -4,9 +4,9 @@ import unittest
 
 import tensorflow as tf
 
-from test.feature_test import CHAR_KEY, NUM_KEY, WORD_KEY
+from test.feature_test import CHAR_KEY, NUM_KEY, WORD_KEY, test_extractor
 from tfnlp.datasets import make_dataset
-from tfnlp.feature import Feature, FeatureExtractor, SequenceFeature, SequenceListFeature, write_features
+from tfnlp.feature import write_features
 
 
 class TestDatasets(unittest.TestCase):
@@ -15,11 +15,7 @@ class TestDatasets(unittest.TestCase):
         super().setUp()
         self.sentence = {NUM_KEY: '0', WORD_KEY: "the cat sat on the mat".split()}
         self.other_sentence = {NUM_KEY: '0', WORD_KEY: "the foo".split()}
-        self.num_feature = Feature(NUM_KEY, NUM_KEY)
-        self.word_feature = SequenceFeature(WORD_KEY, WORD_KEY)
-        self.char_feature = SequenceListFeature(CHAR_KEY, WORD_KEY)
-        self.extractor = FeatureExtractor([self.word_feature, self.char_feature, self.num_feature])
-        self.extractor.train()
+        self.extractor = test_extractor()
         ex1 = self.extractor.extract(self.sentence)
         ex2 = self.extractor.extract(self.other_sentence)
         self.file = tempfile.NamedTemporaryFile()
@@ -35,7 +31,8 @@ class TestDatasets(unittest.TestCase):
             sess.run(training_init_op)
             next_element = sess.run(next_element)
 
-            padding = (self.char_feature.max_len - 3) * [self.char_feature.pad_index]
+            char_feature = self.extractor.feature(CHAR_KEY)
+            padding = (char_feature.max_len - 3) * [char_feature.pad_index]
             self.assertEqual([4, 5, 6] + padding, next_element[CHAR_KEY][0][0].tolist())
             self.assertEqual(4, next_element[WORD_KEY][0][0])
             self.assertEqual(4, next_element[NUM_KEY][0])

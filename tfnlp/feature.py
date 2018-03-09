@@ -132,6 +132,12 @@ class Feature(Extractor):
                 if line:
                     self.indices[line] = len(self.indices)
 
+    def vocab_size(self):
+        """
+        Return the number of entries in the feature vocabulary, including OOV/padding features.
+        """
+        return len(self.indices)
+
     def _reverse(self):
         return {i: key for (key, i) in self.indices.items()}
 
@@ -195,6 +201,9 @@ class FeatureExtractor(object):
         """
         super().__init__()
         self.features = {feature.name: feature for feature in features}
+
+    def feature(self, name):
+        return self.features[name]
 
     def extract(self, instance):
         """
@@ -264,10 +273,11 @@ class FeatureExtractor(object):
         padding = {}
         for feature in self.features.values():
             index = 0
-            if hasattr(feature, 'pad_index'):
-                index = feature.pad_index
-            elif PAD_WORD in feature.indices:
-                index = feature.indices[PAD_WORD]
+            if feature.trainable():
+                if hasattr(feature, 'pad_index'):
+                    index = feature.pad_index
+                elif PAD_WORD in feature.indices:
+                    index = feature.indices[PAD_WORD]
             padding[feature.name] = tf.constant(index, dtype=tf.int64)
         return padding
 

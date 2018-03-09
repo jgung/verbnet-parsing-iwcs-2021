@@ -13,6 +13,7 @@ WORD_KEY = "word"
 POS_KEY = "pos"
 CHUNK_KEY = "chunk"
 NAMED_ENTITY_KEY = "ne"
+LENGTH_KEY = "len"
 
 BEGIN = "B"
 BEGIN_ = "B-"
