@@ -17,7 +17,47 @@ def write_features(examples, out_path):
             writer.write(example.SerializeToString())
 
 
-class Feature(object):
+class Extractor(object):
+    """
+    This class encompasses features that do not use vocabularies. This includes non-categorical features as well as
+    metadata such as sequence lengths and identifiers.
+    """
+
+    def __init__(self, name, key):
+        self.sequential = False
+        self.name = name
+        self.key = key
+
+    def extract(self, instance):
+        """
+                Extracts a feature for a given instance.
+                :param instance: feature extraction input
+                :return: resulting extracted feature
+                """
+        value = self.get_values(instance)
+        value = self.map(value)
+        return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+    def map(self, value):
+        """
+        Function applied to each token in a sequence.
+        :param value: input token
+        :return: transformed value
+        """
+        return value
+
+    def get_values(self, sequence):
+        """
+        :param sequence: dictionary of sequences for feature extraction
+        :return: target(s) for feature extraction
+        """
+        return sequence[self.key]
+
+    def trainable(self):
+        return False
+
+
+class Feature(Extractor):
     def __init__(self, name, key, train=False, indices=None, unknown_word=UNKNOWN_WORD):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
@@ -27,10 +67,7 @@ class Feature(object):
         :param indices: (optional) initial indices
         :param unknown_word: (optional) unknown word form
         """
-        super(Feature, self).__init__()
-        self.sequential = False
-        self.name = name
-        self.key = key
+        super(Feature, self).__init__(name=name, key=key)
         self.train = train
         self.indices = indices  # feat_to_index dict
         self.reversed = None  # index_to_feat dict
@@ -43,11 +80,6 @@ class Feature(object):
         self.unknown_index = self.indices[unknown_word]
 
     def extract(self, instance):
-        """
-        Extracts a feature for a given instance.
-        :param instance: feature extraction input
-        :return: resulting extracted feature
-        """
         value = self.get_values(instance)
         value = self.map(value)
         index = self.feat_to_index(value)
@@ -78,21 +110,6 @@ class Feature(object):
             self.reversed = self._reverse()
         return self.reversed[index]
 
-    def map(self, value):
-        """
-        Function applied to each token in a sequence.
-        :param value: input token
-        :return: transformed value
-        """
-        return value
-
-    def get_values(self, sequence):
-        """
-        :param sequence: dictionary of sequences for feature extraction
-        :return: target(s) for feature extraction
-        """
-        return sequence[self.key]
-
     def write_vocab(self, path):
         """
         Write vocabulary as a file with a single line per entry and index 0 corresponding to the first line.
@@ -117,6 +134,9 @@ class Feature(object):
 
     def _reverse(self):
         return {i: key for (key, i) in self.indices.items()}
+
+    def trainable(self):
+        return True
 
 
 class SequenceFeature(Feature):
@@ -160,6 +180,11 @@ class SequenceListFeature(SequenceFeature):
 
     def get_values(self, sequence):
         return super(SequenceListFeature, self).get_values(sequence)
+
+
+class LengthFeature(Extractor):
+    def map(self, value):
+        return len(value)
 
 
 class FeatureExtractor(object):
@@ -266,6 +291,8 @@ class FeatureExtractor(object):
         :param base_path: base directory for vocabulary files
         """
         for key, feature in self.features.items():
+            if not feature.trainable():
+                continue
             path = os.path.join(base_path, key)
             parent_path = os.path.abspath(os.path.join(path, os.pardir))
             try:
@@ -281,5 +308,7 @@ class FeatureExtractor(object):
         :param base_path: base directory for vocabulary files
         """
         for key, feature in self.features.items():
+            if not feature.trainable():
+                continue
             path = os.path.join(base_path, key)
             feature.read_vocab(path)
