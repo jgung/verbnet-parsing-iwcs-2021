@@ -1,9 +1,6 @@
 import tensorflow as tf
 
-PAD_WORD = "<PAD>"
-UNKNOWN_WORD = "<UNK>"
-START_WORD = "<BOS>"
-END_WORD = "<EOS>"
+from tfnlp.common.constants import END_WORD, PAD_WORD, START_WORD, UNKNOWN_WORD
 
 
 def write_features(examples, out_path):
