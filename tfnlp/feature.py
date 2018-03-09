@@ -1,3 +1,5 @@
+import os
+
 import tensorflow as tf
 
 from tfnlp.common.constants import END_WORD, PAD_WORD, START_WORD, UNKNOWN_WORD
@@ -26,20 +28,19 @@ class Feature(object):
         :param unknown_word: (optional) unknown word form
         """
         super(Feature, self).__init__()
+        self.sequential = False
         self.name = name
         self.key = key
         self.train = train
-        self.indices = indices
+        self.indices = indices  # feat_to_index dict
+        self.reversed = None  # index_to_feat dict
         if self.indices is None:
             self.indices = {PAD_WORD: 0, unknown_word: 1, START_WORD: 2, END_WORD: 3}
 
         if unknown_word not in self.indices:
             # noinspection PyTypeChecker
             self.indices[unknown_word] = len(self.indices)
-
         self.unknown_index = self.indices[unknown_word]
-
-        self.sequential = False
 
     def extract(self, instance):
         """
@@ -67,6 +68,16 @@ class Feature(object):
                 index = self.unknown_index
         return index
 
+    def index_to_feat(self, index):
+        """
+        Returns the feature for a corresponding index. Errors out if feature is not in vocabulary.
+        :param index: index in feature vocab
+        :return: corresponding feature
+        """
+        if not self.reversed:
+            self.reversed = self._reverse()
+        return self.reversed[index]
+
     def map(self, value):
         """
         Function applied to each token in a sequence.
@@ -81,6 +92,31 @@ class Feature(object):
         :return: target(s) for feature extraction
         """
         return sequence[self.key]
+
+    def write_vocab(self, path):
+        """
+        Write vocabulary as a file with a single line per entry and index 0 corresponding to the first line.
+        :param path: path to file to save vocabulary
+        """
+        with open(path, mode='w') as vocab:
+            for i in range(len(self.indices)):
+                vocab.write('{}\n'.format(self.index_to_feat(i)))
+
+    def read_vocab(self, path):
+        """
+        Read vocabulary from file at given path, with a single line per entry and index 0 corresponding to the first line.
+        :param path: vocabulary file
+        """
+        self.indices = {}
+        self.reversed = None
+        with open(path, mode='r') as vocab:
+            for line in vocab:
+                line = line.strip()
+                if line:
+                    self.indices[line] = len(self.indices)
+
+    def _reverse(self):
+        return {i: key for (key, i) in self.indices.items()}
 
 
 class SequenceFeature(Feature):
@@ -181,7 +217,7 @@ class FeatureExtractor(object):
 
     def get_shapes(self):
         """
-        Create a dictionary of TensorShapes corresponding to features.
+        Create a dictionary of TensorShapes corresponding to features. Used primarily for TF Dataset API.
         :return: dict from feature names to TensorShapes
         """
         shapes = {}
@@ -197,7 +233,7 @@ class FeatureExtractor(object):
 
     def get_padding(self):
         """
-        Create a dictionary of default padding values for each feature.
+        Create a dictionary of default padding values for each feature. Used primarily for TF Dataset API.
         :return: dict from feature names to padding Tensors
         """
         padding = {}
@@ -223,3 +259,27 @@ class FeatureExtractor(object):
         Set all features to test mode (do not update feature dictionaries).
         """
         self.train(False)
+
+    def write_vocab(self, base_path):
+        """
+        Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
+        :param base_path: base directory for vocabulary files
+        """
+        for key, feature in self.features.items():
+            path = os.path.join(base_path, key)
+            parent_path = os.path.abspath(os.path.join(path, os.pardir))
+            try:
+                os.makedirs(parent_path)
+            except OSError:
+                if not os.path.isdir(parent_path):
+                    raise
+            feature.write_vocab(path)
+
+    def read_vocab(self, base_path):
+        """
+        Read vocabulary from vocabulary files in directory given by `base_path`.
+        :param base_path: base directory for vocabulary files
+        """
+        for key, feature in self.features.items():
+            path = os.path.join(base_path, key)
+            feature.read_vocab(path)

@@ -1,5 +1,7 @@
+import tempfile
 import unittest
 
+import pkg_resources
 from tensorflow import Session
 
 from tfnlp.feature import Feature, FeatureExtractor, SequenceFeature, SequenceListFeature
@@ -53,3 +55,18 @@ class TestFeature(unittest.TestCase):
             result[CHAR_KEY].eval()
             result[WORD_KEY].eval()
             result[NUM_KEY].eval()
+
+    def test_read_vocab(self):
+        dirpath = pkg_resources.resource_filename(__name__, "resources/vocab/word.txt")
+        self.word_feature.read_vocab(dirpath)
+        self.assertEqual(5, len(self.word_feature.indices))
+        self.assertEqual("the", self.word_feature.index_to_feat(0))
+        self.assertEqual("mat", self.word_feature.index_to_feat(4))
+
+    def test_write_and_read_vocab(self):
+        self.extractor.extract(self.sentence)
+        file = tempfile.NamedTemporaryFile()
+        self.word_feature.write_vocab(file.name)
+        self.word_feature.read_vocab(file.name)
+        self.assertEqual(9, len(self.word_feature.indices))
+        self.assertEqual("mat", self.word_feature.index_to_feat(8))
