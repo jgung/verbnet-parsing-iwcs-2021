@@ -4,7 +4,8 @@ import unittest
 
 import tensorflow as tf
 
-from test.feature_test import CHAR_KEY, NUM_KEY, WORD_KEY, test_extractor
+from test.feature_test import test_extractor
+from tfnlp.common.constants import CHAR_KEY, LABEL_KEY, WORD_KEY
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
 
@@ -13,8 +14,8 @@ class TestDatasets(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.sentence = {NUM_KEY: '0', WORD_KEY: "the cat sat on the mat".split()}
-        self.other_sentence = {NUM_KEY: '0', WORD_KEY: "the foo".split()}
+        self.sentence = {LABEL_KEY: '0', WORD_KEY: "the cat sat on the mat".split()}
+        self.other_sentence = {LABEL_KEY: '0', WORD_KEY: "the foo".split()}
         self.extractor = test_extractor()
         ex1 = self.extractor.extract(self.sentence)
         ex2 = self.extractor.extract(self.other_sentence)
@@ -35,4 +36,4 @@ class TestDatasets(unittest.TestCase):
             padding = (char_feature.max_len - 3) * [char_feature.pad_index]
             self.assertEqual([4, 5, 6] + padding, next_element[CHAR_KEY][0][0].tolist())
             self.assertEqual(4, next_element[WORD_KEY][0][0])
-            self.assertEqual(4, next_element[NUM_KEY][0])
+            self.assertEqual(4, next_element[LABEL_KEY][0])

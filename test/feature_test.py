@@ -4,20 +4,18 @@ import unittest
 import pkg_resources
 from tensorflow import Session
 
+from tfnlp.common.config import get_feature_extractor
+from tfnlp.common.constants import CHAR_KEY, LABEL_KEY, LENGTH_KEY, WORD_KEY
+from tfnlp.common.utils import read_json
 from tfnlp.feature import Feature, FeatureExtractor, LengthFeature, SequenceFeature, SequenceListFeature
-
-WORD_KEY = "word"
-CHAR_KEY = "char"
-NUM_KEY = "num"
-LENGTH_KEY = "len"
 
 
 def test_extractor():
-    num_feature = Feature(NUM_KEY, NUM_KEY)
-    len_feature = LengthFeature(LENGTH_KEY, WORD_KEY)
+    num_feature = Feature(LABEL_KEY, LABEL_KEY)
+    len_feature = LengthFeature(WORD_KEY)
     word_feature = SequenceFeature(WORD_KEY, WORD_KEY)
     char_feature = SequenceListFeature(CHAR_KEY, WORD_KEY)
-    extractor = FeatureExtractor([word_feature, char_feature, num_feature, len_feature])
+    extractor = FeatureExtractor([word_feature, char_feature, len_feature], [num_feature])
     extractor.train()
     return extractor
 
@@ -27,12 +25,12 @@ class TestFeature(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.extractor = test_extractor()
-        self.sentence = {NUM_KEY: '0', WORD_KEY: "the cat sat on the mat".split()}
-        self.other_sentence = {NUM_KEY: '1', WORD_KEY: "the foo".split()}
+        self.sentence = {LABEL_KEY: '0', WORD_KEY: "the cat sat on the mat".split()}
+        self.other_sentence = {LABEL_KEY: '1', WORD_KEY: "the foo".split()}
 
     def test_scalar(self):
         feats = self.extractor.extract(self.sentence)
-        self.assertEqual(4, feats.context.feature[NUM_KEY].int64_list.value[0])
+        self.assertEqual(4, feats.context.feature[LABEL_KEY].int64_list.value[0])
 
     def test_length(self):
         feats = self.extractor.extract(self.sentence)
@@ -70,7 +68,7 @@ class TestFeature(unittest.TestCase):
         with Session():
             result[CHAR_KEY].eval()
             result[WORD_KEY].eval()
-            result[NUM_KEY].eval()
+            result[LABEL_KEY].eval()
             result[LENGTH_KEY].eval()
 
     def test_read_vocab(self):
@@ -89,3 +87,15 @@ class TestFeature(unittest.TestCase):
         word_feature.read_vocab(file.name)
         self.assertEqual(9, len(word_feature.indices))
         self.assertEqual("mat", word_feature.index_to_feat(8))
+
+    def test_read_config(self):
+        configpath = pkg_resources.resource_filename(__name__, "resources/feats.json")
+        config = read_json(configpath)
+        extractor = get_feature_extractor(config)
+        extractor.train()
+        feats = extractor.extract(self.sentence)
+        self.assertEqual(6, len(feats.feature_lists.feature_list[CHAR_KEY].feature))
+        self.assertEqual([[4], [5], [6], [7], [4], [8]],
+                         [feat.int64_list.value for feat in feats.feature_lists.feature_list[WORD_KEY].feature])
+        self.assertEqual([[1]],
+                         [feat.int64_list.value for feat in feats.feature_lists.feature_list[LABEL_KEY].feature])

@@ -1,8 +1,12 @@
 import os
+import re
+from itertools import chain
 
 import tensorflow as tf
 
-from tfnlp.common.constants import END_WORD, PAD_WORD, START_WORD, UNKNOWN_WORD
+from tfnlp.common.constants import END_WORD, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, START_WORD, UNKNOWN_WORD
+from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
+from tfnlp.common.utils import Params, deserialize, serialize
 
 
 def write_features(examples, out_path):
@@ -17,16 +21,33 @@ def write_features(examples, out_path):
             writer.write(example.SerializeToString())
 
 
+def get_mapping_function(func):
+    if func == LOWER:
+        return lambda x: x.lower()
+    elif func == NORMALIZE_DIGITS:
+        return lambda x: re.sub("\d", "#", x)
+    raise AssertionError("Unexpected function name: {}".format(func))
+
+
 class Extractor(object):
     """
     This class encompasses features that do not use vocabularies. This includes non-categorical features as well as
     metadata such as sequence lengths and identifiers.
     """
 
-    def __init__(self, name, key):
-        self.sequential = False
+    def __init__(self, name, key, config=None, mapping_funcs=None, **kwargs):
+        """
+        Initialize an extractor.
+        :param name: unique identifier for this feature
+        :param key: key used for extracting values from input instance dictionary
+        :param config: extra parameters used during training
+                :param mapping_funcs: list of functions mapping features to new values
+        """
         self.name = name
         self.key = key
+        self.rank = 1
+        self.config = config if config else Params()
+        self.mapping_funcs = [get_mapping_function(func) for func in mapping_funcs] if mapping_funcs else []
 
     def extract(self, instance):
         """
@@ -44,6 +65,8 @@ class Extractor(object):
         :param value: input token
         :return: transformed value
         """
+        for func in self.mapping_funcs:
+            value = func(value)
         return value
 
     def get_values(self, sequence):
@@ -53,12 +76,13 @@ class Extractor(object):
         """
         return sequence[self.key]
 
-    def trainable(self):
+    def has_vocab(self):
         return False
 
 
 class Feature(Extractor):
-    def __init__(self, name, key, train=False, indices=None, unknown_word=UNKNOWN_WORD):
+    def __init__(self, name, key, config=None, train=False, indices=None, unknown_word=UNKNOWN_WORD,
+                 mapping_funcs=None, **kwargs):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
         :param name: unique identifier for this feature
@@ -66,8 +90,9 @@ class Feature(Extractor):
         :param train: if `True`, then update vocabulary upon encountering new words--otherwise, leave it unmodified
         :param indices: (optional) initial indices
         :param unknown_word: (optional) unknown word form
+        :param mapping_funcs: list of functions mapping features to new values
         """
-        super(Feature, self).__init__(name=name, key=key)
+        super(Feature, self).__init__(name=name, key=key, config=config, mapping_funcs=mapping_funcs, **kwargs)
         self.train = train
         self.indices = indices  # feat_to_index dict
         self.reversed = None  # index_to_feat dict
@@ -75,15 +100,18 @@ class Feature(Extractor):
             self.indices = {PAD_WORD: 0, unknown_word: 1, START_WORD: 2, END_WORD: 3}
 
         if unknown_word not in self.indices:
-            # noinspection PyTypeChecker
             self.indices[unknown_word] = len(self.indices)
         self.unknown_index = self.indices[unknown_word]
+        self.embedding = None
 
     def extract(self, instance):
         value = self.get_values(instance)
         value = self.map(value)
         index = self.feat_to_index(value)
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[index]))
+
+    def map(self, value):
+        return super(Feature, self).map(value)
 
     def feat_to_index(self, feat):
         """
@@ -138,35 +166,49 @@ class Feature(Extractor):
         """
         return len(self.indices)
 
+    def has_vocab(self):
+        return True
+
     def _reverse(self):
         return {i: key for (key, i) in self.indices.items()}
-
-    def trainable(self):
-        return True
 
 
 class SequenceFeature(Feature):
 
-    def __init__(self, name, key, train=False, indices=None, unknown_word=UNKNOWN_WORD):
-        super().__init__(name, key, train, indices, unknown_word)
-        self.sequential = True
+    def __init__(self, name, key, config=None, train=False, indices=None, unknown_word=UNKNOWN_WORD, **kwargs):
+        super().__init__(name, key, config=config, train=train, indices=indices, unknown_word=unknown_word, **kwargs)
+        self.rank = 2
 
     def extract(self, sequence):
         input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[self.feat_to_index(self.map(result))]))
                           for result in self.get_values(sequence)]
         return tf.train.FeatureList(feature=input_features)
 
+    def map(self, value):
+        return super(SequenceFeature, self).map(value)
+
 
 class SequenceListFeature(SequenceFeature):
 
-    def __init__(self, name, key, max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD, pad_word=PAD_WORD):
-        super().__init__(name, key, train, indices, unknown_word)
+    def __init__(self, name, key, config=None,
+                 max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD, pad_word=PAD_WORD,
+                 left_padding=0, right_padding=0, left_pad_word=START_WORD, right_pad_word=END_WORD, **kwargs):
+        super().__init__(name, key, config=config, train=train, indices=indices, unknown_word=unknown_word, **kwargs)
+        self.rank = 3
         self.max_len = max_len
 
         if pad_word not in self.indices:
-            # noinspection PyTypeChecker
             self.indices[pad_word] = len(self.indices)
+        if left_pad_word not in self.indices:
+            self.indices[left_pad_word] = len(self.indices)
+        if right_pad_word not in self.indices:
+            self.indices[right_pad_word] = len(self.indices)
+
         self.pad_index = self.indices[pad_word]
+        self.start_index = self.indices[left_pad_word]
+        self.end_index = self.indices[right_pad_word]
+        self.left_padding = left_padding
+        self.right_padding = right_padding
 
     def extract(self, sequence):
         input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(self.map(result))))
@@ -175,6 +217,7 @@ class SequenceListFeature(SequenceFeature):
 
     def feat_to_index(self, features):
         result = [super(SequenceListFeature, self).feat_to_index(feat) for feat in features]
+        result = self.left_padding * [self.start_index] + result + self.right_padding * [self.end_index]
         if len(result) < self.max_len:
             result += (self.max_len - len(result)) * [self.pad_index]
         else:
@@ -182,28 +225,41 @@ class SequenceListFeature(SequenceFeature):
         return result
 
     def map(self, value):
-        return list(super(SequenceListFeature, self).map(value))
+        value = super(SequenceListFeature, self).map(value)
+        return list(value)
 
     def get_values(self, sequence):
         return super(SequenceListFeature, self).get_values(sequence)
 
 
 class LengthFeature(Extractor):
+    def __init__(self, key, name=LENGTH_KEY):
+        super().__init__(name=name, key=key, config=None)
+
     def map(self, value):
+        value = super(LengthFeature, self).map(value)
         return len(value)
 
 
 class FeatureExtractor(object):
-    def __init__(self, features):
+    def __init__(self, features, targets=None):
         """
         This class encompasses multiple Feature objects, creating TFRecord-formatted instances.
         :param features: list of Features
+        :param targets: list of targets
         """
         super().__init__()
         self.features = {feature.name: feature for feature in features}
+        self.targets = {target.name: target for target in targets} if targets else {}
+
+    def extractors(self):
+        return chain(self.features.values(), self.targets.values())
 
     def feature(self, name):
         return self.features[name]
+
+    def target(self, name):
+        return self.targets[name]
 
     def extract(self, instance):
         """
@@ -213,7 +269,7 @@ class FeatureExtractor(object):
         """
         feature_list = {}
         features = {}
-        for feature in self.features.values():
+        for feature in self.extractors():
             feat = feature.extract(instance)
             if isinstance(feat, tf.train.FeatureList):
                 feature_list[feature.name] = feat
@@ -232,14 +288,15 @@ class FeatureExtractor(object):
         """
         context_features = {}
         sequence_features = {}
-        for feature in self.features.values():
-            if isinstance(feature, SequenceFeature):
-                if isinstance(feature, SequenceListFeature):
-                    sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=tf.int64)
-                else:
-                    sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
-            else:
+        for feature in self.extractors():
+            if feature.rank == 1:
                 context_features[feature.name] = tf.FixedLenFeature([], dtype=tf.int64)
+            elif feature.rank == 2:
+                sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
+            elif feature.rank == 3:
+                sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=tf.int64)
+            else:
+                raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
 
         context_parsed, sequence_parsed = tf.parse_single_sequence_example(
             serialized=example,
@@ -255,14 +312,16 @@ class FeatureExtractor(object):
         :return: dict from feature names to TensorShapes
         """
         shapes = {}
-        for feature in self.features.values():
-            if isinstance(feature, SequenceFeature):
-                if isinstance(feature, SequenceListFeature):
-                    shapes[feature.name] = tf.TensorShape([None, feature.max_len])
-                else:
-                    shapes[feature.name] = tf.TensorShape([None])
-            else:
+        for feature in self.extractors():
+            if feature.rank == 3:
+                shapes[feature.name] = tf.TensorShape([None, feature.max_len])
+            elif feature.rank == 2:
+                shapes[feature.name] = tf.TensorShape([None])
+            elif feature.rank == 1:
                 shapes[feature.name] = tf.TensorShape([])
+            else:
+                raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
+
         return shapes
 
     def get_padding(self):
@@ -271,9 +330,9 @@ class FeatureExtractor(object):
         :return: dict from feature names to padding Tensors
         """
         padding = {}
-        for feature in self.features.values():
+        for feature in self.extractors():
             index = 0
-            if feature.trainable():
+            if feature.has_vocab():
                 if hasattr(feature, 'pad_index'):
                     index = feature.pad_index
                 elif PAD_WORD in feature.indices:
@@ -286,7 +345,7 @@ class FeatureExtractor(object):
         When called, sets all features to the specified training mode.
         :param train: `True` by default
         """
-        for feature in self.features.values():
+        for feature in self.extractors():
             feature.train = train
 
     def test(self):
@@ -298,12 +357,13 @@ class FeatureExtractor(object):
     def write_vocab(self, base_path):
         """
         Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
+        Creates pickled embeddings if explicit initializers are provided.
         :param base_path: base directory for vocabulary files
         """
-        for key, feature in self.features.items():
-            if not feature.trainable():
+        for feature in self.extractors():
+            if not feature.has_vocab():
                 continue
-            path = os.path.join(base_path, key)
+            path = os.path.join(base_path, feature.name)
             parent_path = os.path.abspath(os.path.join(path, os.pardir))
             try:
                 os.makedirs(parent_path)
@@ -312,13 +372,23 @@ class FeatureExtractor(object):
                     raise
             feature.write_vocab(path)
 
+            initializer = feature.config.get(INITIALIZER)
+            if initializer:
+                vectors, dim = read_vectors(initializer.embedding)
+                feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
+                serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
+
     def read_vocab(self, base_path):
         """
-        Read vocabulary from vocabulary files in directory given by `base_path`.
+        Read vocabulary from vocabulary files in directory given by `base_path`. Loads any pickled embeddings.
         :param base_path: base directory for vocabulary files
         """
-        for key, feature in self.features.items():
-            if not feature.trainable():
+        for feature in self.extractors():
+            if not feature.has_vocab():
                 continue
-            path = os.path.join(base_path, key)
+            path = os.path.join(base_path, feature.name)
             feature.read_vocab(path)
+
+            initializer = feature.config.get(INITIALIZER)
+            if initializer:
+                feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
