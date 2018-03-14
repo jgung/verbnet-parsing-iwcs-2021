@@ -89,12 +89,12 @@ def test(args):
         for instance in conll_2003_reader().read_file(args.train):
             examples.append(extractor.extract(instance))
         write_features(examples, args.train + ".tfr")
-        extractor.test()
         examples = []
         for instance in conll_2003_reader().read_file(args.valid):
             examples.append(extractor.extract(instance))
         write_features(examples, args.valid + ".tfr")
         extractor.write_vocab(args.vocab)
+        extractor.test()
 
         print("Beginning training...")
         estimator = tf.estimator.Estimator(model_fn=model_func, model_dir=args.save,
