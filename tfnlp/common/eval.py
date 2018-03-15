@@ -1,9 +1,12 @@
+import os
 import re
 import subprocess
 import tempfile
 
 import tensorflow as tf
-from tensorflow.python.training import session_run_hook
+from tensorflow.contrib.learn import ExportStrategy, make_export_strategy
+from tensorflow.contrib.learn.python.learn.utils.saved_model_export_utils import BestModelSelector
+from tensorflow.python.training import saver, session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, PREDICT_KEY
@@ -72,3 +75,39 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
         tf.logging.info(result)
         if score > self._best:
             self._best = score
+
+
+def make_best_model_export_strategy(
+        serving_input_fn,
+        exports_to_keep=1,
+        model_dir=None,
+        event_file_pattern=None,
+        compare_fn=None,
+        default_output_alternative_key=None,
+        strip_default_attrs=None):
+    best_model_export_strategy = make_export_strategy(
+        serving_input_fn,
+        exports_to_keep=exports_to_keep,
+        default_output_alternative_key=default_output_alternative_key,
+        strip_default_attrs=strip_default_attrs)
+
+    full_event_file_pattern = os.path.join(
+        model_dir,
+        event_file_pattern) if model_dir and event_file_pattern else None
+    best_model_selector = BestModelSelector(full_event_file_pattern, compare_fn)
+
+    def export_fn(estimator, export_dir_base, checkpoint_path, eval_result=None):
+        if not checkpoint_path:
+            checkpoint_path = saver.latest_checkpoint(estimator.model_dir)
+        export_checkpoint_path, export_eval_result = best_model_selector.update(
+            checkpoint_path, eval_result)
+
+        if export_checkpoint_path and export_eval_result is not None:
+            checkpoint_base = os.path.basename(export_checkpoint_path)
+            export_dir = os.path.join(tf.compat.as_str_any(export_dir_base), tf.compat.as_str_any(checkpoint_base))
+            return best_model_export_strategy.export(
+                estimator, export_dir, export_checkpoint_path, export_eval_result)
+        else:
+            return ''
+
+    return ExportStrategy('best_model', export_fn)

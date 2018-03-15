@@ -252,8 +252,10 @@ class FeatureExtractor(object):
         self.features = {feature.name: feature for feature in features}
         self.targets = {target.name: target for target in targets} if targets else {}
 
-    def extractors(self):
-        return chain(self.features.values(), self.targets.values())
+    def extractors(self, train=True):
+        if train:
+            return chain(self.features.values(), self.targets.values())
+        return self.features.values()
 
     def feature(self, name):
         return self.features[name]
@@ -261,15 +263,16 @@ class FeatureExtractor(object):
     def target(self, name):
         return self.targets[name]
 
-    def extract(self, instance):
+    def extract(self, instance, train=True):
         """
         Extract features for a single instance as a SequenceExample.
         :param instance: input instance dictionary
+        :param train: extract targets if `True`
         :return: TF SequenceExample
         """
         feature_list = {}
         features = {}
-        for feature in self.extractors():
+        for feature in self.extractors(train):
             feat = feature.extract(instance)
             if isinstance(feat, tf.train.FeatureList):
                 feature_list[feature.name] = feat
@@ -280,15 +283,16 @@ class FeatureExtractor(object):
         features = tf.train.Features(feature=features)
         return tf.train.SequenceExample(context=features, feature_lists=feature_lists)
 
-    def parse(self, example):
+    def parse(self, example, train=True):
         """
         Parse a single TFRecord example into a dictionary from feature names onto corresponding Tensors.
         :param example: serialized TFRecord example
+        :param train: parse targets if `True`
         :return: dictionary of Tensors
         """
         context_features = {}
         sequence_features = {}
-        for feature in self.extractors():
+        for feature in self.extractors(train):
             if feature.rank == 1:
                 context_features[feature.name] = tf.FixedLenFeature([], dtype=tf.int64)
             elif feature.rank == 2:
@@ -306,13 +310,14 @@ class FeatureExtractor(object):
 
         return {**sequence_parsed, **context_parsed}
 
-    def get_shapes(self):
+    def get_shapes(self, train=True):
         """
         Create a dictionary of TensorShapes corresponding to features. Used primarily for TF Dataset API.
+        :param train: include target shapes if `True`
         :return: dict from feature names to TensorShapes
         """
         shapes = {}
-        for feature in self.extractors():
+        for feature in self.extractors(train):
             if feature.rank == 3:
                 shapes[feature.name] = tf.TensorShape([None, feature.max_len])
             elif feature.rank == 2:
@@ -324,13 +329,14 @@ class FeatureExtractor(object):
 
         return shapes
 
-    def get_padding(self):
+    def get_padding(self, train=True):
         """
         Create a dictionary of default padding values for each feature. Used primarily for TF Dataset API.
+                :param train: include target padding if `True`
         :return: dict from feature names to padding Tensors
         """
         padding = {}
-        for feature in self.extractors():
+        for feature in self.extractors(train):
             index = 0
             if feature.has_vocab():
                 if hasattr(feature, 'pad_index'):
