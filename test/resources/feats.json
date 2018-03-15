@@ -37,6 +37,7 @@
       "rank": 3,
       "left_padding": 2,
       "right_padding": 2,
+      "max_len": 30,
       "config": {
         "dim": 30,
         "trainable": true,
@@ -44,8 +45,7 @@
         "function": {
           "name": "ConvNet",
           "kernel_size": 3,
-          "num_filters": 40,
-          "max_length": 20
+          "num_filters": 30
         }
       }
     }
