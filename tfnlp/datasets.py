@@ -1,7 +1,7 @@
 import tensorflow as tf
+from tensorflow.contrib.data import bucket_by_sequence_length
 
 from tfnlp.common.constants import LENGTH_KEY
-from tfnlp.layers.grouping import bucket_by_sequence_length
 
 
 def make_dataset(extractor, paths, batch_size=16, bucket_sizes=None, evaluate=False):

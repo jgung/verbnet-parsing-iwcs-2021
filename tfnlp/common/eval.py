@@ -3,9 +3,11 @@ import re
 import subprocess
 import tempfile
 
+import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.learn import ExportStrategy, make_export_strategy
-from tensorflow.contrib.learn.python.learn.utils.saved_model_export_utils import BestModelSelector
+from tensorflow.python.estimator.canned.metric_keys import MetricKeys
+from tensorflow.python.estimator.exporter import LatestExporter
+from tensorflow.python.summary import summary_iterator
 from tensorflow.python.training import saver, session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
@@ -77,37 +79,85 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
             self._best = score
 
 
-def make_best_model_export_strategy(
-        serving_input_fn,
-        exports_to_keep=1,
-        model_dir=None,
-        event_file_pattern=None,
-        compare_fn=None,
-        default_output_alternative_key=None,
-        strip_default_attrs=None):
-    best_model_export_strategy = make_export_strategy(
-        serving_input_fn,
-        exports_to_keep=exports_to_keep,
-        default_output_alternative_key=default_output_alternative_key,
-        strip_default_attrs=strip_default_attrs)
+class BestExporter(LatestExporter):
 
-    full_event_file_pattern = os.path.join(
-        model_dir,
-        event_file_pattern) if model_dir and event_file_pattern else None
-    best_model_selector = BestModelSelector(full_event_file_pattern, compare_fn)
+    def __init__(self, serving_input_receiver_fn, assets_extra=None, as_text=False, exports_to_keep=5,
+                 compare_fn=None, event_file_pattern=None, compare_key=MetricKeys.LOSS):
+        super().__init__('best_model', serving_input_receiver_fn, assets_extra, as_text, exports_to_keep)
+        self._compare_fn = compare_fn or self._default_compare_fn
+        self._best_eval_result = self._get_best_eval_result(event_file_pattern)
+        self._default_compare_key = compare_key
 
-    def export_fn(estimator, export_dir_base, checkpoint_path, eval_result=None):
+    def export(self, estimator, export_path, checkpoint_path, eval_result, is_the_final_export):
         if not checkpoint_path:
             checkpoint_path = saver.latest_checkpoint(estimator.model_dir)
-        export_checkpoint_path, export_eval_result = best_model_selector.update(
-            checkpoint_path, eval_result)
+        export_checkpoint_path, export_eval_result = self._update(checkpoint_path, eval_result)
 
         if export_checkpoint_path and export_eval_result is not None:
             checkpoint_base = os.path.basename(export_checkpoint_path)
-            export_dir = os.path.join(tf.compat.as_str_any(export_dir_base), tf.compat.as_str_any(checkpoint_base))
-            return best_model_export_strategy.export(
-                estimator, export_dir, export_checkpoint_path, export_eval_result)
+            export_dir = os.path.join(tf.compat.as_str_any(export_path), tf.compat.as_str_any(checkpoint_base))
+            return super().export(estimator, export_dir, export_checkpoint_path, export_eval_result, is_the_final_export)
         else:
             return ''
 
-    return ExportStrategy('best_model', export_fn)
+    def _update(self, checkpoint_path, eval_result):
+        """
+        Records a given checkpoint and exports if this is the best model.
+        :param checkpoint_path: the checkpoint path to export
+        :param eval_result: a dictionary which is usually generated in evaluation runs
+        :return: path to export checkpoint and dictionary and eval_result, or None
+        """
+        if not checkpoint_path:
+            raise ValueError('Checkpoint path is empty.')
+        if eval_result is None:
+            raise ValueError('%s has empty evaluation results.', checkpoint_path)
+
+        if (self._best_eval_result is None or
+                self._compare_fn(self._best_eval_result, eval_result)):
+            tf.logging.info("Updating best result from %s to %s", self._best_eval_result, eval_result)
+            self._best_eval_result = eval_result
+            return checkpoint_path, eval_result
+        else:
+            return '', None
+
+    def _get_best_eval_result(self, event_files):
+        if not event_files:
+            return None
+
+        best_eval_result = None
+        for event_file in tf.gfile.Glob(os.path.join(event_files)):
+            for event in summary_iterator.summary_iterator(event_file):
+                if event.HasField('summary'):
+                    event_eval_result = {}
+                    for value in event.summary.value:
+                        if value.HasField('simple_value'):
+                            event_eval_result[value.tag] = value.simple_value
+                    if best_eval_result is None or self._compare_fn(best_eval_result, event_eval_result):
+                        best_eval_result = event_eval_result
+        return best_eval_result
+
+    def _default_compare_fn(self, curr_best_eval_result, cand_eval_result):
+        if not curr_best_eval_result or self._default_compare_key not in curr_best_eval_result:
+            raise ValueError('curr_best_eval_result cannot be empty or no loss is found in it.')
+        if not cand_eval_result or self._default_compare_key not in cand_eval_result:
+            raise ValueError('cand_eval_result cannot be empty or no loss is found in it.')
+
+        return cand_eval_result[self._default_compare_key] > curr_best_eval_result[self._default_compare_key]
+
+
+def log_trainable_variables():
+    """
+    Log every trainable variable name and shape and return the total number of trainable variables.
+    :return: total number of trainable variables
+    """
+    all_weights = {variable.name: variable for variable in tf.trainable_variables()}
+    total_size = 0
+    for variable_name in sorted(list(all_weights)):
+        variable = all_weights[variable_name]
+        tf.logging.info("%s\tshape    %s", variable.name[:-2].ljust(80),
+                        str(variable.shape).ljust(20))
+        variable_size = int(np.prod(np.array(variable.shape.as_list())))
+        total_size += variable_size
+
+    tf.logging.info("Total trainable variables size: %d", total_size)
+    return total_size
