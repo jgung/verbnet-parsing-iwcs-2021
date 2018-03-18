@@ -33,13 +33,14 @@ def _get_input(feature_ids, feature, training):
     result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
                                     name='{}_lookup'.format(feature.name))  # wrapper of gather
 
-    if feature.rank == 3:  # reduce multiple vectors per token to a single vector
-        with tf.name_scope('{}_reduction_op'.format(feature.name)):
-            result = feature.config.func.apply(result)
-
     if feature.config.dropout > 0:
         result = tf.layers.dropout(result,
                                    rate=feature.config.dropout,
                                    training=training,
                                    name='{}_dropout'.format(feature.name))
+
+    if feature.rank == 3:  # reduce multiple vectors per token to a single vector
+        with tf.name_scope('{}_reduction_op'.format(feature.name)):
+            result = feature.config.func.apply(result)
+
     return result
