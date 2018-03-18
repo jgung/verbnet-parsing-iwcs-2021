@@ -31,6 +31,7 @@ KEY_FIELD = "key"
 NAME_FIELD = "name"
 CONFIG_FIELD = "config"
 INITIALIZER = "initializer"
+INCLUDE_IN_VOCAB = "include_in_vocab"
 
 LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"

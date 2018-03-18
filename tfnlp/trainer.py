@@ -160,12 +160,14 @@ class Trainer(object):
     def _train_vocab(self):
         print("Reading/writing features...")
         self._feature_extractor.train()
+        self._feature_extractor.initialize()
 
         examples = []
         for instance in self._raw_instance_reader_fn(self._raw_train):
             examples.append(self._feature_extractor.extract(instance))
         write_features(examples, self._data_path_fn(self._raw_train))
 
+        self._feature_extractor.test()
         examples = []
         for instance in self._raw_instance_reader_fn(self._raw_valid):
             examples.append(self._feature_extractor.extract(instance))

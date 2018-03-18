@@ -4,7 +4,8 @@ from itertools import chain
 
 import tensorflow as tf
 
-from tfnlp.common.constants import END_WORD, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, START_WORD, UNKNOWN_WORD
+from tfnlp.common.constants import END_WORD, INCLUDE_IN_VOCAB, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, \
+    START_WORD, UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.utils import Params, deserialize, serialize
 
@@ -359,6 +360,16 @@ class FeatureExtractor(object):
         Set all features to test mode (do not update feature dictionaries).
         """
         self.train(False)
+
+    def initialize(self):
+        for feature in self.extractors():
+            initializer = feature.config.get(INITIALIZER)
+            if initializer:
+                include = initializer.get(INCLUDE_IN_VOCAB)
+                if include:
+                    vectors, dim = read_vectors(initializer.embedding, max_vecs=include)
+                    for key in vectors:
+                        feature.feat_to_index(key)
 
     def write_vocab(self, base_path):
         """
