@@ -1,5 +1,6 @@
 import argparse
 
+import os
 import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
@@ -10,7 +11,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor
-from tfnlp.common.constants import F1_METRIC_KEY, WORD_KEY
+from tfnlp.common.constants import F1_METRIC_KEY, WORD_KEY, LABEL_KEY
 from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
@@ -31,6 +32,7 @@ def default_args():
     parser.add_argument('--mode', type=str, default="train", help='Command in [train, predict]')
     parser.add_argument('--features', type=str, required=True, help='JSON config file for initializing feature extractors')
     parser.add_argument('--config', type=str, required=True, help='JSON config file for additional training options')
+    parser.add_argument('--script', type=str, help='Optional path to evaluation script')
     return parser
 
 
@@ -60,8 +62,8 @@ class Trainer(object):
         self._vocab_path = args.vocab
         self._feature_config = read_json(args.features)
         self._training_config = read_json(args.config)
+        self._eval_script_path = args.script
         self._output_path = None
-        self._eval_script_path = None
         self._log_path = None
 
         self._parse_fn = default_parser
@@ -102,10 +104,9 @@ class Trainer(object):
 
     def train(self):
         self._init_feature_extractor()
-        hyperparameters = HParams(extractor=self._feature_extractor, config=self._training_config)
         estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
                                            config=RunConfig(save_checkpoints_steps=2000),
-                                           params=hyperparameters)
+                                           params=self._params())
 
         def train_input_fn():
             return make_dataset(self._feature_extractor, paths=self._data_path_fn(self._raw_train),
@@ -132,7 +133,7 @@ class Trainer(object):
 
         estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
                                            config=RunConfig(save_checkpoints_steps=2000),
-                                           params=HParams(extractor=self._feature_extractor, config=self._training_config))
+                                           params=self._params())
 
         def eval_input_fn():
             return make_dataset(self._feature_extractor, paths=self._data_path_fn(self._raw_test),
@@ -144,6 +145,10 @@ class Trainer(object):
         raise NotImplementedError
 
     def itl(self):
+        self._feature_extractor = get_feature_extractor(self._feature_config)
+        self._feature_extractor.read_vocab(self._vocab_path)
+        self._feature_extractor.test()
+
         predictor = from_saved_model(self._save_path)
         while True:
             sentence = input(">>> ")
@@ -186,6 +191,13 @@ class Trainer(object):
             return ServingInputReceiver(features, receiver_tensors)
 
         return serving_input_receiver_fn
+
+    def _params(self):
+        params = HParams(extractor=self._feature_extractor,
+                         config=self._training_config,
+                         script_path=self._eval_script_path,
+                         label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY))
+        return params
 
 
 if __name__ == '__main__':

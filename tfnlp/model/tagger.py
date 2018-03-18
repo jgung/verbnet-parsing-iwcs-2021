@@ -4,6 +4,7 @@ from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper
 
+from tfnlp.common.config import get_gradient_clip, get_optimizer
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, PREDICT_KEY
 from tfnlp.common.eval import SequenceEvalHook, log_trainable_variables
 from tfnlp.common.metrics import tagger_metrics
@@ -58,16 +59,11 @@ def model_func(features, mode, params):
         loss = tf.reduce_mean(losses)
 
     if mode == tf.estimator.ModeKeys.TRAIN:
-        learning_rate = tf.train.inverse_time_decay(learning_rate=0.015,
-                                                    global_step=tf.train.get_global_step(),
-                                                    decay_steps=2000,
-                                                    decay_rate=0.05)
-        optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=0.9)
-
-        tvars = tf.trainable_variables()
-        gradients = tf.gradients(loss, tvars)
-        gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=5.0)
-        train_op = optimizer.apply_gradients(zip(gradients, tvars), global_step=tf.train.get_global_step())
+        optimizer = get_optimizer(params.config)
+        parameters = tf.trainable_variables()
+        gradients = tf.gradients(loss, parameters)
+        gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=get_gradient_clip(params.config))
+        train_op = optimizer.apply_gradients(zip(gradients, parameters), global_step=tf.train.get_global_step())
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
@@ -75,14 +71,16 @@ def model_func(features, mode, params):
 
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)
-        evaluation_hooks = [SequenceEvalHook(script_path="data/scripts/conlleval.pl",
-                                             gold_tensor=targets,
-                                             predict_tensor=predictions,
-                                             length_tensor=features[LENGTH_KEY],
-                                             vocab=params.extractor.targets[LABEL_KEY])]
+        evaluation_hooks = []
+        if params.script_path is not None:
+            evaluation_hooks.append(SequenceEvalHook(script_path=params.script_path,
+                                                     gold_tensor=targets,
+                                                     predict_tensor=predictions,
+                                                     length_tensor=features[LENGTH_KEY],
+                                                     vocab=params.extractor.targets[LABEL_KEY]))
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        index_to_label = index_to_string_table_from_file("data/vocab/gold",
+        index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
                                                          default_value=target.index_to_feat(target.unknown_index))
         predictions = index_to_label.lookup(tf.cast(predictions, dtype=tf.int64))
         export_outputs = {PREDICT_KEY: PredictOutput(predictions)}
