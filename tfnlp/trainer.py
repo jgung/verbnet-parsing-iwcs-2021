@@ -1,6 +1,6 @@
 import argparse
-
 import os
+
 import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
@@ -11,7 +11,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor
-from tfnlp.common.constants import F1_METRIC_KEY, WORD_KEY, LABEL_KEY
+from tfnlp.common.constants import F1_METRIC_KEY, LABEL_KEY, WORD_KEY
 from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
@@ -66,8 +66,10 @@ class Trainer(object):
         self._output_path = None
         self._log_path = None
 
-        self._parse_fn = default_parser
         self._feature_extractor = None
+        self._estimator = None
+
+        self._parse_fn = default_parser
         self._prediction_formatter_fn = default_formatter
         self._predict_input_fn = default_input_fn
         self._model_fn = model_func
@@ -91,6 +93,8 @@ class Trainer(object):
         return self._get_arg_parser().parse_args(args)
 
     def run(self):
+        self._init_feature_extractor()
+        self._init_estimator()
         if self._mode == "train":
             self.train()
         elif self._mode == "eval":
@@ -103,52 +107,22 @@ class Trainer(object):
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 
     def train(self):
-        self._init_feature_extractor()
-        estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                           config=RunConfig(save_checkpoints_steps=2000),
-                                           params=self._params())
-
-        def train_input_fn():
-            return make_dataset(self._feature_extractor, paths=self._data_path_fn(self._raw_train),
-                                batch_size=self._training_config.batch_size)
-
-        def eval_input_fn():
-            return make_dataset(self._feature_extractor, paths=self._data_path_fn(self._raw_valid),
-                                batch_size=self._training_config.batch_size, evaluate=True)
-
+        train_input_fn = self._input_fn(self._raw_train, True)
+        eval_input_fn = self._input_fn(self._raw_valid, False)
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn(), compare_key=F1_METRIC_KEY)
-        train_and_evaluate(estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=None),
+        train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=None),
                            eval_spec=tf.estimator.EvalSpec(input_fn=eval_input_fn, steps=None, exporters=[exporter],
-                                                           throttle_secs=60))
+                                                           throttle_secs=180))
 
     def eval(self):
-        self._feature_extractor = get_feature_extractor(self._feature_config)
-        self._feature_extractor.read_vocab(self._vocab_path)
-        self._feature_extractor.test()
-
-        examples = []
-        for instance in self._raw_instance_reader_fn(self._raw_test):
-            examples.append(self._feature_extractor.extract(instance))
-        write_features(examples, self._data_path_fn(self._raw_test))
-
-        estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                           config=RunConfig(save_checkpoints_steps=2000),
-                                           params=self._params())
-
-        def eval_input_fn():
-            return make_dataset(self._feature_extractor, paths=self._data_path_fn(self._raw_test),
-                                batch_size=self._training_config.batch_size, evaluate=True)
-
-        estimator.evaluate(eval_input_fn)
+        self._extract_features(self._raw_test, train=False)
+        eval_input_fn = self._input_fn(self._raw_test, False)
+        self._estimator.evaluate(eval_input_fn)
 
     def predict(self):
         raise NotImplementedError
 
     def itl(self):
-        self._feature_extractor = get_feature_extractor(self._feature_config)
-        self._feature_extractor.read_vocab(self._vocab_path)
-        self._feature_extractor.test()
-
         predictor = from_saved_model(self._save_path)
         while True:
             sentence = input(">>> ")
@@ -160,27 +134,30 @@ class Trainer(object):
 
     def _init_feature_extractor(self):
         self._feature_extractor = get_feature_extractor(self._feature_config)
-        self._train_vocab()
+        if self._mode == "train":
+            self._train_vocab()
+        else:
+            self._feature_extractor.read_vocab(self._vocab_path)
+        self._feature_extractor.test()
 
     def _train_vocab(self):
-        print("Reading/writing features...")
-        self._feature_extractor.train()
+        tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize()
-
-        examples = []
-        for instance in self._raw_instance_reader_fn(self._raw_train):
-            examples.append(self._feature_extractor.extract(instance))
-        write_features(examples, self._data_path_fn(self._raw_train))
-
-        self._feature_extractor.test()
-        examples = []
-        for instance in self._raw_instance_reader_fn(self._raw_valid):
-            examples.append(self._feature_extractor.extract(instance))
-        write_features(examples, self._data_path_fn(self._raw_valid))
-
+        self._extract_features(self._raw_train, train=True)
+        self._extract_features(self._raw_valid, train=False)
         self._feature_extractor.write_vocab(self._vocab_path)
 
-        self._feature_extractor.test()
+    def _extract_features(self, path, train=False):
+        self._feature_extractor.train(train)
+        examples = []
+        for instance in self._raw_instance_reader_fn(path):
+            examples.append(self._feature_extractor.extract(instance))
+        write_features(examples, self._data_path_fn(path))
+
+    def _init_estimator(self):
+        self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
+                                                 config=RunConfig(save_checkpoints_steps=2000),
+                                                 params=self._params())
 
     def _serving_input_fn(self):
         def serving_input_receiver_fn():
@@ -198,6 +175,10 @@ class Trainer(object):
                          script_path=self._eval_script_path,
                          label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY))
         return params
+
+    def _input_fn(self, dataset, train=False):
+        return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
+                                    batch_size=self._training_config.batch_size, evaluate=not train)
 
 
 if __name__ == '__main__':

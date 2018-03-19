@@ -362,6 +362,7 @@ class FeatureExtractor(object):
         self.train(False)
 
     def initialize(self):
+        self.train()
         for feature in self.extractors():
             initializer = feature.config.get(INITIALIZER)
             if initializer:
