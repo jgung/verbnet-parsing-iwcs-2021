@@ -1,5 +1,6 @@
 import fnmatch
 import os
+import re
 from collections import defaultdict
 
 from tfnlp.common.chunk import chunk
@@ -64,7 +65,7 @@ class ConllReader(object):
         instances = [self.read_fields(rows)]
         if self.label_field:
             for instance in instances:
-                instance[LABEL_KEY] = self.chunk_func(instance[NAMED_ENTITY_KEY])
+                instance[LABEL_KEY] = self.chunk_func(instance[self.label_field])
         return instances
 
     def read_fields(self, rows):
@@ -88,3 +89,47 @@ def conll_2003_reader(chunk_func=chunk):
     """
     return ConllReader(index_field_map={0: WORD_KEY, 1: POS_KEY, 2: CHUNK_KEY, 3: NAMED_ENTITY_KEY},
                        label_field=NAMED_ENTITY_KEY, chunk_func=chunk_func)
+
+
+def ptb_pos_reader():
+    """
+    Initialize and return a CoNLL reader that reads two columns: word and part-of-speech tag.
+    :return: POS reader
+    """
+    return ConllReader(index_field_map={0: WORD_KEY, 1: POS_KEY}, label_field=POS_KEY)
+
+
+def get_reader(reader_config):
+    """
+    Return a corpus reader for a given config.
+    :param reader_config: reader configuration
+    """
+    if reader_config == 'conll_2003':
+        return conll_2003_reader()
+    elif reader_config == 'ptb_pos':
+        return ptb_pos_reader()
+    else:
+        raise ValueError("Unexpected reader type: " + reader_config)
+
+
+def write_ptb_pos_files(wsj_path, out_dir):
+    """
+    Utility for reading PTB WSJ files and writing them in standard splits to a given directory.
+    :param wsj_path: path to WSJ parse directory in PTB3 release
+    :param out_dir: output directory to save train/test/dev files
+    """
+    from nltk.corpus.reader import CategorizedBracketParseCorpusReader
+    reader = CategorizedBracketParseCorpusReader(wsj_path, r'(wsj/\d\d/wsj_\d\d)\d\d.mrg',
+                                                 cat_file='allcats.txt', tagset='wsj')
+
+    def write_results(expr, output_path):
+        id_list = list(filter(lambda x: re.match(expr, x), reader.fileids()))
+        with open(output_path, 'w') as out_file:
+            for tagged_sent in reader.tagged_sents(id_list):
+                for word, tag in filter(lambda x: x[1] != '-NONE-', tagged_sent):
+                    out_file.write(word + '\t' + tag + '\n')
+                out_file.write('\n')
+
+    write_results(r'wsj/(0\d|1[0-8])/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-train.txt')
+    write_results(r'wsj/(19|20|21)/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-dev.txt')
+    write_results(r'wsj/(22|23|24)/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-test.txt')

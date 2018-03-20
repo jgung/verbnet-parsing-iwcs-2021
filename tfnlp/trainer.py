@@ -17,7 +17,7 @@ from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
 from tfnlp.model.tagger import model_func
-from tfnlp.readers import conll_2003_reader
+from tfnlp.readers import get_reader
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -34,19 +34,6 @@ def default_args():
     parser.add_argument('--config', type=str, required=True, help='JSON config file for additional training options')
     parser.add_argument('--script', type=str, help='Optional path to evaluation script')
     return parser
-
-
-def default_parser(sentence):
-    example = {WORD_KEY: sentence.split()}
-    return example
-
-
-def default_formatter(result):
-    return ' '.join([bstr.decode('utf-8') for bstr in result['output'][0].tolist()])
-
-
-def default_input_fn(features):
-    return {"examples": features}
 
 
 class Trainer(object):
@@ -74,7 +61,8 @@ class Trainer(object):
         self._predict_input_fn = default_input_fn
         self._model_fn = model_func
         self._data_path_fn = lambda orig: orig + ".tfr"
-        self._raw_instance_reader_fn = lambda raw_path: conll_2003_reader().read_file(raw_path)
+
+        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
 
     # noinspection PyMethodMayBeStatic
     def _get_arg_parser(self):
@@ -108,11 +96,11 @@ class Trainer(object):
 
     def train(self):
         train_input_fn = self._input_fn(self._raw_train, True)
-        eval_input_fn = self._input_fn(self._raw_valid, False)
+        valid_input_fn = self._input_fn(self._raw_valid, False)
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn(), compare_key=F1_METRIC_KEY)
         train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=None),
-                           eval_spec=tf.estimator.EvalSpec(input_fn=eval_input_fn, steps=None, exporters=[exporter],
-                                                           throttle_secs=180))
+                           eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],
+                                                           throttle_secs=self._training_config.throttle_secs))
 
     def eval(self):
         self._extract_features(self._raw_test, train=False)
@@ -156,7 +144,7 @@ class Trainer(object):
 
     def _init_estimator(self):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                                 config=RunConfig(save_checkpoints_steps=2000),
+                                                 config=RunConfig(save_checkpoints_steps=self._training_config.checkpoint_steps),
                                                  params=self._params())
 
     def _serving_input_fn(self):
@@ -179,6 +167,19 @@ class Trainer(object):
     def _input_fn(self, dataset, train=False):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
                                     batch_size=self._training_config.batch_size, evaluate=not train)
+
+
+def default_parser(sentence):
+    example = {WORD_KEY: sentence.split()}
+    return example
+
+
+def default_formatter(result):
+    return ' '.join([bstr.decode('utf-8') for bstr in result['output'][0].tolist()])
+
+
+def default_input_fn(features):
+    return {"examples": features}
 
 
 if __name__ == '__main__':
