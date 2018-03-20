@@ -3,6 +3,7 @@ import re
 import subprocess
 import tempfile
 
+import nltk
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.estimator.canned.metric_keys import MetricKeys
@@ -31,6 +32,18 @@ def conll_eval(gold_batches, predicted_batches, script_path):
         temp.seek(0)
         result = subprocess.check_output(["perl", script_path], stdin=temp, universal_newlines=True)
         return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
+
+
+def accuracy_eval(gold_batches, predicted_batches):
+    gold = []
+    test = []
+    for gold_seq, predicted_seq in zip(gold_batches, predicted_batches):
+        gold.extend(gold_seq)
+        test.extend(predicted_seq)
+    cm = nltk.ConfusionMatrix(gold, test)
+    print(cm.pretty_format(sort_by_count=True, show_percents=True))
+    accuracy = nltk.metrics.scores.accuracy(gold, test)
+    return accuracy
 
 
 class SequenceEvalHook(session_run_hook.SessionRunHook):
@@ -73,8 +86,11 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
     def end(self, session):
         if self._best >= 0:
             tf.logging.info("Current best score: %f", self._best)
-        score, result = conll_eval(self._gold, self._predictions, self._script_path)
-        tf.logging.info(result)
+        if self._script_path is not None:
+            score, result = conll_eval(self._gold, self._predictions, self._script_path)
+            tf.logging.info(result)
+        else:
+            score = accuracy_eval(self._gold, self._predictions)
         if score > self._best:
             self._best = score
 

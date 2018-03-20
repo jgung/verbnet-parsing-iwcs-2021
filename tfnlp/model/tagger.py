@@ -72,13 +72,11 @@ def model_func(features, mode, params):
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)
         eval_metric_ops[ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets, predictions=predictions)
-        evaluation_hooks = []
-        if params.script_path is not None:
-            evaluation_hooks.append(SequenceEvalHook(script_path=params.script_path,
-                                                     gold_tensor=targets,
-                                                     predict_tensor=predictions,
-                                                     length_tensor=features[LENGTH_KEY],
-                                                     vocab=params.extractor.targets[LABEL_KEY]))
+        evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
+                                             gold_tensor=targets,
+                                             predict_tensor=predictions,
+                                             length_tensor=features[LENGTH_KEY],
+                                             vocab=params.extractor.targets[LABEL_KEY])]
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
