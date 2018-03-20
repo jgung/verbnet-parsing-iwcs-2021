@@ -4,7 +4,8 @@ import re
 from collections import defaultdict
 
 from tfnlp.common.chunk import chunk
-from tfnlp.common.constants import CHUNK_KEY, LABEL_KEY, NAMED_ENTITY_KEY, POS_KEY, WORD_KEY
+from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, LABEL_KEY, LEMMA_KEY, NAMED_ENTITY_KEY, \
+    POS_KEY, WORD_KEY, PDEPREL_KEY, PHEAD_KEY, PFEAT_KEY, PPOS_KEY, PLEMMA_KEY
 
 
 class ConllReader(object):
@@ -81,6 +82,20 @@ class ConllReader(object):
         return sentence
 
 
+class ConllDepReader(ConllReader):
+    def __init__(self, index_field_map, line_filter=lambda line: False, label_field=None):
+        super().__init__(index_field_map=index_field_map, line_filter=line_filter, label_field=label_field,
+                         chunk_func=lambda x: x)
+
+    def read_instances(self, rows):
+        instances = [self.read_fields(rows)]
+        for instance in instances:
+            instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
+            if self.label_field is not None:
+                instance[LABEL_KEY] = instance[self.label_field]
+        return instances
+
+
 def conll_2003_reader(chunk_func=chunk):
     """
     Initialize and return a CoNLL reader for the CoNLL-2003 NER shared task.
@@ -97,6 +112,12 @@ def ptb_pos_reader():
     :return: POS reader
     """
     return ConllReader(index_field_map={0: WORD_KEY, 1: POS_KEY}, label_field=POS_KEY)
+
+
+def conll_2009_reader():
+    return ConllReader(index_field_map={0: ID_KEY, 1: WORD_KEY, 2: LEMMA_KEY, 3: PLEMMA_KEY, 4: POS_KEY, 5: PPOS_KEY,
+                                        6: FEAT_KEY, 7: PFEAT_KEY, 8: HEAD_KEY, 9: PHEAD_KEY, 10: DEPREL_KEY, 11: PDEPREL_KEY},
+                       label_field=DEPREL_KEY)
 
 
 def get_reader(reader_config):
