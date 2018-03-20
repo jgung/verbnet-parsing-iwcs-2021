@@ -5,7 +5,7 @@ from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper
 
 from tfnlp.common.config import get_gradient_clip, get_optimizer
-from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, PREDICT_KEY
+from tfnlp.common.constants import ACCURACY_METRIC_KEY, LABEL_KEY, LENGTH_KEY, PREDICT_KEY
 from tfnlp.common.eval import SequenceEvalHook, log_trainable_variables
 from tfnlp.common.metrics import tagger_metrics
 from tfnlp.layers.layers import input_layer
@@ -71,6 +71,7 @@ def model_func(features, mode, params):
 
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)
+        eval_metric_ops[ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets, predictions=predictions)
         evaluation_hooks = []
         if params.script_path is not None:
             evaluation_hooks.append(SequenceEvalHook(script_path=params.script_path,
