@@ -33,6 +33,9 @@ def default_args():
     parser.add_argument('--features', type=str, required=True, help='JSON config file for initializing feature extractors')
     parser.add_argument('--config', type=str, required=True, help='JSON config file for additional training options')
     parser.add_argument('--script', type=str, help='Optional path to evaluation script')
+    parser.add_argument('--overwrite', dest='feature', action='store_true',
+                        help='Overwrite previous trained models and vocabularies')
+    parser.set_defaults(overwrite=False)
     return parser
 
 
@@ -44,6 +47,7 @@ class Trainer(object):
         self._raw_train = args.train
         self._raw_valid = args.valid
         self._raw_test = args.test
+        self._overwrite = args.overwrite
 
         self._save_path = args.save
         self._vocab_path = args.vocab
@@ -123,9 +127,17 @@ class Trainer(object):
     def _init_feature_extractor(self):
         self._feature_extractor = get_feature_extractor(self._feature_config)
         if self._mode == "train":
-            self._train_vocab()
+            if not self._overwrite:
+                # noinspection PyBroadException
+                try:
+                    self._feature_extractor.read_vocab(self._vocab_path)
+                    tf.logging.info("Loaded pre-existing vocabulary at %s.", self._vocab_path)
+                except Exception:
+                    tf.logging.info("Unable to load pre-existing vocabulary at %s.", self._vocab_path)
+                    self._train_vocab()
         else:
             self._feature_extractor.read_vocab(self._vocab_path)
+            tf.logging.info("Loaded pre-existing vocabulary at %s.", self._vocab_path)
         self._feature_extractor.test()
 
     def _train_vocab(self):
@@ -133,7 +145,7 @@ class Trainer(object):
         self._feature_extractor.initialize()
         self._extract_features(self._raw_train, train=True)
         self._extract_features(self._raw_valid, train=False)
-        self._feature_extractor.write_vocab(self._vocab_path)
+        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite)
 
     def _extract_features(self, path, train=False):
         self._feature_extractor.train(train)

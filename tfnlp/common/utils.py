@@ -49,7 +49,7 @@ def read_json(json_path):
         return _convert_to_attributes(json_dict)
 
 
-def serialize(serializable, out_path, out_name=None):
+def serialize(serializable, out_path, out_name=None, overwrite=False):
     if out_name:
         out_name = out_name if out_name.endswith(".pkl") else "{}.pkl".format(out_name)
     path = os.path.join(out_path, out_name) if out_name else out_path
@@ -59,6 +59,8 @@ def serialize(serializable, out_path, out_name=None):
     except OSError:
         if not os.path.isdir(parent_path):
             raise
+    if not overwrite and os.path.exists(path):
+        raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
     with open(path, mode="wb") as out_file:
         pickle.dump(serializable, out_file)
 

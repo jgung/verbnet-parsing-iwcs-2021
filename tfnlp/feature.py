@@ -139,11 +139,14 @@ class Feature(Extractor):
             self.reversed = self._reverse()
         return self.reversed[index]
 
-    def write_vocab(self, path):
+    def write_vocab(self, path, overwrite=False):
         """
         Write vocabulary as a file with a single line per entry and index 0 corresponding to the first line.
         :param path: path to file to save vocabulary
+        :param overwrite: overwrite previously saved vocabularies--if `False`, raises an error if there is a pre-existing file
         """
+        if not overwrite and os.path.exists(path):
+            raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
         with open(path, mode='w') as vocab:
             for i in range(len(self.indices)):
                 vocab.write('{}\n'.format(self.index_to_feat(i)))
@@ -372,11 +375,12 @@ class FeatureExtractor(object):
                     for key in vectors:
                         feature.feat_to_index(key)
 
-    def write_vocab(self, base_path):
+    def write_vocab(self, base_path, overwrite=False):
         """
         Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
         Creates pickled embeddings if explicit initializers are provided.
         :param base_path: base directory for vocabulary files
+        :param overwrite: overwrite pre-existing vocabulary files--if `False`, raises an error when already existing
         """
         for feature in self.extractors():
             if not feature.has_vocab():
@@ -388,13 +392,13 @@ class FeatureExtractor(object):
             except OSError:
                 if not os.path.isdir(parent_path):
                     raise
-            feature.write_vocab(path)
+            feature.write_vocab(path, overwrite=overwrite)
 
             initializer = feature.config.get(INITIALIZER)
             if initializer:
                 vectors, dim = read_vectors(initializer.embedding)
                 feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
-                serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
+                serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 
     def read_vocab(self, base_path):
         """
