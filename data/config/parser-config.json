@@ -1,0 +1,27 @@
+{
+  "reader": "conll_2009",
+  "throttle_secs": 180,
+  "checkpoint_steps": 1500,
+  "state_size": 200,
+  "dropout": 0.33,
+  "input_dropout": 0.0,
+  "mlp_dropout": 0.33,
+  "encoder_layers": 3,
+  "batch_size": 10,
+  "optimizer": {
+    "name": "Adam",
+    "params": {
+      "beta1": 0.9,
+      "beta2": 0.999
+    },
+    "lr": {
+      "rate": 0.002,
+      "name": "exponential_decay",
+      "params": {
+        "decay_steps": 5000,
+        "decay_rate": 0.75
+      }
+    },
+    "clip": 5.0
+  }
+}

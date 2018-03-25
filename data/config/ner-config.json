@@ -1,0 +1,26 @@
+{
+  "reader": "conll_2003",
+  "throttle_secs": 180,
+  "checkpoint_steps": 1500,
+  "state_size": 200,
+  "dropout": 0.5,
+  "input_dropout": 0.5,
+  "encoder_layers": 1,
+  "crf": true,
+  "batch_size": 10,
+  "optimizer": {
+    "name": "Momentum",
+    "params": {
+      "momentum": 0.9
+    },
+    "lr": {
+      "rate": 0.015,
+      "name": "inverse_time_decay",
+      "params": {
+        "decay_steps": 2000,
+        "decay_rate": 0.05
+      }
+    },
+    "clip": 5.0
+  }
+}
