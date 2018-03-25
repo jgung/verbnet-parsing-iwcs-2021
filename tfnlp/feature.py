@@ -177,6 +177,17 @@ class Feature(Extractor):
         return {i: key for (key, i) in self.indices.items()}
 
 
+class SequenceExtractor(Extractor):
+    def __init__(self, name, key, config=None, mapping_funcs=None, **kwargs):
+        super().__init__(name, key, config, mapping_funcs, **kwargs)
+        self.rank = 2
+
+    def extract(self, sequence):
+        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[self.map(result)]))
+                          for result in self.get_values(sequence)]
+        return tf.train.FeatureList(feature=input_features)
+
+
 class SequenceFeature(Feature):
 
     def __init__(self, name, key, config=None, train=False, indices=None, unknown_word=UNKNOWN_WORD, **kwargs):

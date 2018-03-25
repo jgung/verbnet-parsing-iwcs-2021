@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from tfnlp.common.chunk import chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, LABEL_KEY, LEMMA_KEY, NAMED_ENTITY_KEY, \
-    POS_KEY, WORD_KEY, PDEPREL_KEY, PHEAD_KEY, PFEAT_KEY, PPOS_KEY, PLEMMA_KEY
+    PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, WORD_KEY
 
 
 class ConllReader(object):
@@ -92,7 +92,14 @@ class ConllDepReader(ConllReader):
         for instance in instances:
             instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
             if self.label_field is not None:
-                instance[LABEL_KEY] = instance[self.label_field]
+                instance[LABEL_KEY] = instance[self.label_field][:]
+            # add root
+            for key, val in instance.items():
+                if key == HEAD_KEY:
+                    val.insert(0, 0)
+                else:
+                    val.insert(0, '<ROOT>')
+
         return instances
 
 
@@ -115,9 +122,9 @@ def ptb_pos_reader():
 
 
 def conll_2009_reader():
-    return ConllReader(index_field_map={0: ID_KEY, 1: WORD_KEY, 2: LEMMA_KEY, 3: PLEMMA_KEY, 4: POS_KEY, 5: PPOS_KEY,
-                                        6: FEAT_KEY, 7: PFEAT_KEY, 8: HEAD_KEY, 9: PHEAD_KEY, 10: DEPREL_KEY, 11: PDEPREL_KEY},
-                       label_field=DEPREL_KEY)
+    return ConllDepReader(index_field_map={0: ID_KEY, 1: WORD_KEY, 2: LEMMA_KEY, 3: PLEMMA_KEY, 4: POS_KEY, 5: PPOS_KEY,
+                                           6: FEAT_KEY, 7: PFEAT_KEY, 8: HEAD_KEY, 9: PHEAD_KEY, 10: DEPREL_KEY, 11: PDEPREL_KEY},
+                          label_field=DEPREL_KEY)
 
 
 def get_reader(reader_config):
@@ -127,6 +134,8 @@ def get_reader(reader_config):
     """
     if reader_config == 'conll_2003':
         return conll_2003_reader()
+    elif reader_config == 'conll_2009':
+        return conll_2009_reader()
     elif reader_config == 'ptb_pos':
         return ptb_pos_reader()
     else:

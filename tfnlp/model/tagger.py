@@ -2,31 +2,21 @@ import tensorflow as tf
 from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
-from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper
 
 from tfnlp.common.config import get_gradient_clip, get_optimizer
 from tfnlp.common.constants import ACCURACY_METRIC_KEY, LABEL_KEY, LENGTH_KEY, PREDICT_KEY
 from tfnlp.common.eval import SequenceEvalHook, log_trainable_variables
 from tfnlp.common.metrics import tagger_metrics
-from tfnlp.layers.layers import input_layer
+from tfnlp.layers.layers import encoder, input_layer
 
 TRANSITIONS = "transitions"
 SCORES_KEY = "scores"
 
 
 def model_func(features, mode, params):
-    feats = input_layer(features, params.extractor.features, mode == tf.estimator.ModeKeys.TRAIN)
-    feats = tf.layers.dropout(feats, rate=params.config.input_dropout, training=mode == tf.estimator.ModeKeys.TRAIN,
-                              name='input_layer_dropout')
+    inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
+    outputs = encoder(features, inputs, mode, params)
 
-    def cell():
-        _cell = tf.nn.rnn_cell.LSTMCell(params.config.state_size)
-        keep_prob = (1.0 - params.config.dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
-        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
-                              output_keep_prob=keep_prob, state_keep_prob=keep_prob)
-
-    outputs, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw=cell(), cell_bw=cell(), inputs=feats,
-                                                 sequence_length=features[LENGTH_KEY], dtype=tf.float32)
     outputs = tf.concat(values=outputs, axis=-1)
     time_steps = tf.shape(outputs)[1]
     rnn_outputs = tf.reshape(outputs, [-1, params.config.state_size * 2], name="flatten_rnn_outputs_for_linear_projection")

@@ -16,6 +16,7 @@ from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
+from tfnlp.model.parser import parser_model_func
 from tfnlp.model.tagger import model_func
 from tfnlp.readers import get_reader
 
@@ -33,14 +34,14 @@ def default_args():
     parser.add_argument('--features', type=str, required=True, help='JSON config file for initializing feature extractors')
     parser.add_argument('--config', type=str, required=True, help='JSON config file for additional training options')
     parser.add_argument('--script', type=str, help='Optional path to evaluation script')
-    parser.add_argument('--overwrite', dest='feature', action='store_true',
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite previous trained models and vocabularies')
     parser.set_defaults(overwrite=False)
     return parser
 
 
 class Trainer(object):
-    def __init__(self, args=None):
+    def __init__(self, args=None, model_fn=None):
         super().__init__()
         args = self._validate_and_parse_args(args)
         self._mode = args.mode
@@ -63,7 +64,7 @@ class Trainer(object):
         self._parse_fn = default_parser
         self._prediction_formatter_fn = default_formatter
         self._predict_input_fn = default_input_fn
-        self._model_fn = model_func
+        self._model_fn = model_fn or model_func
         self._data_path_fn = lambda orig: orig + ".tfr"
 
         self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
@@ -101,7 +102,7 @@ class Trainer(object):
     def train(self):
         train_input_fn = self._input_fn(self._raw_train, True)
         valid_input_fn = self._input_fn(self._raw_valid, False)
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn(), compare_key=F1_METRIC_KEY)
+        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn())
         train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=None),
                            eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],
                                                            throttle_secs=self._training_config.throttle_secs))
@@ -135,6 +136,8 @@ class Trainer(object):
                 except Exception:
                     tf.logging.info("Unable to load pre-existing vocabulary at %s.", self._vocab_path)
                     self._train_vocab()
+            else:
+                self._train_vocab()
         else:
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s.", self._vocab_path)
@@ -195,4 +198,4 @@ def default_input_fn(features):
 
 
 if __name__ == '__main__':
-    Trainer().run()
+    Trainer(model_fn=parser_model_func).run()

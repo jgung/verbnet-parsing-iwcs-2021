@@ -3,9 +3,9 @@ import re
 import subprocess
 import tempfile
 
-import nltk
 import numpy as np
 import tensorflow as tf
+from nltk import ConfusionMatrix
 from tensorflow.python.estimator.canned.metric_keys import MetricKeys
 from tensorflow.python.estimator.exporter import LatestExporter
 from tensorflow.python.summary import summary_iterator
@@ -40,9 +40,15 @@ def accuracy_eval(gold_batches, predicted_batches):
     for gold_seq, predicted_seq in zip(gold_batches, predicted_batches):
         gold.extend(gold_seq)
         test.extend(predicted_seq)
-    cm = nltk.ConfusionMatrix(gold, test)
-    print(cm.pretty_format(sort_by_count=True, show_percents=True))
-    accuracy = nltk.metrics.scores.accuracy(gold, test)
+    cm = ConfusionMatrix(gold, test)
+    print(cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
+
+    if len(gold) != len(test):
+        raise ValueError("Predictions and gold labels must have the same length.")
+    correct = sum(x == y for x, y in zip(gold, test))
+    total = len(test)
+    accuracy = correct / total
+    print("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
     return accuracy
 
 

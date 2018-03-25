@@ -3,7 +3,8 @@ import numbers
 import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
-from tfnlp.feature import Feature, FeatureExtractor, LengthFeature, SequenceFeature, SequenceListFeature
+from tfnlp.feature import Extractor, Feature, FeatureExtractor, LengthFeature, SequenceExtractor, SequenceFeature, \
+    SequenceListFeature
 from tfnlp.layers.reduce import ConvNet
 
 
@@ -15,13 +16,14 @@ def get_reduce_function(func, dim, length):
 
 
 def get_feature(feature):
+    numeric = feature.get('numeric')
     if feature.rank == 3:
         feat = SequenceListFeature
         feature.config.func = get_reduce_function(feature.config.function, feature.config.dim, feature.max_len)
     elif feature.rank == 2:
-        feat = SequenceFeature
+        feat = SequenceExtractor if numeric else SequenceFeature
     elif feature.rank == 1:
-        feat = Feature
+        feat = Extractor if numeric else Feature
     else:
         raise AssertionError("Unexpected feature rank: {}".format(feature.rank))
     return feat(**feature)
