@@ -39,13 +39,12 @@ def encoder(features, inputs, mode, params):
 
 def _get_input(feature_ids, feature, training):
     initializer = None
-    if training:
-        if feature.embedding is not None:
-            # noinspection PyUnusedLocal
-            def initialize(name, dtype=None, partition_info=None):
-                return feature.embedding
+    if training and feature.embedding is not None:
+        # noinspection PyUnusedLocal
+        def initialize(name, dtype=None, partition_info=None):
+            return feature.embedding
 
-            initializer = initialize
+        initializer = initialize
 
     embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
                                        shape=[feature.vocab_size(), feature.config.dim],
