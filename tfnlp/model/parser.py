@@ -3,8 +3,9 @@ from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
 
 from tfnlp.common.config import get_gradient_clip, get_optimizer
-from tfnlp.common.constants import DEPREL_KEY, HEAD_KEY, LENGTH_KEY
-from tfnlp.common.eval import log_trainable_variables
+from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABELED_ATTACHMENT_SCORE, LABEL_SCORE, LENGTH_KEY, \
+    REL_PROBS, UNLABELED_ATTACHMENT_SCORE, WORD_KEY
+from tfnlp.common.eval import ParserEvalHook, log_trainable_variables
 from tfnlp.layers.layers import encoder, input_layer
 
 
@@ -80,7 +81,7 @@ def parser_model_func(features, mode, params):
 
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
         arc_probs = tf.nn.softmax(arc_logits)
-        rel_probs = tf.nn.softmax(rel_logits, dim=2)
+        rel_probs = tf.nn.softmax(rel_logits, axis=2)
         n_tokens = tf.cast(tf.reduce_sum(features[LENGTH_KEY]), tf.int32)
         rel_predictions = tf.argmax(select_rel_logits, axis=-1)
 
@@ -91,17 +92,21 @@ def parser_model_func(features, mode, params):
         n_rel_correct = tf.cast(tf.reduce_sum(rel_correct), tf.int32)
         correct = arc_correct * rel_correct
         n_correct = tf.cast(tf.reduce_sum(correct), tf.int32)
-        eval_metric_ops = {"UAS": tf.metrics.mean(n_arc_correct / n_tokens),
-                           "LS": tf.metrics.mean(n_rel_correct / n_tokens),
-                           "LAS": tf.metrics.mean(n_correct / n_tokens)}
+        eval_metric_ops = {UNLABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_arc_correct / n_tokens),
+                           LABEL_SCORE: tf.metrics.mean(n_rel_correct / n_tokens),
+                           LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / n_tokens)}
+        evaluation_hooks = [ParserEvalHook(
+            {ARC_PROBS: arc_probs, REL_PROBS: rel_probs, WORD_KEY: features[WORD_KEY], LENGTH_KEY: features[LENGTH_KEY],
+             HEAD_KEY: features[HEAD_KEY], DEPREL_KEY: features[DEPREL_KEY]},
+            features=params.extractor, script_path=params.script_path, )]
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        export_outputs = {signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: PredictOutput(rel_predictions),
-                          HEAD_KEY: PredictOutput(arc_predictions)}
+        export_outputs = {signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: PredictOutput(arc_probs),
+                          DEPREL_KEY: PredictOutput(rel_probs)}
 
     return tf.estimator.EstimatorSpec(mode=mode,
                                       predictions={DEPREL_KEY: rel_predictions, HEAD_KEY: arc_predictions,
-                                                   "arc_probs": arc_probs, "rel_probs": rel_probs},
+                                                   ARC_PROBS: arc_probs, REL_PROBS: rel_probs},
                                       loss=loss,
                                       train_op=train_op,
                                       eval_metric_ops=eval_metric_ops,

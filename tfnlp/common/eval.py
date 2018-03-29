@@ -12,7 +12,8 @@ from tensorflow.python.summary import summary_iterator
 from tensorflow.python.training import saver, session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
-from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, PREDICT_KEY
+from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, PREDICT_KEY, REL_PROBS, WORD_KEY
+from tfnlp.common.parsing import nonprojective
 
 
 def conll_eval(gold_batches, predicted_batches, script_path):
@@ -99,6 +100,109 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
             score = accuracy_eval(self._gold, self._predictions)
         if score > self._best:
             self._best = score
+
+
+class ParserEvalHook(session_run_hook.SessionRunHook):
+    def __init__(self, tensors, features, script_path, out_path=None, gold_path=None):
+        """
+        Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
+        :param tensors: dictionary of batch-sized tensors necessary for computing evaluation
+        :param features: feature vocabularies
+        """
+        self._tensors = tensors
+        self._features = features
+        self._script_path = script_path
+        self._output_path = out_path
+        self._gold_path = gold_path
+        self._arc_probs = None
+        self._arcs = None
+        self._rel_probs = None
+        self._rels = None
+        self._sentences = None
+
+    def begin(self):
+        self._arc_probs = []
+        self._rel_probs = []
+        self._sentences = []
+        self._rels = []
+        self._arcs = []
+
+    def before_run(self, run_context):
+        fetches = {REL_PROBS: self._tensors[REL_PROBS],
+                   ARC_PROBS: self._tensors[ARC_PROBS],
+                   WORD_KEY: self._tensors[WORD_KEY],
+                   LENGTH_KEY: self._tensors[LENGTH_KEY],
+                   HEAD_KEY: self._tensors[HEAD_KEY],
+                   DEPREL_KEY: self._tensors[DEPREL_KEY]}
+        return SessionRunArgs(fetches=fetches)
+
+    def after_run(self, run_context, run_values):
+        for rel_probs, arc_probs, tokens, rels, heads, seq_len in zip(run_values.results[REL_PROBS],
+                                                                      run_values.results[ARC_PROBS],
+                                                                      run_values.results[WORD_KEY],
+                                                                      run_values.results[DEPREL_KEY],
+                                                                      run_values.results[HEAD_KEY],
+                                                                      run_values.results[LENGTH_KEY]):
+            self._rel_probs.append(rel_probs)  # rel_probs[:seq_len, :, :seq_len]
+            self._arc_probs.append(arc_probs[:seq_len, :seq_len])
+            self._sentences.append(tokens[:seq_len])
+            self._rels.append(rels[:seq_len])
+            self._arcs.append(heads[:seq_len])
+
+    def end(self, session):
+        parser_write_and_eval(sentences=self._sentences,
+                              arc_probs=self._arc_probs,
+                              rel_probs=self._rel_probs,
+                              heads=self._arcs,
+                              rels=self._rels,
+                              features=self._features,
+                              out_path=self._output_path,
+                              gold_path=self._gold_path,
+                              script_path=self._script_path)
+
+
+def parser_write_and_eval(sentences, arc_probs, rel_probs, heads, rels, features, script_path, out_path=None, gold_path=None):
+    _gold_file = open(gold_path, 'w', encoding='utf-8') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
+    _out_file = open(out_path, 'w', encoding='utf-8') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
+    sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
+    with _out_file as system_file, _gold_file as gold_file:
+        # tempfile.NamedTemporaryFile(mode='w', encoding='utf-8') as gold_file:
+        write_parse_results_to_file(sentences, sys_heads, sys_rels, features, system_file)
+        write_parse_results_to_file(sentences, heads, rels, features, gold_file)
+        result = subprocess.check_output(['perl', script_path, '-g', gold_file.name, '-s', system_file.name, '-q'],
+                                         universal_newlines=True)
+        tf.logging.info('\n%s', result)
+
+
+def get_parse_predictions(arc_probs, rel_probs):
+    heads = []
+    rels = []
+    for arc_prob_matrix, rel_prob_tensor in zip(arc_probs, rel_probs):
+        arc_preds = nonprojective(arc_prob_matrix)
+        arc_preds_one_hot = np.zeros([rel_prob_tensor.shape[0], rel_prob_tensor.shape[2]])
+        arc_preds_one_hot[np.arange(len(arc_preds)), arc_preds] = 1.
+        rel_preds = np.argmax(np.einsum('nrb,nb->nr', rel_prob_tensor, arc_preds_one_hot), axis=1)
+        rels.append(rel_preds)
+        heads.append(arc_preds)
+    return heads, rels
+
+
+def write_parse_results_to_file(sentences, heads, rels, features, file):
+    for sentence, sentence_heads, sentence_rels in zip(sentences, heads, rels):
+        for index, (word, arc_pred, rel_pred) in enumerate(
+                zip(sentence[1:], sentence_heads[1:], sentence_rels[1:])):
+            # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
+            token = ['_'] * 15
+            token[0] = str(index + 1)
+            token[1] = features.feature(WORD_KEY).index_to_feat(word)
+            token[8] = str(arc_pred)
+            token[9] = str(arc_pred)
+            token[10] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
+            token[11] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
+            file.write('\t'.join(token) + '\n')
+        file.write('\n')
+    file.flush()
+    file.seek(0)
 
 
 class BestExporter(LatestExporter):
