@@ -23,7 +23,7 @@ def input_layer(features, params, training):
 
 def encoder(features, inputs, mode, params):
     def cell(name=None):
-        _cell = tf.nn.rnn_cell.LSTMCell(params.config.state_size, name=name)
+        _cell = tf.nn.rnn_cell.LSTMCell(params.config.state_size, name=name, initializer=lstm_kernel_orthogonal_initializer)
         keep_prob = (1.0 - params.config.dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
         return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
                               output_keep_prob=keep_prob, state_keep_prob=keep_prob)
@@ -72,3 +72,11 @@ def _get_input(feature_ids, feature, training):
                                    noise_shape=[shape[0], shape[1], 1])
 
     return result
+
+
+def lstm_kernel_orthogonal_initializer(shape, dtype=tf.float32, partition_info=None):
+    shape = (shape[0], (shape[1] // 4))
+    matrices = []
+    for i in range(4):
+        matrices.append(tf.orthogonal_initializer(seed=None, dtype=dtype).__call__(shape, dtype, partition_info))
+    return tf.concat(axis=1, values=matrices)
