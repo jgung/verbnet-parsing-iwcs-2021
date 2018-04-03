@@ -11,13 +11,13 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor
-from tfnlp.common.constants import F1_METRIC_KEY, LABEL_KEY, WORD_KEY
+from tfnlp.common.constants import LABEL_KEY, WORD_KEY
 from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
 from tfnlp.model.parser import parser_model_func
-from tfnlp.model.tagger import model_func
+from tfnlp.model.tagger import tagger_func
 from tfnlp.readers import get_reader
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -29,11 +29,11 @@ def default_args():
     parser.add_argument('--valid', type=str, help='File containing validation data.')
     parser.add_argument('--test', type=str, help='File containing test data.')
     parser.add_argument('--save', type=str, required=True, help='Directory where models/checkpoints are saved.')
-    parser.add_argument('--vocab', type=str, required=True, help='Vocabulary base directory.')
+    parser.add_argument('--vocab', type=str, required=True, help='Directory where vocabulary files are saved.')
     parser.add_argument('--mode', type=str, default="train", help='Command in [train, predict]')
-    parser.add_argument('--features', type=str, required=True, help='JSON config file for initializing feature extractors')
-    parser.add_argument('--config', type=str, required=True, help='JSON config file for additional training options')
-    parser.add_argument('--script', type=str, help='Optional path to evaluation script')
+    parser.add_argument('--features', type=str, required=True, help='JSON file for configuring feature extractors')
+    parser.add_argument('--config', type=str, required=True, help='JSON file for configuring training')
+    parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite previous trained models and vocabularies')
     parser.set_defaults(overwrite=False)
@@ -52,24 +52,22 @@ class Trainer(object):
 
         self._save_path = args.save
         self._vocab_path = args.vocab
+        self._eval_script_path = args.script
         self._feature_config = read_json(args.features)
         self._training_config = read_json(args.config)
-        self._eval_script_path = args.script
-        self._output_path = None
-        self._log_path = None
 
         self._feature_extractor = None
         self._estimator = None
 
-        self._parse_fn = default_parser
-        self._prediction_formatter_fn = default_formatter
-        self._predict_input_fn = default_input_fn
-        self._model_fn = model_fn or model_func
-        self._data_path_fn = lambda orig: orig + ".tfr"
+        self._model_fn = model_fn or tagger_func
 
         self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
+        self._data_path_fn = lambda orig: orig + ".tfrecords"
 
-    # noinspection PyMethodMayBeStatic
+        self._parse_fn = default_parser
+        self._predict_input_fn = default_input_fn
+        self._prediction_formatter_fn = default_formatter
+
     def _get_arg_parser(self):
         """
         Initialize argument parser. Override this method when adding new arguments.
@@ -102,7 +100,7 @@ class Trainer(object):
     def train(self):
         train_input_fn = self._input_fn(self._raw_train, True)
         valid_input_fn = self._input_fn(self._raw_valid, False)
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn())
+        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn)
         train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=None),
                            eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],
                                                            throttle_secs=self._training_config.throttle_secs))
@@ -129,11 +127,10 @@ class Trainer(object):
         self._feature_extractor = get_feature_extractor(self._feature_config)
         if self._mode == "train":
             if not self._overwrite:
-                # noinspection PyBroadException
-                try:
-                    self._feature_extractor.read_vocab(self._vocab_path)
+                success = self._feature_extractor.read_vocab(self._vocab_path)
+                if success:
                     tf.logging.info("Loaded pre-existing vocabulary at %s.", self._vocab_path)
-                except Exception:
+                else:
                     tf.logging.info("Unable to load pre-existing vocabulary at %s.", self._vocab_path)
                     self._train_vocab()
             else:
@@ -152,10 +149,14 @@ class Trainer(object):
 
     def _extract_features(self, path, train=False):
         self._feature_extractor.train(train)
-        examples = []
-        for instance in self._raw_instance_reader_fn(path):
-            examples.append(self._feature_extractor.extract(instance))
-        write_features(examples, self._data_path_fn(path))
+
+        tf.logging.info("Extracting features from %s", path)
+        raw_instances = self._raw_instance_reader_fn(path)
+        examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
+
+        output_path = self._data_path_fn(path)
+        tf.logging.info("Writing extracted features to %s", output_path)
+        write_features(examples, output_path)
 
     def _init_estimator(self):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
@@ -163,21 +164,16 @@ class Trainer(object):
                                                  params=self._params())
 
     def _serving_input_fn(self):
-        def serving_input_receiver_fn():
-            serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, shape=None, name='input_example_tensor')
-            receiver_tensors = {'examples': serialized_tf_example}
-            features = self._feature_extractor.parse(serialized_tf_example, train=False)
-            features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
-            return ServingInputReceiver(features, receiver_tensors)
-
-        return serving_input_receiver_fn
+        serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, name='input_example_tensor')
+        features = self._feature_extractor.parse(serialized_tf_example, train=False)
+        features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
+        return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
 
     def _params(self):
-        params = HParams(extractor=self._feature_extractor,
-                         config=self._training_config,
-                         script_path=self._eval_script_path,
-                         label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY))
-        return params
+        return HParams(extractor=self._feature_extractor,
+                       config=self._training_config,
+                       script_path=self._eval_script_path,
+                       label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY))
 
     def _input_fn(self, dataset, train=False):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
@@ -185,8 +181,7 @@ class Trainer(object):
 
 
 def default_parser(sentence):
-    example = {WORD_KEY: sentence.split()}
-    return example
+    return {WORD_KEY: sentence.split()}
 
 
 def default_formatter(result):

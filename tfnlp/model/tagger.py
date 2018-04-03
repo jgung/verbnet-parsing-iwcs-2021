@@ -13,7 +13,7 @@ TRANSITIONS = "transitions"
 SCORES_KEY = "scores"
 
 
-def model_func(features, mode, params):
+def tagger_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
     outputs = encoder(features, inputs, mode, params)
 

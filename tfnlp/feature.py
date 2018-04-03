@@ -42,7 +42,7 @@ class Extractor(object):
         :param name: unique identifier for this feature
         :param key: key used for extracting values from input instance dictionary
         :param config: extra parameters used during training
-                :param mapping_funcs: list of functions mapping features to new values
+        :param mapping_funcs: list of functions mapping features to new values
         """
         self.name = name
         self.key = key
@@ -52,10 +52,10 @@ class Extractor(object):
 
     def extract(self, instance):
         """
-                Extracts a feature for a given instance.
-                :param instance: feature extraction input
-                :return: resulting extracted feature
-                """
+        Extracts a feature for a given instance.
+        :param instance: feature extraction input
+        :return: resulting extracted feature
+        """
         value = self.get_values(instance)
         value = self.map(value)
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
@@ -155,14 +155,19 @@ class Feature(Extractor):
         """
         Read vocabulary from file at given path, with a single line per entry and index 0 corresponding to the first line.
         :param path: vocabulary file
+        :return: `True` if vocabulary successfully read
         """
         self.indices = {}
         self.reversed = None
-        with open(path, mode='r') as vocab:
-            for line in vocab:
-                line = line.strip()
-                if line:
-                    self.indices[line] = len(self.indices)
+        try:
+            with open(path, mode='r') as vocab:
+                for line in vocab:
+                    line = line.strip()
+                    if line:
+                        self.indices[line] = len(self.indices)
+        except IOError:
+            return False
+        return True
 
     def vocab_size(self):
         """
@@ -207,7 +212,11 @@ class SequenceListFeature(SequenceFeature):
 
     def __init__(self, name, key, config=None,
                  max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD, pad_word=PAD_WORD,
-                 left_padding=0, right_padding=0, left_pad_word=START_WORD, right_pad_word=END_WORD, **kwargs):
+                 left_padding=0,
+                 right_padding=0,
+                 left_pad_word=START_WORD,
+                 right_pad_word=END_WORD,
+                 **kwargs):
         super().__init__(name, key, config=config, train=train, indices=indices, unknown_word=unknown_word, **kwargs)
         self.rank = 3
         self.max_len = max_len
@@ -376,15 +385,21 @@ class FeatureExtractor(object):
         self.train(False)
 
     def initialize(self):
+        """
+        Initialize feature vocabularies from pre-trained vectors if available.
+        """
         self.train()
         for feature in self.extractors():
             initializer = feature.config.get(INITIALIZER)
-            if initializer:
-                include = initializer.get(INCLUDE_IN_VOCAB)
-                if include:
-                    vectors, dim = read_vectors(initializer.embedding, max_vecs=include)
-                    for key in vectors:
-                        feature.feat_to_index(key)
+            if not initializer:
+                continue
+            num_vectors_to_read = initializer.get(INCLUDE_IN_VOCAB)
+            if not num_vectors_to_read:
+                continue
+
+            vectors, dim = read_vectors(initializer.embedding, max_vecs=num_vectors_to_read)
+            for key in vectors:
+                feature.feat_to_index(key)
 
     def write_vocab(self, base_path, overwrite=False):
         """
@@ -415,13 +430,16 @@ class FeatureExtractor(object):
         """
         Read vocabulary from vocabulary files in directory given by `base_path`. Loads any pickled embeddings.
         :param base_path: base directory for vocabulary files
+        :return: `True` if vocabulary was successfully read
         """
         for feature in self.extractors():
             if not feature.has_vocab():
                 continue
             path = os.path.join(base_path, feature.name)
-            feature.read_vocab(path)
-
+            success = feature.read_vocab(path)
+            if not success:
+                return success
             initializer = feature.config.get(INITIALIZER)
             if initializer:
                 feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
+        return True
