@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.python.estimator.export.export_output import PredictOutput
@@ -9,11 +10,8 @@ from tfnlp.common.eval import SequenceEvalHook, log_trainable_variables
 from tfnlp.common.metrics import tagger_metrics
 from tfnlp.layers.layers import encoder, input_layer
 
-TRANSITIONS = "transitions"
-SCORES_KEY = "scores"
 
-
-def tagger_func(features, mode, params):
+def tagger_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
     outputs = encoder(features, inputs, mode, params)
 
@@ -24,7 +22,12 @@ def tagger_func(features, mode, params):
     target = params.extractor.targets[LABEL_KEY]
     num_labels = target.vocab_size()
     logits = tf.reshape(tf.layers.dense(rnn_outputs, num_labels), [-1, time_steps, num_labels], name="unflatten_logits")
-    transition_matrix = tf.get_variable(TRANSITIONS, [num_labels, num_labels])
+
+    if params.config.crf:
+        transition_matrix = tf.get_variable("transitions", [num_labels, num_labels])
+    else:
+        transition_matrix = tf.get_variable("transitions", [num_labels, num_labels],
+                                            trainable=False, initializer=_create_transition_matrix(target))
 
     targets = None
     predictions = None
@@ -81,3 +84,18 @@ def tagger_func(features, mode, params):
                                       eval_metric_ops=eval_metric_ops,
                                       export_outputs=export_outputs,
                                       evaluation_hooks=evaluation_hooks)
+
+
+def _create_transition_matrix(labels):
+    """
+    Return a numpy matrix to enforce valid transitions for IOB-style tagging problems.
+    :param labels: label feature extractor
+    """
+    labels = [labels.index_to_feat(i) for i in range(len(labels.indices))]
+    num_tags = len(labels)
+    transition_params = np.zeros([num_tags, num_tags], dtype=np.float32)
+    for i, prev_label in enumerate(labels):
+        for j, curr_label in enumerate(labels):
+            if i != j and curr_label[:2] == 'I-' and not prev_label == 'B' + curr_label[1:]:
+                transition_params[i, j] = np.NINF
+    return tf.initializers.constant(transition_params)

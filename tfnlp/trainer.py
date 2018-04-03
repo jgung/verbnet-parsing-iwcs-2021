@@ -17,7 +17,7 @@ from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
 from tfnlp.model.parser import parser_model_func
-from tfnlp.model.tagger import tagger_func
+from tfnlp.model.tagger import tagger_model_func
 from tfnlp.readers import get_reader
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -34,6 +34,7 @@ def default_args():
     parser.add_argument('--features', type=str, required=True, help='JSON file for configuring feature extractors')
     parser.add_argument('--config', type=str, required=True, help='JSON file for configuring training')
     parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
+    parser.add_argument('--type', type=str, default='tagger', help='(Optional) Model type')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite previous trained models and vocabularies')
     parser.set_defaults(overwrite=False)
@@ -41,7 +42,7 @@ def default_args():
 
 
 class Trainer(object):
-    def __init__(self, args=None, model_fn=None):
+    def __init__(self, args=None):
         super().__init__()
         args = self._validate_and_parse_args(args)
         self._mode = args.mode
@@ -55,11 +56,10 @@ class Trainer(object):
         self._eval_script_path = args.script
         self._feature_config = read_json(args.features)
         self._training_config = read_json(args.config)
+        self._model_fn = get_model_func(args.type)
 
         self._feature_extractor = None
         self._estimator = None
-
-        self._model_fn = model_fn or tagger_func
 
         self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: orig + ".tfrecords"
@@ -192,5 +192,14 @@ def default_input_fn(features):
     return {"examples": features}
 
 
+def get_model_func(model_type):
+    if "tagger" == model_type:
+        return tagger_model_func
+    elif "parser" == model_type:
+        return parser_model_func
+    else:
+        raise ValueError("Unexpected model type: " + model_type)
+
+
 if __name__ == '__main__':
-    Trainer(model_fn=parser_model_func).run()
+    Trainer().run()

@@ -8,6 +8,7 @@
   "mlp_dropout": 0.33,
   "encoder_layers": 3,
   "batch_size": 10,
+  "crf": true,
   "optimizer": {
     "name": "Adam",
     "params": {
