@@ -12,11 +12,11 @@ from tfnlp.layers.layers import encoder, input_layer
 def parser_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
 
-    outputs = encoder(features, inputs, mode, params)
+    outputs, output_size = encoder(features, inputs, mode, params)
 
     outputs = tf.concat(values=outputs, axis=-1)
     time_steps = tf.shape(outputs)[1]
-    rnn_outputs = tf.reshape(outputs, [-1, params.config.state_size * 2], name="flatten_rnn_outputs_for_linear_projection")
+    rnn_outputs = tf.reshape(outputs, [-1, output_size], name="flatten_rnn_outputs_for_linear_projection")
 
     def mlp(size, name):
         result = tf.layers.dense(rnn_outputs, size, activation=tf.nn.relu, kernel_initializer=tf.orthogonal_initializer,

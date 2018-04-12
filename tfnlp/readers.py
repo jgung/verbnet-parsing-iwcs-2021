@@ -21,6 +21,7 @@ class ConllReader(object):
         self.line_filter = line_filter
         self.label_field = label_field
         self.chunk_func = chunk_func
+        self._sentence_count = 0
 
     def read_files(self, path, extension="txt"):
         """
@@ -80,6 +81,9 @@ class ConllReader(object):
         for row in rows:
             for index, val in self._index_field_map.items():
                 sentence[val].append(row[index])
+        # noinspection PyTypeChecker
+        sentence[SENTENCE_INDEX] = self._sentence_count
+        self._sentence_count += 1
         return sentence
 
 
@@ -130,7 +134,6 @@ class ConllSrlReader(ConllReader):
         self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
-        self.sentence_count = 0
 
     def read_instances(self, rows):
         instances = []
@@ -140,10 +143,8 @@ class ConllSrlReader(ConllReader):
             instance[LABEL_KEY] = labels
             instance[MARKER_KEY] = [index == key and '1' or '0' for index in range(0, len(labels))]
             instance[INSTANCE_INDEX] = self.prop_count
-            instance[SENTENCE_INDEX] = self.sentence_count
             instances.append(instance)
             self.prop_count += 1
-        self.sentence_count += 1
         return instances
 
     def read_predicates(self, rows):

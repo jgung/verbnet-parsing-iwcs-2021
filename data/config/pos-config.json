@@ -5,6 +5,7 @@
   "state_size": 200,
   "dropout": 0.5,
   "input_dropout": 0.5,
+  "encoder": "lstm",
   "encoder_layers": 1,
   "crf": true,
   "batch_size": 10,

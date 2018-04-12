@@ -5,7 +5,7 @@ from itertools import chain
 import tensorflow as tf
 
 from tfnlp.common.constants import END_WORD, INCLUDE_IN_VOCAB, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, \
-    START_WORD, UNKNOWN_WORD
+    SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.utils import Params, deserialize, serialize
 
@@ -258,11 +258,15 @@ class SequenceListFeature(SequenceFeature):
 
 class LengthFeature(Extractor):
     def __init__(self, key, name=LENGTH_KEY):
-        super().__init__(name=name, key=key, config=None)
+        super().__init__(name=name, key=key)
 
     def map(self, value):
         value = super(LengthFeature, self).map(value)
         return len(value)
+
+
+def index_feature():
+    return Extractor(name=SENTENCE_INDEX, key=SENTENCE_INDEX)
 
 
 class FeatureExtractor(object):

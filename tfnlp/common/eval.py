@@ -12,7 +12,9 @@ from tensorflow.python.summary import summary_iterator
 from tensorflow.python.training import saver, session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
-from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, PREDICT_KEY, REL_PROBS, WORD_KEY
+from tfnlp.common.chunk import chunk
+from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, MARKER_KEY, PREDICT_KEY, REL_PROBS, \
+    SENTENCE_INDEX, WORD_KEY
 from tfnlp.common.parsing import nonprojective
 
 
@@ -33,6 +35,56 @@ def conll_eval(gold_batches, predicted_batches, script_path):
         temp.seek(0)
         result = subprocess.check_output(["perl", script_path], stdin=temp, universal_newlines=True)
         return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
+
+
+def conll_srl_eval(gold_batches, predicted_batches, words, markers, ids, script_path):
+    """
+    Run the CoNLL-2005 evaluation script on provided predicted sequences.
+    :param gold_batches: list of gold label sequences
+    :param predicted_batches: list of predicted label sequences
+    :param words: list of word sequences
+    :param markers: list of predicate marker sequences
+    :param ids: list of sentence indices
+    :param script_path: path to CoNLL-2005 eval script
+    :return: tuple of (overall F-score, script_output)
+    """
+    output_file = tempfile.NamedTemporaryFile(mode='wt')
+    with tempfile.NamedTemporaryFile(mode='wt') as gold_temp, output_file as pred_temp:
+        _write_to_file(gold_temp, words, gold_batches, markers, ids)
+        _write_to_file(pred_temp, words, predicted_batches, markers, ids)
+        result = subprocess.check_output(["perl", script_path, gold_temp.name, pred_temp.name], universal_newlines=True)
+        return float(result.strip().split('\n')[6].strip().split()[6]), result
+
+
+def _write_to_file(output_file, xs, ys, indices, ids):
+    prev_sentence = -1
+
+    predicates = []
+    args = []
+    for words, labels, markers, sentence in zip(xs, ys, indices, ids):
+        if prev_sentence != sentence:
+            prev_sentence = sentence
+            if predicates:
+                line = ''
+                for index, predicate in enumerate(predicates):
+                    line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
+                output_file.write(line + '\n')
+                predicates = []
+                args = []
+        if not predicates:
+            predicates = ["-"] * markers.size
+        index = markers.tolist().index(1)
+        predicates[index] = words[index]
+        args.append(chunk(labels, conll=True))
+
+    if predicates:
+        line = ''
+        for index, predicate in enumerate(predicates):
+            line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
+        output_file.write(line + '\n')
+
+    output_file.flush()
+    output_file.seek(0)
 
 
 def accuracy_eval(gold_batches, predicted_batches):
@@ -98,6 +150,70 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
             tf.logging.info(result)
         else:
             score = accuracy_eval(self._gold, self._predictions)
+        if score > self._best:
+            self._best = score
+
+
+class SrlEvalHook(session_run_hook.SessionRunHook):
+    def __init__(self, script_path, tensors, vocab, word_vocab):
+        """
+        Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
+        :param script_path: path to eval script
+        :param tensors
+        :param vocab: label feature vocab
+        """
+        self._script_path = script_path
+        self._predict_tensor = tensors[PREDICT_KEY]
+        self._gold_tensor = tensors[LABEL_KEY]
+        self._length_tensor = tensors[LENGTH_KEY]
+        self._marker_tensor = tensors[MARKER_KEY]
+        self._word_tensor = tensors[WORD_KEY]
+        self._index_tensor = tensors[SENTENCE_INDEX]
+        self._vocab = vocab
+        self._word_vocab = word_vocab
+
+        # initialized in self.begin
+        self._predictions = None
+        self._gold = None
+        self._markers = None
+        self._words = None
+        self._ids = None
+        self._best = -1
+
+    def begin(self):
+        self._predictions = []
+        self._gold = []
+        self._markers = []
+        self._words = []
+        self._ids = []
+
+    def before_run(self, run_context):
+        fetches = {LABEL_KEY: self._gold_tensor,
+                   PREDICT_KEY: self._predict_tensor,
+                   LENGTH_KEY: self._length_tensor,
+                   MARKER_KEY: self._marker_tensor,
+                   WORD_KEY: self._word_tensor,
+                   SENTENCE_INDEX: self._index_tensor}
+        return SessionRunArgs(fetches=fetches)
+
+    def after_run(self, run_context, run_values):
+        for gold, predictions, words, markers, seq_len, idx in zip(run_values.results[LABEL_KEY],
+                                                                   run_values.results[PREDICT_KEY],
+                                                                   run_values.results[WORD_KEY],
+                                                                   run_values.results[MARKER_KEY],
+                                                                   run_values.results[LENGTH_KEY],
+                                                                   run_values.results[SENTENCE_INDEX]):
+            self._gold.append([self._vocab.index_to_feat(val) for val in gold][:seq_len])
+            self._predictions.append([self._vocab.index_to_feat(val) for val in predictions][:seq_len])
+            self._words.append([self._word_vocab.index_to_feat(val) for val in words][:seq_len])
+            self._markers.append(markers[:seq_len])
+            self._ids.append(idx)
+
+    def end(self, session):
+        if self._best >= 0:
+            tf.logging.info("Current best score: %f", self._best)
+        score, result = conll_srl_eval(self._gold, self._predictions, self._words, self._markers, self._ids, self._script_path)
+        tf.logging.info(result)
         if score > self._best:
             self._best = score
 

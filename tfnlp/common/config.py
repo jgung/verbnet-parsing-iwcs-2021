@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 from tfnlp.feature import Extractor, Feature, FeatureExtractor, LengthFeature, SequenceExtractor, SequenceFeature, \
-    SequenceListFeature
+    SequenceListFeature, index_feature
 from tfnlp.layers.reduce import ConvNet
 
 
@@ -38,6 +38,7 @@ def get_feature_extractor(config):
         targets.append(get_feature(target))
 
     features.append(LengthFeature(config.seq_feat))
+    features.append(index_feature())
 
     return FeatureExtractor(features, targets)
 

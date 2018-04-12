@@ -52,10 +52,10 @@ def convert_conll_to_bio(labels):
     for token in labels:
         if token.startswith(CONLL_START):
             label = _get_label(token)
-            results.append(BEGIN + label)
+            results.append(BEGIN_ + label)
             current = label
         elif current and CONLL_CONT in token:
-            results.append(IN + current)
+            results.append(IN_ + current)
         else:
             results.append(OUT)
 

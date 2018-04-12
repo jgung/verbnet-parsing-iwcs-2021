@@ -5,19 +5,19 @@ from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 from tfnlp.common.config import get_gradient_clip, get_optimizer
-from tfnlp.common.constants import ACCURACY_METRIC_KEY, LABEL_KEY, LENGTH_KEY, PREDICT_KEY
-from tfnlp.common.eval import SequenceEvalHook, log_trainable_variables
+from tfnlp.common.constants import ACCURACY_METRIC_KEY, LABEL_KEY, LENGTH_KEY, MARKER_KEY, PREDICT_KEY, SENTENCE_INDEX, WORD_KEY
+from tfnlp.common.eval import SequenceEvalHook, SrlEvalHook, log_trainable_variables
 from tfnlp.common.metrics import tagger_metrics
 from tfnlp.layers.layers import encoder, input_layer
 
 
 def tagger_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
-    outputs = encoder(features, inputs, mode, params)
+    outputs, output_size = encoder(features, inputs, mode, params)
 
     outputs = tf.concat(values=outputs, axis=-1)
     time_steps = tf.shape(outputs)[1]
-    rnn_outputs = tf.reshape(outputs, [-1, params.config.state_size * 2], name="flatten_rnn_outputs_for_linear_projection")
+    rnn_outputs = tf.reshape(outputs, [-1, output_size], name="flatten_rnn_outputs_for_linear_projection")
 
     target = params.extractor.targets[LABEL_KEY]
     num_labels = target.vocab_size()
@@ -65,11 +65,25 @@ def tagger_model_func(features, mode, params):
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)
         eval_metric_ops[ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets, predictions=predictions)
-        evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
-                                             gold_tensor=targets,
-                                             predict_tensor=predictions,
-                                             length_tensor=features[LENGTH_KEY],
-                                             vocab=params.extractor.targets[LABEL_KEY])]
+
+        if params.script_path and "srl" in params.script_path:
+            evaluation_hooks = [SrlEvalHook(script_path=params.script_path,
+                                            tensors={
+                                                LABEL_KEY: targets,
+                                                PREDICT_KEY: predictions,
+                                                LENGTH_KEY: features[LENGTH_KEY],
+                                                MARKER_KEY: features[MARKER_KEY],
+                                                WORD_KEY: features[WORD_KEY],
+                                                SENTENCE_INDEX: features[SENTENCE_INDEX]
+                                            },
+                                            vocab=params.extractor.targets[LABEL_KEY],
+                                            word_vocab=params.extractor.features[WORD_KEY])]
+        else:
+            evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
+                                                 gold_tensor=targets,
+                                                 predict_tensor=predictions,
+                                                 length_tensor=features[LENGTH_KEY],
+                                                 vocab=params.extractor.targets[LABEL_KEY])]
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,

@@ -28,6 +28,20 @@ def input_layer(features, params, training):
 
 
 def encoder(features, inputs, mode, params):
+    if params.config.encoder == 'dblstm':
+        lengths = tf.identity(features[LENGTH_KEY])
+        keep_prob = (1.0 - params.config.dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
+        _encoder = deep_bidirectional_dynamic_rnn([highway_lstm_cell(params.config.state_size, keep_prob)
+                                                   for _ in range(params.config.encoder_layers)], inputs, sequence_length=lengths)
+        return _encoder, params.config.state_size
+    return stacked_bilstm(features, inputs, mode, params), params.config.state_size * 2
+
+
+def highway_lstm_cell(size, keep_prob):
+    return DropoutWrapper(HighwayLSTMCell(size), variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
+
+
+def stacked_bilstm(features, inputs, mode, params):
     def cell(name=None):
         _cell = tf.nn.rnn_cell.LSTMCell(params.config.state_size, name=name, initializer=orthogonal_initializer(4))
         keep_prob = (1.0 - params.config.dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
@@ -93,11 +107,32 @@ def orthogonal_initializer(num_splits):
     return _initializer
 
 
+def deep_bidirectional_dynamic_rnn(cells, inputs, sequence_length):
+    def _reverse(_input, seq_lengths):
+        return array_ops.reverse_sequence(input=_input, seq_lengths=seq_lengths, seq_dim=1, batch_dim=0)
+
+    outputs = None
+    with tf.variable_scope("dblstm"):
+        for i, cell in enumerate(cells):
+            if i % 2 == 1:
+                with tf.variable_scope("bw-%s" % (i // 2)) as bw_scope:
+                    inputs_reverse = _reverse(inputs, seq_lengths=sequence_length)
+                    outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=inputs_reverse, sequence_length=sequence_length,
+                                                   dtype=tf.float32, scope=bw_scope)
+                    outputs = _reverse(outputs, seq_lengths=sequence_length)
+            else:
+                with tf.variable_scope("fw-%s" % (i // 2)) as fw_scope:
+                    outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=inputs, sequence_length=sequence_length,
+                                                   dtype=tf.float32, scope=fw_scope)
+            inputs = outputs
+    return outputs
+
+
 # noinspection PyAbstractClass
 class HighwayLSTMCell(LayerRNNCell):
 
     def __init__(self, num_units,
-                 highway=True,
+                 highway=False,
                  cell_clip=None,
                  initializer=None, num_proj=None, proj_clip=None,
                  forget_bias=1.0,
