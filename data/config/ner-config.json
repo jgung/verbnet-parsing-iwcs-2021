@@ -6,7 +6,7 @@
   "dropout": 0.5,
   "input_dropout": 0.5,
   "encoder_layers": 1,
-  "crf": false,
+  "crf": true,
   "batch_size": 10,
   "optimizer": {
     "name": "Momentum",

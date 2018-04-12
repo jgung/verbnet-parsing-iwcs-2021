@@ -1,4 +1,4 @@
-from tfnlp.common.constants import BEGIN, BEGIN_, END, END_, IN, IN_, OUT, SINGLE, SINGLE_
+from tfnlp.common.constants import BEGIN, BEGIN_, CONLL_CONT, CONLL_END, CONLL_START, END, END_, IN, IN_, OUT, SINGLE, SINGLE_
 
 
 def chunk(labeling, besio=False, conll=False):
@@ -35,6 +35,33 @@ def chunk(labeling, besio=False, conll=False):
     if conll:
         result = [_to_conll(label) for label in result]
     return result
+
+
+def convert_conll_to_bio(labels):
+    """
+    Convert CoNLL-style sequence labels to BIO labels. [`(X`, `*` `)`] => [`B-X`, `I-X`, `I-X`]
+    :param labels: list of CoNLL labels
+    :return: list of BIO labels
+    """
+
+    def _get_label(_label):
+        return _label.replace(CONLL_START, "").replace(CONLL_END, "").replace(CONLL_CONT, "")
+
+    current = None
+    results = []
+    for token in labels:
+        if token.startswith(CONLL_START):
+            label = _get_label(token)
+            results.append(BEGIN + label)
+            current = label
+        elif current and CONLL_CONT in token:
+            results.append(IN + current)
+        else:
+            results.append(OUT)
+
+        if token.endswith(CONLL_END):
+            current = None
+    return results
 
 
 def _to_besio(iob_labeling):

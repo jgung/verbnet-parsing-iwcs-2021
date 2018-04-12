@@ -3,9 +3,10 @@ import os
 import re
 from collections import defaultdict
 
-from tfnlp.common.chunk import chunk
-from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, LABEL_KEY, LEMMA_KEY, NAMED_ENTITY_KEY, \
-    PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, WORD_KEY
+from tfnlp.common.chunk import chunk, convert_conll_to_bio
+from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, LABEL_KEY, LEMMA_KEY, \
+    MARKER_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, PREDICATE_KEY, \
+    ROLESET_KEY, SENTENCE_INDEX, WORD_KEY
 
 
 class ConllReader(object):
@@ -103,6 +104,68 @@ class ConllDepReader(ConllReader):
         return instances
 
 
+class ConllSrlReader(ConllReader):
+    def __init__(self,
+                 index_field_map,
+                 pred_start,
+                 pred_end=0,
+                 pred_key="predicate",
+                 chunk_func=lambda x: x,
+                 line_filter=lambda line: False):
+        """
+        Construct an CoNLL reader for SRL.
+        :param index_field_map: map from indices to corresponding fields
+        :param pred_start: first column index containing semantic roles
+        :param pred_end: number of columns following semantic role columns (e.g. 1, if there is only a single extra column)
+        :param pred_key: prediction key
+        :param chunk_func: function applied to IOB labeling to get final chunking
+        :param line_filter: predicate used to identify lines in input which should not be processed
+        """
+        super(ConllSrlReader, self).__init__(index_field_map,
+                                             line_filter=line_filter,
+                                             label_field=None,
+                                             chunk_func=chunk_func)
+        self._pred_start = pred_start
+        self._pred_end = pred_end
+        self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
+        self.is_predicate = lambda x: x[self._pred_index] is not '-'
+        self.prop_count = 0
+        self.sentence_count = 0
+
+    def read_instances(self, rows):
+        instances = []
+        fields = self.read_fields(rows)
+        for key, labels in self.read_predicates(rows).items():
+            instance = dict(fields)  # copy instance dictionary and add labels
+            instance[LABEL_KEY] = labels
+            instance[MARKER_KEY] = [index == key and '1' or '0' for index in range(0, len(labels))]
+            instance[INSTANCE_INDEX] = self.prop_count
+            instance[SENTENCE_INDEX] = self.sentence_count
+            instances.append(instance)
+            self.prop_count += 1
+        self.sentence_count += 1
+        return instances
+
+    def read_predicates(self, rows):
+        pred_indices = []
+        pred_cols = defaultdict(list)
+        for token_idx, row_fields in enumerate(rows):
+            if self.is_predicate(row_fields):
+                pred_indices.append(token_idx)
+            for index in range(self._pred_start, len(row_fields) - self._pred_end):
+                pred_cols[index - self._pred_start].append(row_fields[index])
+        # convert from CoNLL05 labels to IOB labels
+        for key, val in pred_cols.items():
+            pred_cols[key] = convert_conll_to_bio(val)
+
+        assert len(pred_indices) <= len(pred_cols), (
+                'Unexpected number of predicate columns: %d instead of %d'
+                ', check that predicate start and end indices are correct: %s' % (len(pred_cols), len(pred_indices), rows))
+        # create predicate dictionary with keys as predicate word indices and values as corr. lists of labels (1 for each token)
+        predicates = {i: pred_cols[index] for index, i in enumerate(pred_indices)}
+        return predicates
+
+
 def conll_2003_reader(chunk_func=chunk):
     """
     Initialize and return a CoNLL reader for the CoNLL-2003 NER shared task.
@@ -127,6 +190,19 @@ def conll_2009_reader():
                           label_field=DEPREL_KEY)
 
 
+def conll_2005_reader():
+    return ConllSrlReader({0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: ROLESET_KEY, 5: PREDICATE_KEY},
+                          pred_start=6)
+
+
+def conll_2012_reader():
+    reader = ConllSrlReader({3: WORD_KEY, 4: POS_KEY, 5: PARSE_KEY, 6: PREDICATE_KEY, 7: ROLESET_KEY},
+                            pred_start=11, pred_end=1)
+    reader.is_predicate = lambda line: line[6] is not '-' and line[7] is not '-'
+    reader.skip_line = lambda line: line.startswith("#")  # skip comments
+    return reader
+
+
 def get_reader(reader_config):
     """
     Return a corpus reader for a given config.
@@ -136,6 +212,10 @@ def get_reader(reader_config):
         return conll_2003_reader()
     elif reader_config == 'conll_2009':
         return conll_2009_reader()
+    elif reader_config == 'conll_2005':
+        return conll_2005_reader()
+    elif reader_config == 'conll_2012':
+        return conll_2012_reader()
     elif reader_config == 'ptb_pos':
         return ptb_pos_reader()
     else:
