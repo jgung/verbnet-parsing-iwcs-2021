@@ -6,6 +6,7 @@ from tensorflow.python.training.learning_rate_decay import exponential_decay, in
 from tfnlp.feature import Extractor, Feature, FeatureExtractor, LengthFeature, SequenceExtractor, SequenceFeature, \
     SequenceListFeature, index_feature
 from tfnlp.layers.reduce import ConvNet
+from tfnlp.optim.nadam import NadamOptimizerSparse
 
 
 def get_reduce_function(func, dim, length):
@@ -76,7 +77,7 @@ def get_optimizer(network_config):
     elif "Momentum" == name:
         opt = tf.train.MomentumOptimizer(lr, **optimizer.params)
     elif "Nadam" == name:
-        opt = tf.contrib.opt.NadamOptimizer(lr, **optimizer.params)
+        opt = NadamOptimizerSparse(lr, **optimizer.params)
     else:
         raise ValueError("Invalid optimizer name: {}".format(name))
     return opt
