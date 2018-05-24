@@ -388,7 +388,7 @@ class FeatureExtractor(object):
         """
         self.train(False)
 
-    def initialize(self):
+    def initialize(self, resources=''):
         """
         Initialize feature vocabularies from pre-trained vectors if available.
         """
@@ -401,16 +401,17 @@ class FeatureExtractor(object):
             if not num_vectors_to_read:
                 continue
 
-            vectors, dim = read_vectors(initializer.embedding, max_vecs=num_vectors_to_read)
+            vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
             for key in vectors:
                 feature.feat_to_index(key)
 
-    def write_vocab(self, base_path, overwrite=False):
+    def write_vocab(self, base_path, overwrite=False, resources=''):
         """
         Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
         Creates pickled embeddings if explicit initializers are provided.
         :param base_path: base directory for vocabulary files
         :param overwrite: overwrite pre-existing vocabulary files--if `False`, raises an error when already existing
+        :param resources: optional base path for embedding resources
         """
         for feature in self.extractors():
             if not feature.has_vocab():
@@ -426,7 +427,7 @@ class FeatureExtractor(object):
 
             initializer = feature.config.get(INITIALIZER)
             if initializer:
-                vectors, dim = read_vectors(initializer.embedding)
+                vectors, dim = read_vectors(resources + initializer.embedding)
                 feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
                 serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 
@@ -444,6 +445,9 @@ class FeatureExtractor(object):
             if not success:
                 return success
             initializer = feature.config.get(INITIALIZER)
-            if initializer:
-                feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
+            try:
+                if initializer:
+                    feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
+            except FileNotFoundError:
+                return False
         return True
