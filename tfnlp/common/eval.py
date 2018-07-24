@@ -8,6 +8,7 @@ import tensorflow as tf
 from nltk import ConfusionMatrix
 from tensorflow.python.estimator.canned.metric_keys import MetricKeys
 from tensorflow.python.estimator.exporter import LatestExporter
+from tensorflow.python.lib.io import file_io
 from tensorflow.python.summary import summary_iterator
 from tensorflow.python.training import saver, session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
@@ -278,8 +279,8 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
 
 
 def parser_write_and_eval(sentences, arc_probs, rel_probs, heads, rels, features, script_path, out_path=None, gold_path=None):
-    _gold_file = open(gold_path, 'w', encoding='utf-8') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
-    _out_file = open(out_path, 'w', encoding='utf-8') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
+    _gold_file = file_io.FileIO(gold_path, 'w') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
+    _out_file = file_io.FileIO(out_path, 'w') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
     with _out_file as system_file, _gold_file as gold_file:
         # tempfile.NamedTemporaryFile(mode='w', encoding='utf-8') as gold_file:

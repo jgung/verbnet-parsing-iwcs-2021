@@ -2,6 +2,7 @@ import gzip
 from collections import OrderedDict
 
 import numpy as np
+from tensorflow.python.lib.io import file_io
 
 
 def random_normal_initializer(_, dim):
@@ -17,7 +18,7 @@ def read_vectors(path, max_vecs=1000000):
     """
     vectors = OrderedDict()
     dim = 0
-    with gzip.open(path, 'rt') if path.endswith('gz') else open(path, 'r', encoding='utf-8') as lines:
+    with gzip.open(path, 'rt') if path.endswith('gz') else file_io.FileIO(path, 'r') as lines:
         for line in lines:
             if len(vectors) >= max_vecs:
                 break

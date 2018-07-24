@@ -3,6 +3,8 @@ import re
 from itertools import chain
 
 import tensorflow as tf
+from tensorflow.python.framework.errors_impl import NotFoundError
+from tensorflow.python.lib.io import file_io
 
 from tfnlp.common.constants import END_WORD, INCLUDE_IN_VOCAB, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, \
     SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
@@ -16,7 +18,7 @@ def write_features(examples, out_path):
     :param examples:  list of SequenceExample
     :param out_path: output path
     """
-    with open(out_path, 'w') as file:
+    with file_io.FileIO(out_path, 'w') as file:
         writer = tf.python_io.TFRecordWriter(file.name)
         for example in examples:
             writer.write(example.SerializeToString())
@@ -147,7 +149,7 @@ class Feature(Extractor):
         """
         if not overwrite and os.path.exists(path):
             raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
-        with open(path, mode='w') as vocab:
+        with file_io.FileIO(path, mode='w') as vocab:
             for i in range(len(self.indices)):
                 vocab.write('{}\n'.format(self.index_to_feat(i)))
 
@@ -160,12 +162,12 @@ class Feature(Extractor):
         self.indices = {}
         self.reversed = None
         try:
-            with open(path, mode='r') as vocab:
+            with file_io.FileIO(path, mode='r') as vocab:
                 for line in vocab:
                     line = line.strip()
                     if line:
                         self.indices[line] = len(self.indices)
-        except IOError:
+        except NotFoundError:
             return False
         return True
 
@@ -448,6 +450,6 @@ class FeatureExtractor(object):
             try:
                 if initializer:
                     feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
-            except FileNotFoundError:
+            except NotFoundError:
                 return False
         return True
