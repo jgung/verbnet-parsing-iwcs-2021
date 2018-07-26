@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import tempfile
+from collections import defaultdict
 
 import numpy as np
 import tensorflow as tf
@@ -17,6 +18,7 @@ from tfnlp.common.chunk import chunk
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, MARKER_KEY, PREDICT_KEY, REL_PROBS, \
     SENTENCE_INDEX, WORD_KEY
 from tfnlp.common.parsing import nonprojective
+from tfnlp.common.srleval import evaluate
 
 
 def conll_eval(gold_batches, predicted_batches, script_path):
@@ -38,7 +40,7 @@ def conll_eval(gold_batches, predicted_batches, script_path):
         return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
 
 
-def conll_srl_eval(gold_batches, predicted_batches, words, markers, ids, script_path):
+def conll_srl_eval(gold_batches, predicted_batches, words, markers, ids):
     """
     Run the CoNLL-2005 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
@@ -46,15 +48,46 @@ def conll_srl_eval(gold_batches, predicted_batches, words, markers, ids, script_
     :param words: list of word sequences
     :param markers: list of predicate marker sequences
     :param ids: list of sentence indices
-    :param script_path: path to CoNLL-2005 eval script
     :return: tuple of (overall F-score, script_output)
     """
-    output_file = tempfile.NamedTemporaryFile(mode='wt')
-    with tempfile.NamedTemporaryFile(mode='wt') as gold_temp, output_file as pred_temp:
-        _write_to_file(gold_temp, words, gold_batches, markers, ids)
-        _write_to_file(pred_temp, words, predicted_batches, markers, ids)
-        result = subprocess.check_output(["perl", script_path, gold_temp.name, pred_temp.name], universal_newlines=True)
-        return float(result.strip().split('\n')[6].strip().split()[6]), result
+    gold_props = _convert_to_sentences(xs=words, ys=gold_batches, indices=markers, ids=ids)
+    pred_props = _convert_to_sentences(xs=words, ys=predicted_batches, indices=markers, ids=ids)
+    result = evaluate(gold_props, pred_props)
+    return result.evaluation.prec_rec_f1()[3], str(result)
+
+
+def _convert_to_sentences(xs, ys, indices, ids):
+    sentences = []
+    current_sentence = defaultdict(list)
+    prev_sentence = -1
+
+    predicates = []
+    args = []
+    for words, labels, markers, sentence in zip(xs, ys, indices, ids):
+        if prev_sentence != sentence:
+            prev_sentence = sentence
+            if predicates:
+                for index, predicate in enumerate(predicates):
+                    current_sentence[0].append(predicate)
+                    for i, prop in enumerate(args):
+                        current_sentence[i + 1].append(prop[index])
+                sentences.append(current_sentence)
+                current_sentence = defaultdict(list)
+                predicates = []
+                args = []
+        if not predicates:
+            predicates = ["-"] * markers.size
+        index = markers.tolist().index(1)
+        predicates[index] = words[index]
+        args.append(chunk(labels, conll=True))
+
+    if predicates:
+        for index, predicate in enumerate(predicates):
+            current_sentence[0].append(predicate)
+            for i, prop in enumerate(args):
+                current_sentence[i + 1].append(prop[index])
+        sentences.append(current_sentence)
+    return sentences
 
 
 def _write_to_file(output_file, xs, ys, indices, ids):
@@ -156,14 +189,12 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
 
 
 class SrlEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, script_path, tensors, vocab, word_vocab):
+    def __init__(self, tensors, vocab, word_vocab):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
-        :param script_path: path to eval script
         :param tensors
         :param vocab: label feature vocab
         """
-        self._script_path = script_path
         self._predict_tensor = tensors[PREDICT_KEY]
         self._gold_tensor = tensors[LABEL_KEY]
         self._length_tensor = tensors[LENGTH_KEY]
@@ -213,7 +244,7 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
     def end(self, session):
         if self._best >= 0:
             tf.logging.info("Current best score: %f", self._best)
-        score, result = conll_srl_eval(self._gold, self._predictions, self._words, self._markers, self._ids, self._script_path)
+        score, result = conll_srl_eval(self._gold, self._predictions, self._words, self._markers, self._ids)
         tf.logging.info(result)
         if score > self._best:
             self._best = score
