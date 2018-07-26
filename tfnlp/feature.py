@@ -404,6 +404,7 @@ class FeatureExtractor(object):
                 continue
 
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             for key in vectors:
                 feature.feat_to_index(key)
 
@@ -430,7 +431,9 @@ class FeatureExtractor(object):
             initializer = feature.config.get(INITIALIZER)
             if initializer:
                 vectors, dim = read_vectors(resources + initializer.embedding)
+                tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
                 feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
+                tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
                 serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 
     def read_vocab(self, base_path):

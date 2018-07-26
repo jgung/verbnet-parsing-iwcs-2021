@@ -53,7 +53,7 @@ def conll_srl_eval(gold_batches, predicted_batches, words, markers, ids):
     gold_props = _convert_to_sentences(xs=words, ys=gold_batches, indices=markers, ids=ids)
     pred_props = _convert_to_sentences(xs=words, ys=predicted_batches, indices=markers, ids=ids)
     result = evaluate(gold_props, pred_props)
-    return result.evaluation.prec_rec_f1()[3], str(result)
+    return result.evaluation.prec_rec_f1()[2], str(result)
 
 
 def _convert_to_sentences(xs, ys, indices, ids):
