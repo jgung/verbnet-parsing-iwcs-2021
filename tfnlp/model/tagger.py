@@ -42,7 +42,7 @@ def tagger_model_func(features, mode, params):
         targets = tf.identity(features[LABEL_KEY], name=LABEL_KEY)
 
         if params.config.crf:
-            log_likelihood, _ = crf_log_likelihood(logits, targets, sequence_lengths=features[LENGTH_KEY],
+            log_likelihood, _ = crf_log_likelihood(logits, targets, sequence_lengths=tf.cast(features[LENGTH_KEY], tf.int32),
                                                    transition_params=transition_matrix)
             losses = -log_likelihood
         else:
@@ -60,7 +60,7 @@ def tagger_model_func(features, mode, params):
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
-        predictions, _ = tf.contrib.crf.crf_decode(logits, transition_matrix, features[LENGTH_KEY])
+        predictions, _ = tf.contrib.crf.crf_decode(logits, transition_matrix, tf.cast(features[LENGTH_KEY], tf.int32))
 
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)
