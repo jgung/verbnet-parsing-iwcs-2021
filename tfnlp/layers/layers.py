@@ -38,7 +38,8 @@ def encoder(features, inputs, mode, params):
 
 
 def highway_lstm_cell(size, keep_prob):
-    return DropoutWrapper(HighwayLSTMCell(size), variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
+    return DropoutWrapper(HighwayLSTMCell(size, highway=True), variational_recurrent=True, dtype=tf.float32,
+                          output_keep_prob=keep_prob)
 
 
 def stacked_bilstm(features, inputs, mode, params):
@@ -205,7 +206,10 @@ class HighwayLSTMCell(LayerRNNCell):
         input_depth = inputs_shape[1].value
         h_depth = self._num_units if self._num_proj is None else self._num_proj
 
-        num_splits = self._highway and 5 or 4
+        tf.logging.info("Initializing (%d, %d) LSTM layer, default init (orthonormal): %s, highway: %s",
+                        input_depth, h_depth, not self._initializer, self._highway)
+
+        num_splits = self._highway and 6 or 4
         self._input_kernel = self.add_variable(
             "input_kernel",
             shape=[input_depth, num_splits * self._num_units],
@@ -214,7 +218,7 @@ class HighwayLSTMCell(LayerRNNCell):
             "bias",
             shape=[num_splits * self._num_units],
             initializer=init_ops.zeros_initializer(dtype=self.dtype))
-        num_splits = self._highway and 6 or 4
+        num_splits = self._highway and 5 or 4
         self._hidden_kernel = self.add_variable(
             "hidden_kernel",
             shape=[h_depth, num_splits * self._num_units],

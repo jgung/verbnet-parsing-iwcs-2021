@@ -16,101 +16,6 @@ NONE = "-NONE-"
 VERB = "V"
 
 
-def conll_iterator(conll_path):
-    """
-    Generator-based iterator over a CoNLL formatted file (line per token, blank lines separating sentences).
-    :param conll_path:  CoNLL formatted file
-    :return: iterator over sentences in file
-    """
-    with open(conll_path, 'r') as lines:
-        current = defaultdict(list)
-        for line in lines:
-            line = line.strip()
-            if not line:
-                if current:
-                    yield current
-                    current = defaultdict(list)
-                continue
-            for i, val in enumerate(line.split()):
-                current[i].append(val)
-        if current:  # read last instance if there is no newline at end of file
-            yield current
-
-
-def evaluate(gold, pred):
-    ntargets, ns, e = 0, 0, Evaluation()
-
-    for sent_id, (gold_sent, pred_sent) in enumerate(zip(gold, pred)):
-        gold_targets = gold_sent[0]
-        pred_targets = pred_sent[0]
-        if len(gold_targets) != len(pred_targets):
-            raise RuntimeError('Sentence {}: gold and pred sentences do not align correctly!'.format(sent_id))
-        sent = SrlSentence(sent_id)
-        sent.gold = SrlSentence.load_props(sent_id, gold_sent)
-        sent.pred = SrlSentence.load_props(sent_id, pred_sent)
-        sent.words = len(gold_targets)
-
-        for i in range(len(sent.gold)):
-            gprop = sent.gold.get(i)
-            pprop = sent.pred.get(i)
-            if pprop and not gprop:
-                print("Warning : sentence {} : verb {} at position {} : found predicted prop without its gold reference! "
-                      "Skipping prop!".format(sent_id, pprop.verb, pprop.position))
-            elif gprop:
-                if not pprop:
-                    print("Warning : sentence {} : verb {} at position {} : missing predicted prop! Counting all arguments as "
-                          "missed!".format(sent_id, gprop.verb, gprop.position))
-                elif gprop.verb != pprop.verb:
-                    print("Warning : sentence {} : props do not match : expecting {} at position {}, found {} at position {}! "
-                          "Counting all gold arguments as missed!".format(sent_id, gprop.verb, gprop.position, pprop.verb,
-                                                                          pprop.position))
-            ntargets += 1
-            results = evaluate_proposition(gprop, pprop, exclusions=['V'])
-            e.ok += results.ok
-            e.op += results.op
-            e.ms += results.ms
-            e.ptv += results.ptv
-
-            for key, val in results.types.items():
-                e.types[key][OKAY_KEY] += val[OKAY_KEY]
-                e.types[key][EXCESS_KEY] += val[EXCESS_KEY]
-                e.types[key][MISS_KEY] += val[MISS_KEY]
-            for key, val in results.excluded.items():
-                e.excluded[key][OKAY_KEY] += val[OKAY_KEY]
-                e.excluded[key][EXCESS_KEY] += val[EXCESS_KEY]
-                e.excluded[key][MISS_KEY] += val[MISS_KEY]
-
-            e.update_confusion_matrix(gprop, pprop)
-        ns += 1
-    return SrlEvaluation(ns, ntargets, e)
-
-
-def evaluate_proposition(gprop, pprop, exclusions=None):
-    if exclusions is None:
-        exclusions = {}
-
-    def excluded(val):
-        return val in exclusions
-
-    ok, ms, op, eq = SrlProp.discriminate_args(gprop, pprop)
-    e = Evaluation()
-
-    def update_counts(counts, count_key, incr_func):
-        for a in counts:
-            if not excluded(a.label):
-                incr_func()
-                e.types[a.label][count_key] += 1
-            else:
-                e.excluded[a.label][count_key] += 1
-
-    update_counts(ok, OKAY_KEY, e.increment_ok)
-    update_counts(ms, MISS_KEY, e.increment_ms)
-    update_counts(op, EXCESS_KEY, e.increment_op)
-
-    e.ptv = 1 if not e.op and not e.ms else 0
-    return e
-
-
 class Evaluation(object):
     def __init__(self):
         self.ok = 0
@@ -122,6 +27,10 @@ class Evaluation(object):
         self.confusions = defaultdict(Counter)
 
     def prec_rec_f1(self):
+        """
+        Compute the precision, recall and F1 score for this evaluation.
+        :return: tuple containing (precision, recall, F1)
+        """
         return Evaluation.precrecf1(self.ok, self.op, self.ms)
 
     def increment_ok(self):
@@ -133,13 +42,6 @@ class Evaluation(object):
     def increment_ms(self):
         self.ms += 1
 
-    @staticmethod
-    def precrecf1(ok, op, ms):
-        precision = 100 * ok / (ok + op) if ok + op > 0 else 0
-        recall = 100 * ok / (ok + ms) if ok + ms > 0 else 0
-        f1 = (2 * precision * recall) / (precision + recall) if precision + recall > 0 else 0
-        return precision, recall, f1
-
     def update_confusion_matrix(self, gprop, pprop):
         ok, ms, op, eq = SrlProp.discriminate_args(gprop, pprop, False)
         for pred, gold in zip(ok, eq):
@@ -149,7 +51,7 @@ class Evaluation(object):
         for pred in op:
             self.confusions[NONE][pred.label] += 1
 
-    def confusion_matrix(self):
+    def display_confusion_matrix(self):
         uok, uop, ums, uacc = 0, 0, 0, 0
         for gold_label, label_counter in self.confusions.items():
             if gold_label in [NONE, VERB]:
@@ -175,38 +77,53 @@ class Evaluation(object):
 
         vals = ["            "]
         for i, gold_label in enumerate(keys):
-            vals.append("{:>4}".format(i-1))
+            vals.append("{:>4}".format(i - 1))
         lines.append(" ".join(vals))
         for i, gold_label in enumerate(keys):
-            vals = ["{:>2}: {:<8}".format(i-1, gold_label)]
+            vals = ["{:>2}: {:<8}".format(i - 1, gold_label)]
             for pred_label in keys:
                 vals.append("{:>4}".format(self.confusions[gold_label][pred_label]))
             lines.append(" ".join(vals))
         return "\n".join(lines)
 
     def __str__(self) -> str:
-        linebreak = "------------------------------------------------------------"
+        def _format(val, ok, op, ms, prec, rec, f1):
+            return '{:>10}   {:>6}  {:>6}  {:>6}   {:>6.2f}  {:>6.2f}  {:>6.2f}'.format(val, ok, op, ms, prec, rec, f1)
+
+        line = "------------------------------------------------------------"
         lines = [
             '{:>10}   {:>6}  {:>6}  {:>6}   {:>6}  {:>6}  {:>6}'.format("", "corr.", "excess", "missed", "prec.", "rec.", "F1"),
-            linebreak,
-            '{:>10}   {:>6}  {:>6}  {:>6}   {:>6.2f}  {:>6.2f}  {:>6.2f}'.format("Overall", self.ok, self.op, self.ms,
-                                                                                 *self.prec_rec_f1()),
+            line,
+            _format("Overall", self.ok, self.op, self.ms, *self.prec_rec_f1()),
             '----------'
         ]
 
         for label in sorted(self.types.keys()):
             count = self.types[label]
-            lines.append('{:>10}   {:>6}  {:>6}  {:>6}   {:>6.2f}  {:>6.2f}  {:>6.2f}'
-                         .format(label, count[OKAY_KEY], count[EXCESS_KEY], count[MISS_KEY],
+            lines.append(_format(label, count[OKAY_KEY], count[EXCESS_KEY], count[MISS_KEY],
                                  *Evaluation.precrecf1(count[OKAY_KEY], count[EXCESS_KEY], count[MISS_KEY])))
-        lines.append(linebreak)
+        lines.append(line)
         for label in sorted(self.excluded.keys()):
             count = self.excluded[label]
-            lines.append('{:>10}   {:>6}  {:>6}  {:>6}   {:>6.2f}  {:>6.2f}  {:>6.2f}'
-                         .format(label, count[OKAY_KEY], count[EXCESS_KEY], count[MISS_KEY],
+            lines.append(_format(label, count[OKAY_KEY], count[EXCESS_KEY], count[MISS_KEY],
                                  *Evaluation.precrecf1(count[OKAY_KEY], count[EXCESS_KEY], count[MISS_KEY])))
-        lines.append(linebreak)
+        lines.append(line)
+
         return '\n'.join(lines)
+
+    @staticmethod
+    def precrecf1(ok, op, ms):
+        """
+        Compute the precision, recall and F1 for given TP, FP, and FN.
+        :param ok: true positives
+        :param op: false positives
+        :param ms: false negatives
+        :return: tuple containing (precision, recall, F1)
+        """
+        precision = 100 * ok / (ok + op) if ok + op > 0 else 0
+        recall = 100 * ok / (ok + ms) if ok + ms > 0 else 0
+        f1 = (2 * precision * recall) / (precision + recall) if precision + recall > 0 else 0
+        return precision, recall, f1
 
 
 class SrlEvaluation(object):
@@ -216,7 +133,34 @@ class SrlEvaluation(object):
         self.evaluation = evaluation
 
     def confusion_matrix(self):
-        return self.evaluation.confusion_matrix()
+        return self.evaluation.display_confusion_matrix()
+
+    def latex(self):
+        def _format_latex(val, prec, rec, f1):
+            return '{:<10} & {:>6.2f}\\% & {:>6.2f}\\% & {:>6.2f}\\\\'.format(val, prec, rec, f1)
+
+        lines = ['\\begin{table}[t]',
+                 '\\centering',
+                 '\\begin{tabular}{|l|r|r|r|}\\cline{2-4}',
+                 '\\multicolumn{1}{l|}{}',
+                 '           & Precision & Recall & F$_{\\beta=1}$\\\\',
+                 '\\hline',
+                 _format_latex('Overall', *self.evaluation.prec_rec_f1()),
+                 '\\hline'
+                 ]
+        for label, label_counts in sorted(self.evaluation.types.items(), key=lambda item: item[0]):
+            lines.append(_format_latex(label, *self.evaluation.precrecf1(label_counts[OKAY_KEY], label_counts[EXCESS_KEY],
+                                                                         label_counts[MISS_KEY])))
+        lines.append('\\hline')
+        if self.evaluation.excluded:
+            lines.append('\\hline')
+            for label, label_counts in sorted(self.evaluation.excluded.items(), key=lambda item: item[0]):
+                lines.append(_format_latex(label, *self.evaluation.precrecf1(label_counts[OKAY_KEY], label_counts[EXCESS_KEY],
+                                                                             label_counts[MISS_KEY])))
+            lines.append('\\hline')
+        lines.append('\\end{tabular}')
+        lines.append('\\end{table}')
+        return '\n'.join(lines)
 
     def __str__(self) -> str:
         lines = ['Number of Sentences    :      {:>6}'.format(self.ns),
@@ -495,7 +439,7 @@ class SrlPhrase(object):
         """
         Returns the phrases rooted in the current phrase in DFS order.
         """
-        return dfs(self, lambda val: val.phrases)
+        return _dfs(self, lambda val: val.phrases)
 
     def __str__(self) -> str:
         result = "({}{}{})".format(self.start,
@@ -507,16 +451,7 @@ class SrlPhrase(object):
         return result
 
 
-class SrlArg(SrlPhrase):
-
-    def __init__(self, start, end=-1, label=None):
-        super().__init__(start, end, label)
-
-    def single(self):
-        return len(self.phrases) == 0
-
-
-def dfs(root, child_func):
+def _dfs(root, child_func):
     """
     Returns a list of elements in DFS order from a given root node.
     :param root: root element
@@ -532,17 +467,165 @@ def dfs(root, child_func):
     return list(visited)
 
 
-if __name__ == '__main__':
+class SrlArg(SrlPhrase):
+
+    def __init__(self, start, end=-1, label=None):
+        super().__init__(start, end, label)
+
+    def single(self):
+        return len(self.phrases) == 0
+
+
+def conll_iterator(conll_path):
+    """
+    Generator-based iterator over a CoNLL formatted file (line per token, blank lines separating sentences).
+    :param conll_path:  CoNLL formatted file
+    :return: iterator over sentences in file
+    """
+    with open(conll_path, 'r') as lines:
+        current = defaultdict(list)
+        for line in lines:
+            line = line.strip()
+            if not line:
+                if current:
+                    yield current
+                    current = defaultdict(list)
+                continue
+            for i, val in enumerate(line.split()):
+                current[i].append(val)
+        if current:  # read last instance if there is no newline at end of file
+            yield current
+
+
+def _evaluate_proposition(gprop, pprop, exclusions=None):
+    if exclusions is None:
+        exclusions = {}
+
+    def excluded(val):
+        return val in exclusions
+
+    ok, ms, op, eq = SrlProp.discriminate_args(gprop, pprop)
+    e = Evaluation()
+
+    def update_counts(counts, count_key, incr_func):
+        for a in counts:
+            if not excluded(a.label):
+                incr_func()
+                e.types[a.label][count_key] += 1
+            else:
+                e.excluded[a.label][count_key] += 1
+
+    update_counts(ok, OKAY_KEY, e.increment_ok)
+    update_counts(ms, MISS_KEY, e.increment_ms)
+    update_counts(op, EXCESS_KEY, e.increment_op)
+
+    e.ptv = 1 if not e.op and not e.ms else 0
+    return e
+
+
+def evaluate(gold, pred):
+    """
+    Produce CoNLL 2005 SRL evaluation results for a provided sentences given as lists of tags, with the first list being a
+    list of targets. For example, [['-', 'love', '-'], ['(A0*)', '(V*)', '(A1*)']].
+    :param gold: gold labels
+    :param pred: predicted labels
+    :return: SRL evaluation results
+    """
+    ntargets, ns, e = 0, 0, Evaluation()
+
+    for sent_id, (gold_sent, pred_sent) in enumerate(zip(gold, pred)):
+        gold_targets = gold_sent[0]
+        pred_targets = pred_sent[0]
+        if len(gold_targets) != len(pred_targets):
+            raise RuntimeError('Sentence {}: gold and pred sentences do not align correctly!'.format(sent_id))
+        sent = SrlSentence(sent_id)
+        sent.gold = SrlSentence.load_props(sent_id, gold_sent)
+        sent.pred = SrlSentence.load_props(sent_id, pred_sent)
+        sent.words = len(gold_targets)
+
+        for i in range(len(sent.gold)):
+            gprop = sent.gold.get(i)
+            pprop = sent.pred.get(i)
+            if pprop and not gprop:
+                print("Warning : sentence {} : verb {} at position {} : found predicted prop without its gold reference! "
+                      "Skipping prop!".format(sent_id, pprop.verb, pprop.position))
+            elif gprop:
+                if not pprop:
+                    print("Warning : sentence {} : verb {} at position {} : missing predicted prop! Counting all arguments as "
+                          "missed!".format(sent_id, gprop.verb, gprop.position))
+                elif gprop.verb != pprop.verb:
+                    print("Warning : sentence {} : props do not match : expecting {} at position {}, found {} at position {}! "
+                          "Counting all gold arguments as missed!".format(sent_id, gprop.verb, gprop.position, pprop.verb,
+                                                                          pprop.position))
+            ntargets += 1
+            results = _evaluate_proposition(gprop, pprop, exclusions=['V'])
+            e.ok += results.ok
+            e.op += results.op
+            e.ms += results.ms
+            e.ptv += results.ptv
+
+            for key, val in results.types.items():
+                e.types[key][OKAY_KEY] += val[OKAY_KEY]
+                e.types[key][EXCESS_KEY] += val[EXCESS_KEY]
+                e.types[key][MISS_KEY] += val[MISS_KEY]
+            for key, val in results.excluded.items():
+                e.excluded[key][OKAY_KEY] += val[OKAY_KEY]
+                e.excluded[key][EXCESS_KEY] += val[EXCESS_KEY]
+                e.excluded[key][MISS_KEY] += val[MISS_KEY]
+
+            e.update_confusion_matrix(gprop, pprop)
+        ns += 1
+    return SrlEvaluation(ns, ntargets, e)
+
+
+def eval_from_files(gold_path, pred_path):
+    """
+    Produce CoNLL 2005 SRL evaluation results for given gold/predicted SRL tags, provided as paths.
+    :param gold_path: path to gold file
+    :param pred_path: path to predictions file
+    :return: CoNLL 2005 SRL evaluation results
+    """
+    gold_props, pred_props = conll_iterator(gold_path), conll_iterator(pred_path)
+    return evaluate(gold=gold_props, pred=pred_props)
+
+
+def get_perl_output(gold_path, pred_path, latex=False, confusions=False):
+    """
+    Return a string equivalent to original CoNLL 2005 perl script output.
+    :param gold_path: path to gold props
+    :param pred_path: path to predicted props
+    :param latex: if `True`, output in LaTeX format
+    :param confusions: if `True`, output confusion matrix
+    :return: evaluation output string
+    """
+    evaluation_results = eval_from_files(gold_path=gold_path, pred_path=pred_path)
+    results = []
+    if latex:
+        results.append(evaluation_results.latex())
+    else:
+        results.append(str(evaluation_results))
+    if confusions:
+        results.append(evaluation_results.confusion_matrix())
+    return '\n'.join(results)
+
+
+def options(args=None):
     parser = argparse.ArgumentParser(description="Evaluation program for the CoNLL-2005 Shared Task")
     parser.add_argument('--gold', type=str, required=True, help='Path to file containing gold propositions.')
     parser.add_argument('--pred', type=str, required=True, help='Path to file containing predicted propositions.')
+    parser.add_argument('--latex', dest='latex', action='store_true',
+                        help='Produce a results table in LaTeX')
     parser.add_argument('-C', dest='confusions', action='store_true',
                         help='Produce a confusion matrix of gold vs. predicted arguments, wrt. their role')
     parser.set_defaults(confusions=False)
-    opts = parser.parse_args()
+    parser.set_defaults(latex=False)
+    return parser.parse_args(args)
 
-    gold_props, pred_props = conll_iterator(opts.gold), conll_iterator(opts.pred)
-    evaluation_results = evaluate(gold=gold_props, pred=pred_props)
-    print(evaluation_results)
-    if opts.confusions:
-        print(evaluation_results.confusion_matrix())
+
+def main():
+    _opts = options()
+    print(get_perl_output(_opts.gold, _opts.pred, _opts.latex, _opts.confusions))
+
+
+if __name__ == '__main__':
+    main()
