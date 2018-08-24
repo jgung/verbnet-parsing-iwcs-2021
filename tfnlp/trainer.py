@@ -154,6 +154,9 @@ class Trainer(object):
 
         tf.logging.info("Extracting features from %s", path)
         raw_instances = self._raw_instance_reader_fn(path)
+        if not raw_instances:
+            raise ValueError("No examples provided at path given by '{}'".format(path))
+
         examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
 
         output_path = self._data_path_fn(path)
