@@ -429,8 +429,12 @@ class FeatureExtractor(object):
             feature.write_vocab(path, overwrite=overwrite)
 
             initializer = feature.config.get(INITIALIZER)
+
             if initializer:
-                vectors, dim = read_vectors(resources + initializer.embedding)
+                num_vectors_to_read = initializer.get(INCLUDE_IN_VOCAB)
+                if not num_vectors_to_read:
+                    continue
+                vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
                 tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
                 feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
                 tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
@@ -448,7 +452,7 @@ class FeatureExtractor(object):
             path = os.path.join(base_path, feature.name)
             success = feature.read_vocab(path)
             if not success:
-                return success
+                return False
             initializer = feature.config.get(INITIALIZER)
             try:
                 if initializer:
