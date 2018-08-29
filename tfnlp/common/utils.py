@@ -4,6 +4,8 @@ import os
 
 import pickle
 
+from tensorflow.python.lib.io import file_io
+
 
 class Params(dict):
     def __init__(self, **kwargs):
@@ -44,7 +46,7 @@ def read_json(json_path):
     :param json_path: path to JSON file
     :return: attribute dictionary for input JSON
     """
-    with open(json_path, 'r') as lines:
+    with file_io.FileIO(json_path, 'r') as lines:
         json_dict = json.load(lines)
         return _convert_to_attributes(json_dict)
 
@@ -61,7 +63,7 @@ def serialize(serializable, out_path, out_name=None, overwrite=False):
             raise
     if not overwrite and os.path.exists(path):
         raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
-    with open(path, mode="wb") as out_file:
+    with file_io.FileIO(path, mode="wb") as out_file:
         pickle.dump(serializable, out_file)
 
 
@@ -69,5 +71,5 @@ def deserialize(in_path, in_name=None):
     if in_name:
         in_name = in_name if in_name.endswith(".pkl") else "{}.pkl".format(in_name)
     path = os.path.join(in_path, in_name) if in_name else in_path
-    with open(path, mode="rb") as in_file:
+    with file_io.FileIO(path, mode="rb") as in_file:
         return pickle.load(in_file)

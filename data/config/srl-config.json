@@ -1,8 +1,8 @@
 {
   "reader": "conll_2005",
-  "throttle_secs": 180,
-  "checkpoint_steps": 1500,
-  "state_size": 100,
+  "throttle_secs": 0,
+  "checkpoint_steps": 1000,
+  "state_size": 300,
   "input_dropout": 0.0,
   "dropout": 0.1,
   "encoder": "dblstm",

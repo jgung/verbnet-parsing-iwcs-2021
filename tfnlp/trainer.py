@@ -29,6 +29,7 @@ def default_args():
     parser.add_argument('--valid', type=str, help='File containing validation data.')
     parser.add_argument('--test', type=str, help='File containing test data.')
     parser.add_argument('--save', type=str, required=True, help='Directory where models/checkpoints are saved.')
+    parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
     parser.add_argument('--vocab', type=str, required=True, help='Directory where vocabulary files are saved.')
     parser.add_argument('--mode', type=str, default="train", help='Command in [train, predict]')
     parser.add_argument('--features', type=str, required=True, help='JSON file for configuring feature extractors')
@@ -53,6 +54,7 @@ class Trainer(object):
 
         self._save_path = args.save
         self._vocab_path = args.vocab
+        self._resources = args.resources
         self._eval_script_path = args.script
         self._feature_config = read_json(args.features)
         self._training_config = read_json(args.config)
@@ -142,16 +144,19 @@ class Trainer(object):
 
     def _train_vocab(self):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
-        self._feature_extractor.initialize()
+        self._feature_extractor.initialize(self._resources)
         self._extract_features(self._raw_train, train=True)
         self._extract_features(self._raw_valid, train=False)
-        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite)
+        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources)
 
     def _extract_features(self, path, train=False):
         self._feature_extractor.train(train)
 
         tf.logging.info("Extracting features from %s", path)
         raw_instances = self._raw_instance_reader_fn(path)
+        if not raw_instances:
+            raise ValueError("No examples provided at path given by '{}'".format(path))
+
         examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
 
         output_path = self._data_path_fn(path)

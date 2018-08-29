@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import array_ops
@@ -38,7 +39,8 @@ def encoder(features, inputs, mode, params):
 
 
 def highway_lstm_cell(size, keep_prob):
-    return DropoutWrapper(HighwayLSTMCell(size), variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
+    return DropoutWrapper(HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer),
+                          variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
 
 
 def stacked_bilstm(features, inputs, mode, params):
@@ -94,14 +96,24 @@ def _get_input(feature_ids, feature, training):
     return result
 
 
+# noinspection PyUnusedLocal
+def numpy_orthogonal_initializer(shape, dtype=tf.float32, partition_info=None):
+    flat = (shape[0], np.prod(shape[1:]))
+    a = np.random.normal(0.0, 1.0, flat)
+    u, _, v = np.linalg.svd(a, full_matrices=False)
+    q = (u if u.shape == flat else v).reshape(shape)
+    return tf.constant(q[:shape[0], :shape[1]], dtype=dtype)
+
+
 def orthogonal_initializer(num_splits):
+    # noinspection PyUnusedLocal
     def _initializer(shape, dtype=tf.float32, partition_info=None):
         if num_splits == 1:
-            return tf.orthogonal_initializer(seed=None, dtype=dtype).__call__(shape, dtype, partition_info)
+            return numpy_orthogonal_initializer(shape, dtype, partition_info)
         shape = (shape[0], (shape[1] // num_splits))
         matrices = []
         for i in range(num_splits):
-            matrices.append(tf.orthogonal_initializer(seed=None, dtype=dtype).__call__(shape, dtype, partition_info))
+            matrices.append(numpy_orthogonal_initializer(shape, dtype, partition_info))
         return tf.concat(axis=1, values=matrices)
 
     return _initializer
@@ -109,7 +121,7 @@ def orthogonal_initializer(num_splits):
 
 def deep_bidirectional_dynamic_rnn(cells, inputs, sequence_length):
     def _reverse(_input, seq_lengths):
-        return array_ops.reverse_sequence(input=_input, seq_lengths=seq_lengths, seq_dim=1, batch_dim=0)
+        return array_ops.reverse_sequence(input=_input, seq_lengths=seq_lengths, seq_axis=1, batch_axis=0)
 
     outputs = None
     with tf.variable_scope("dblstm"):
@@ -134,7 +146,7 @@ class HighwayLSTMCell(LayerRNNCell):
     def __init__(self, num_units,
                  highway=False,
                  cell_clip=None,
-                 initializer=None, num_proj=None, proj_clip=None,
+                 initializer=None,
                  forget_bias=1.0,
                  activation=None, reuse=None, name=None):
         """Initialize the parameters for an LSTM cell with simplified highway connections as described in
@@ -145,13 +157,8 @@ class HighwayLSTMCell(LayerRNNCell):
           highway: (optional) Python boolean describing whether to include highway connections
           cell_clip: (optional) A float value, if provided the cell state is clipped
             by this value prior to the cell output activation.
-          initializer: (optional) The initializer to use for the weight and
-            projection matrices. Uses an orthonormal initializer if none is provided.
-          num_proj: (optional) int, The output dimensionality for the projection
-            matrices.  If None, no projection is performed.
-          proj_clip: (optional) A float value.  If `num_proj > 0` and `proj_clip` is
-            provided, then the projected values are clipped elementwise to within
-            `[-proj_clip, proj_clip]`.
+          initializer: (optional) The initializer to use for the weight matrices.
+            Uses an orthonormal initializer if none is provided.
           forget_bias: Biases of the forget gate are initialized by default to 1
             in order to reduce the scale of forgetting at the beginning of
             the training.
@@ -172,23 +179,16 @@ class HighwayLSTMCell(LayerRNNCell):
         self._highway = highway
         self._cell_clip = cell_clip
         self._initializer = initializer
-        self._num_proj = num_proj
-        self._proj_clip = proj_clip
         self._forget_bias = forget_bias
         self._activation = activation or math_ops.tanh
 
-        if num_proj:
-            self._state_size = (LSTMStateTuple(num_units, num_proj))
-            self._output_size = num_proj
-        else:
-            self._state_size = (LSTMStateTuple(num_units, num_units))
-            self._output_size = num_units
+        self._state_size = (LSTMStateTuple(num_units, num_units))
+        self._output_size = num_units
 
         # initialized in self.build
         self._input_kernel = None
         self._hidden_kernel = None
         self._bias = None
-        self._proj_kernel = None
 
     @property
     def state_size(self):
@@ -203,27 +203,24 @@ class HighwayLSTMCell(LayerRNNCell):
             raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s" % inputs_shape)
 
         input_depth = inputs_shape[1].value
-        h_depth = self._num_units if self._num_proj is None else self._num_proj
+        h_depth = self._num_units
 
-        num_splits = self._highway and 5 or 4
-        self._input_kernel = self.add_variable(
-            "input_kernel",
-            shape=[input_depth, num_splits * self._num_units],
-            initializer=self._initializer if self._initializer else orthogonal_initializer(num_splits))
+        num_splits = self._highway and 6 or 4
+
+        self._input_kernel = tf.concat([self.add_variable(
+            "input_kernel_{}".format(i),
+            shape=[input_depth, size],
+            initializer=self._initializer) for i, size in enumerate(num_splits * [self._num_units])], axis=1)
         self._bias = self.add_variable(
             "bias",
             shape=[num_splits * self._num_units],
             initializer=init_ops.zeros_initializer(dtype=self.dtype))
-        num_splits = self._highway and 6 or 4
-        self._hidden_kernel = self.add_variable(
-            "hidden_kernel",
-            shape=[h_depth, num_splits * self._num_units],
-            initializer=self._initializer if self._initializer else orthogonal_initializer(num_splits))
-        if self._num_proj is not None:
-            self._proj_kernel = self.add_variable(
-                "projection/%s" % "kernel",
-                shape=[self._num_units, self._num_proj],
-                initializer=self._initializer if self._initializer else orthogonal_initializer(1))
+
+        num_splits = self._highway and 5 or 4
+        self._hidden_kernel = tf.concat([self.add_variable(
+            "hidden_kernel_{}".format(i),
+            shape=[h_depth, size],
+            initializer=self._initializer) for i, size in enumerate(num_splits * [self._num_units])], axis=1)
 
         self.built = True
 
@@ -272,11 +269,6 @@ class HighwayLSTMCell(LayerRNNCell):
                 c = clip_ops.clip_by_value(c, -self._cell_clip, self._cell_clip)
 
             m = o * self._activation(c)
-
-        if self._num_proj is not None:
-            m = math_ops.matmul(m, self._proj_kernel)
-            if self._proj_clip is not None:
-                m = clip_ops.clip_by_value(m, -self._proj_clip, self._proj_clip)
 
         new_state = (LSTMStateTuple(c, m))
         return m, new_state

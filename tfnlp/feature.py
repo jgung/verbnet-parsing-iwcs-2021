@@ -3,6 +3,8 @@ import re
 from itertools import chain
 
 import tensorflow as tf
+from tensorflow.python.framework.errors_impl import NotFoundError
+from tensorflow.python.lib.io import file_io
 
 from tfnlp.common.constants import END_WORD, INCLUDE_IN_VOCAB, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, \
     SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
@@ -16,7 +18,7 @@ def write_features(examples, out_path):
     :param examples:  list of SequenceExample
     :param out_path: output path
     """
-    with open(out_path, 'w') as file:
+    with file_io.FileIO(out_path, 'w') as file:
         writer = tf.python_io.TFRecordWriter(file.name)
         for example in examples:
             writer.write(example.SerializeToString())
@@ -147,7 +149,7 @@ class Feature(Extractor):
         """
         if not overwrite and os.path.exists(path):
             raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
-        with open(path, mode='w') as vocab:
+        with file_io.FileIO(path, mode='w') as vocab:
             for i in range(len(self.indices)):
                 vocab.write('{}\n'.format(self.index_to_feat(i)))
 
@@ -160,12 +162,12 @@ class Feature(Extractor):
         self.indices = {}
         self.reversed = None
         try:
-            with open(path, mode='r') as vocab:
+            with file_io.FileIO(path, mode='r') as vocab:
                 for line in vocab:
                     line = line.strip()
                     if line:
                         self.indices[line] = len(self.indices)
-        except IOError:
+        except NotFoundError:
             return False
         return True
 
@@ -388,7 +390,7 @@ class FeatureExtractor(object):
         """
         self.train(False)
 
-    def initialize(self):
+    def initialize(self, resources=''):
         """
         Initialize feature vocabularies from pre-trained vectors if available.
         """
@@ -401,16 +403,18 @@ class FeatureExtractor(object):
             if not num_vectors_to_read:
                 continue
 
-            vectors, dim = read_vectors(initializer.embedding, max_vecs=num_vectors_to_read)
+            vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             for key in vectors:
                 feature.feat_to_index(key)
 
-    def write_vocab(self, base_path, overwrite=False):
+    def write_vocab(self, base_path, overwrite=False, resources=''):
         """
         Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
         Creates pickled embeddings if explicit initializers are provided.
         :param base_path: base directory for vocabulary files
         :param overwrite: overwrite pre-existing vocabulary files--if `False`, raises an error when already existing
+        :param resources: optional base path for embedding resources
         """
         for feature in self.extractors():
             if not feature.has_vocab():
@@ -425,9 +429,15 @@ class FeatureExtractor(object):
             feature.write_vocab(path, overwrite=overwrite)
 
             initializer = feature.config.get(INITIALIZER)
+
             if initializer:
-                vectors, dim = read_vectors(initializer.embedding)
+                num_vectors_to_read = initializer.get(INCLUDE_IN_VOCAB)
+                if not num_vectors_to_read:
+                    continue
+                vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+                tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
                 feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
+                tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
                 serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 
     def read_vocab(self, base_path):
@@ -442,8 +452,11 @@ class FeatureExtractor(object):
             path = os.path.join(base_path, feature.name)
             success = feature.read_vocab(path)
             if not success:
-                return success
+                return False
             initializer = feature.config.get(INITIALIZER)
-            if initializer:
-                feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
+            try:
+                if initializer:
+                    feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
+            except NotFoundError:
+                return False
         return True

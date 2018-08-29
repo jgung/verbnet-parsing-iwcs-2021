@@ -3,6 +3,8 @@ import os
 import re
 from collections import defaultdict
 
+from tensorflow.python.lib.io import file_io
+
 from tfnlp.common.chunk import chunk, convert_conll_to_bio
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, LABEL_KEY, LEMMA_KEY, \
     MARKER_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, PREDICATE_KEY, \
@@ -44,7 +46,7 @@ class ConllReader(object):
         :param path: path to single CoNLL-formatted file
         :return: CoNLL instances
         """
-        with open(path) as lines:
+        with file_io.FileIO(path, 'r') as lines:
             current = []
             for line in lines:
                 line = line.strip()
@@ -235,7 +237,7 @@ def write_ptb_pos_files(wsj_path, out_dir):
 
     def write_results(expr, output_path):
         id_list = list(filter(lambda x: re.match(expr, x), reader.fileids()))
-        with open(output_path, 'w') as out_file:
+        with file_io.FileIO(output_path, 'w') as out_file:
             for tagged_sent in reader.tagged_sents(id_list):
                 for word, tag in filter(lambda x: x[1] != '-NONE-', tagged_sent):
                     out_file.write(word + '\t' + tag + '\n')
