@@ -51,6 +51,7 @@ class Extractor(object):
         self.rank = 1
         self.config = config if config else Params()
         self.mapping_funcs = [get_mapping_function(func) for func in mapping_funcs] if mapping_funcs else []
+        self.dtype = tf.int64
 
     def extract(self, instance):
         """
@@ -195,6 +196,21 @@ class SequenceExtractor(Extractor):
         return tf.train.FeatureList(feature=input_features)
 
 
+class TextExtractor(Extractor):
+    def __init__(self, name, key, config=None, mapping_funcs=None, **kwargs):
+        super().__init__(name, key, config, mapping_funcs, **kwargs)
+        self.rank = 2
+        self.dtype = tf.string
+
+    def extract(self, sequence):
+        input_features = [tf.train.Feature(bytes_list=tf.train.BytesList(value=[bytes(self.map(result), encoding='utf-8')]))
+                          for result in self.get_values(sequence)]
+        return tf.train.FeatureList(feature=input_features)
+
+    def map(self, value):
+        return value
+
+
 class SequenceFeature(Feature):
 
     def __init__(self, name, key, config=None, train=False, indices=None, unknown_word=UNKNOWN_WORD, **kwargs):
@@ -324,11 +340,11 @@ class FeatureExtractor(object):
         sequence_features = {}
         for feature in self.extractors(train):
             if feature.rank == 1:
-                context_features[feature.name] = tf.FixedLenFeature([], dtype=tf.int64)
+                context_features[feature.name] = tf.FixedLenFeature([], dtype=feature.dtype)
             elif feature.rank == 2:
-                sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
+                sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=feature.dtype)
             elif feature.rank == 3:
-                sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=tf.int64)
+                sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=feature.dtype)
             else:
                 raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
 
@@ -373,7 +389,11 @@ class FeatureExtractor(object):
                     index = feature.pad_index
                 elif PAD_WORD in feature.indices:
                     index = feature.indices[PAD_WORD]
-            padding[feature.name] = tf.constant(index, dtype=tf.int64)
+                padding[feature.name] = tf.constant(index, dtype=tf.int64)
+            elif feature.dtype == tf.string:
+                padding[feature.name] = tf.constant(b"<S>", dtype=tf.string)
+            else:
+                padding[feature.name] = tf.constant(0, dtype=tf.int64)
         return padding
 
     def train(self, train=True):
