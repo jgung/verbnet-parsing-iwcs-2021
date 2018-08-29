@@ -39,7 +39,7 @@ def encoder(features, inputs, mode, params):
 
 
 def highway_lstm_cell(size, keep_prob):
-    return DropoutWrapper(HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer()),
+    return DropoutWrapper(HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer),
                           variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
 
 
@@ -96,27 +96,24 @@ def _get_input(feature_ids, feature, training):
     return result
 
 
-def numpy_orthogonal_initializer():
-    # noinspection PyUnusedLocal
-    def _initializer(shape, dtype=tf.float32, partition_info=None):
-        flat = (shape[0], np.prod(shape[1:]))
-        a = np.random.normal(0.0, 1.0, flat)
-        u, _, v = np.linalg.svd(a, full_matrices=False)
-        q = (u if u.shape == flat else v).reshape(shape)
-        return tf.constant(q[:shape[0], :shape[1]], dtype=dtype)
-
-    return _initializer
+# noinspection PyUnusedLocal
+def numpy_orthogonal_initializer(shape, dtype=tf.float32, partition_info=None):
+    flat = (shape[0], np.prod(shape[1:]))
+    a = np.random.normal(0.0, 1.0, flat)
+    u, _, v = np.linalg.svd(a, full_matrices=False)
+    q = (u if u.shape == flat else v).reshape(shape)
+    return tf.constant(q[:shape[0], :shape[1]], dtype=dtype)
 
 
 def orthogonal_initializer(num_splits):
     # noinspection PyUnusedLocal
     def _initializer(shape, dtype=tf.float32, partition_info=None):
         if num_splits == 1:
-            return numpy_orthogonal_initializer()
+            return numpy_orthogonal_initializer(shape, dtype, partition_info)
         shape = (shape[0], (shape[1] // num_splits))
         matrices = []
         for i in range(num_splits):
-            matrices.append(numpy_orthogonal_initializer())
+            matrices.append(numpy_orthogonal_initializer(shape, dtype, partition_info))
         return tf.concat(axis=1, values=matrices)
 
     return _initializer
