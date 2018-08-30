@@ -12,6 +12,9 @@ from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, 
 from tfnlp.common.constants import LENGTH_KEY
 
 
+ELMO_URL = "https://tfhub.dev/google/elmo/2"
+
+
 def input_layer(features, params, training, elmo=False):
     """
     Declare an input layers that compose multiple features into a single tensor across multiple time steps.
@@ -26,7 +29,8 @@ def input_layer(features, params, training, elmo=False):
         if feature_config.has_vocab():
             inputs.append(_get_input(features[feature_config.name], feature_config, training))
     if elmo:
-        elmo_module = hub.Module("https://tfhub.dev/google/elmo/2", trainable=True)
+        tf.logging.info("Using ELMo module at %s", ELMO_URL)
+        elmo_module = hub.Module(ELMO_URL, trainable=True)
         lengths = tf.cast(features[LENGTH_KEY], dtype=tf.int32)
         elmo_embedding = elmo_module(inputs={'tokens': features['text'], 'sequence_len': lengths},
                                      signature="tokens",

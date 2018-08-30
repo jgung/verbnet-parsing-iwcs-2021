@@ -146,7 +146,7 @@ class Trainer(object):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
         self._extract_features(self._raw_train, train=True)
-        self._extract_features(self._raw_valid, train=False)
+        self._extract_features(self._raw_valid, train=True)
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources)
 
     def _extract_features(self, path, train=False):
@@ -160,7 +160,7 @@ class Trainer(object):
         examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
 
         output_path = self._data_path_fn(path)
-        tf.logging.info("Writing extracted features to %s", output_path)
+        tf.logging.info("Writing extracted features for %d instances to %s", len(examples), output_path)
         write_features(examples, output_path)
 
     def _init_estimator(self):
