@@ -368,6 +368,7 @@ class BestExporter(LatestExporter):
         export_checkpoint_path, export_eval_result = self._update(checkpoint_path, eval_result)
 
         if export_checkpoint_path and export_eval_result is not None:
+            tf.logging.info("Exporting best result to %s", export_checkpoint_path)
             checkpoint_base = os.path.basename(export_checkpoint_path)
             export_dir = os.path.join(tf.compat.as_str_any(export_path), tf.compat.as_str_any(checkpoint_base))
             return super().export(estimator, export_dir, export_checkpoint_path, export_eval_result, is_the_final_export)
@@ -408,6 +409,8 @@ class BestExporter(LatestExporter):
                             event_eval_result[value.tag] = value.simple_value
                     if best_eval_result is None or self._compare_fn(best_eval_result, event_eval_result):
                         best_eval_result = event_eval_result
+        if not best_eval_result:
+            tf.logging.info("Found best eval result at %s", best_eval_result)
         return best_eval_result
 
     def _default_compare_fn(self, curr_best_eval_result, cand_eval_result):
@@ -416,7 +419,10 @@ class BestExporter(LatestExporter):
         if not cand_eval_result or self._default_compare_key not in cand_eval_result:
             raise ValueError('cand_eval_result cannot be empty or no loss is found in it.')
 
-        return cand_eval_result[self._default_compare_key] > curr_best_eval_result[self._default_compare_key]
+        new = cand_eval_result[self._default_compare_key]
+        current = curr_best_eval_result[self._default_compare_key]
+        tf.logging.info("Comparing new score with previous best (%f vs. %f)", new, current)
+        return new > current
 
 
 def log_trainable_variables():
