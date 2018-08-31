@@ -83,7 +83,7 @@ class TestFeature(unittest.TestCase):
         self.extractor.extract(self.sentence)
         file = tempfile.NamedTemporaryFile()
         word_feature = self.extractor.feature(WORD_KEY)
-        word_feature.write_vocab(file.name)
+        word_feature.write_vocab(file.name, overwrite=True)
         word_feature.read_vocab(file.name)
         self.assertEqual(9, len(word_feature.indices))
         self.assertEqual("mat", word_feature.index_to_feat(8))

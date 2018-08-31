@@ -28,7 +28,7 @@ class Extractor(object):
     metadata such as sequence lengths and identifiers.
     """
 
-    def __init__(self, name, key, config=None, mapping_funcs=None, **kwargs):
+    def __init__(self, name, key, config=None, mapping_funcs=None, default_val=None, **kwargs):
         """
         Initialize an extractor.
         :param name: unique identifier for this feature
@@ -41,6 +41,7 @@ class Extractor(object):
         self.rank = 1
         self.config = config if config else Params()
         self.mapping_funcs = mapping_funcs if mapping_funcs else []
+        self.default_val = default_val
         self.dtype = tf.int64
 
     def extract(self, instance):
@@ -68,6 +69,8 @@ class Extractor(object):
         :param sequence: dictionary of sequences for feature extraction
         :return: target(s) for feature extraction
         """
+        if self.default_val is not None:
+            return sequence.get(self.key, self.default_val)
         return sequence[self.key]
 
     def has_vocab(self):
@@ -274,7 +277,7 @@ class LengthFeature(Extractor):
 
 
 def index_feature():
-    return Extractor(name=SENTENCE_INDEX, key=SENTENCE_INDEX)
+    return Extractor(name=SENTENCE_INDEX, key=SENTENCE_INDEX, default_val=0)
 
 
 class FeatureExtractor(object):

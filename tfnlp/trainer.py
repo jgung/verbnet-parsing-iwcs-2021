@@ -11,7 +11,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor
-from tfnlp.common.constants import LABEL_KEY, WORD_KEY, SENTENCE_INDEX
+from tfnlp.common.constants import LABEL_KEY, WORD_KEY
 from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
@@ -201,7 +201,7 @@ class Trainer(object):
 
 
 def default_parser(sentence):
-    return {WORD_KEY: sentence.split(), SENTENCE_INDEX: 0}
+    return {WORD_KEY: sentence.split()}
 
 
 def default_formatter(result):

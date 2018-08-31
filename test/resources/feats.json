@@ -1,6 +1,5 @@
 {
   "features": {
-    "seq_feat": "word",
     "targets": [
       {
         "name": "gold",
@@ -16,19 +15,14 @@
       {
         "name": "word",
         "key": "word",
-        "rank": 2,
         "mapping_funcs": [
           "lower"
         ],
         "config": {
           "dim": 100,
-          "trainable": true,
-          "dropout": 0,
           "initializer": {
-            "embedding": "/Users/jamesgung/data/vectors/glove.6B.100d.txt",
+            "embedding": "glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl"
-          },
-          "func": {
           }
         }
       },
@@ -41,7 +35,6 @@
         "max_len": 30,
         "config": {
           "dim": 30,
-          "trainable": true,
           "dropout": 0.5,
           "function": {
             "name": "ConvNet",
