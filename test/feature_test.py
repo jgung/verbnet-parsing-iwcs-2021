@@ -91,7 +91,7 @@ class TestFeature(unittest.TestCase):
     def test_read_config(self):
         configpath = pkg_resources.resource_filename(__name__, "resources/feats.json")
         config = read_json(configpath)
-        extractor = get_feature_extractor(config)
+        extractor = get_feature_extractor(config.features)
         extractor.train()
         feats = extractor.extract(self.sentence)
         self.assertEqual(6, len(feats.feature_lists.feature_list[CHAR_KEY].feature))

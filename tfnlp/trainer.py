@@ -56,8 +56,8 @@ class Trainer(object):
         self._vocab_path = args.vocab
         self._resources = args.resources
         self._eval_script_path = args.script
-        self._feature_config = read_json(args.features)
         self._training_config = read_json(args.config)
+        self._feature_config = self._training_config.features
         self._model_fn = get_model_func(args.type)
 
         self._feature_extractor = None
@@ -103,7 +103,8 @@ class Trainer(object):
         train_input_fn = self._input_fn(self._raw_train, True)
         valid_input_fn = self._input_fn(self._raw_valid, False)
 
-        os.makedirs(self._estimator.eval_dir())  # TODO This shouldn't be necessary
+        if not os.path.exists(self._estimator.eval_dir()):
+            os.makedirs(self._estimator.eval_dir())  # TODO This shouldn't be necessary
         early_stopping = tf.contrib.estimator.stop_if_no_increase_hook(
             self._estimator,
             metric_name='F-Measure',

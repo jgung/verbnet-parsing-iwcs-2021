@@ -16,6 +16,7 @@ CHUNK_KEY = "chunk"
 NAMED_ENTITY_KEY = "ne"
 LENGTH_KEY = "len"
 CHAR_KEY = "char"
+ELMO_KEY = "elmo"
 
 ID_KEY = "ID"
 LEMMA_KEY = "lemma"

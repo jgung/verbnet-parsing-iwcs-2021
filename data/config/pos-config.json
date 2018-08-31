@@ -23,5 +23,25 @@
       }
     },
     "clip": 5.0
+  },
+  "features": {
+    "reader": "conll_2005",
+    "throttle_secs": 0,
+    "checkpoint_steps": 1000,
+    "state_size": 300,
+    "input_dropout": 0.0,
+    "dropout": 0.1,
+    "encoder": "dblstm",
+    "encoder_layers": 8,
+    "crf": false,
+    "batch_size": 80,
+    "optimizer": {
+      "name": "Adadelta",
+      "params": {
+        "epsilon": 1e-6
+      },
+      "lr": 1.0,
+      "clip": 1.0
+    }
   }
 }

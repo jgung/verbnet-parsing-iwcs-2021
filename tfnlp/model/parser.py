@@ -2,9 +2,8 @@ import tensorflow as tf
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
 
+import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
-from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABELED_ATTACHMENT_SCORE, LABEL_SCORE, LENGTH_KEY, \
-    REL_PROBS, UNLABELED_ATTACHMENT_SCORE, WORD_KEY
 from tfnlp.common.eval import ParserEvalHook, log_trainable_variables
 from tfnlp.layers.layers import encoder, input_layer
 
@@ -34,7 +33,7 @@ def parser_model_func(features, mode, params):
         arc_predictions = tf.argmax(arc_logits, axis=-1)
 
     with tf.variable_scope("rel_bilinear_logits"):
-        target = params.extractor.targets[DEPREL_KEY]
+        target = params.extractor.targets[constants.DEPREL_KEY]
         num_labels = target.vocab_size()
         rel_logits = bilinear(dep_rel_mlp, head_rel_mlp, num_labels, time_steps, include_bias1=True, include_bias2=True)
 
@@ -54,18 +53,18 @@ def parser_model_func(features, mode, params):
     rel_targets = None
     n_tokens = None
 
-    mask = tf.sequence_mask(features[LENGTH_KEY], name="padding_mask")
+    mask = tf.sequence_mask(features[constants.LENGTH_KEY], name="padding_mask")
     if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
         log_trainable_variables()
 
         with tf.variable_scope("arc_bilinear_loss"):
-            arc_targets = tf.identity(features[HEAD_KEY], name=HEAD_KEY)
+            arc_targets = tf.identity(features[constants.HEAD_KEY], name=constants.HEAD_KEY)
             arc_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=arc_logits, labels=arc_targets)
             arc_losses = tf.boolean_mask(arc_losses, mask, name="mask_padding_from_loss")
             arc_loss = tf.reduce_mean(arc_losses)
 
         with tf.variable_scope("rel_bilinear_loss"):
-            rel_targets = tf.identity(features[DEPREL_KEY], name=DEPREL_KEY)
+            rel_targets = tf.identity(features[constants.DEPREL_KEY], name=constants.DEPREL_KEY)
             rel_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=select_rel_logits, labels=rel_targets)
             rel_losses = tf.boolean_mask(rel_losses, mask, name="mask_padding_from_loss")
             rel_loss = tf.reduce_mean(rel_losses)
@@ -82,7 +81,7 @@ def parser_model_func(features, mode, params):
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
         arc_probs = tf.nn.softmax(arc_logits)
         rel_probs = tf.nn.softmax(rel_logits, axis=2)
-        n_tokens = tf.cast(tf.reduce_sum(features[LENGTH_KEY]), tf.int32)
+        n_tokens = tf.cast(tf.reduce_sum(features[constants.LENGTH_KEY]), tf.int32)
         rel_predictions = tf.argmax(select_rel_logits, axis=-1)
 
     if mode == tf.estimator.ModeKeys.EVAL:
@@ -92,21 +91,22 @@ def parser_model_func(features, mode, params):
         n_rel_correct = tf.cast(tf.reduce_sum(rel_correct), tf.int32)
         correct = arc_correct * rel_correct
         n_correct = tf.cast(tf.reduce_sum(correct), tf.int32)
-        eval_metric_ops = {UNLABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_arc_correct / n_tokens),
-                           LABEL_SCORE: tf.metrics.mean(n_rel_correct / n_tokens),
-                           LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / n_tokens)}
+        eval_metric_ops = {constants.UNLABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_arc_correct / n_tokens),
+                           constants.LABEL_SCORE: tf.metrics.mean(n_rel_correct / n_tokens),
+                           constants.LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / n_tokens)}
         evaluation_hooks = [ParserEvalHook(
-            {ARC_PROBS: arc_probs, REL_PROBS: rel_probs, WORD_KEY: features[WORD_KEY], LENGTH_KEY: features[LENGTH_KEY],
-             HEAD_KEY: features[HEAD_KEY], DEPREL_KEY: features[DEPREL_KEY]},
+            {constants.ARC_PROBS: arc_probs, constants.REL_PROBS: rel_probs, constants.WORD_KEY: features[constants.WORD_KEY],
+             constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+             constants.HEAD_KEY: features[constants.HEAD_KEY], constants.DEPREL_KEY: features[constants.DEPREL_KEY]},
             features=params.extractor, script_path=params.script_path, )]
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         export_outputs = {signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: PredictOutput(arc_probs),
-                          DEPREL_KEY: PredictOutput(rel_probs)}
+                          constants.DEPREL_KEY: PredictOutput(rel_probs)}
 
     return tf.estimator.EstimatorSpec(mode=mode,
-                                      predictions={DEPREL_KEY: rel_predictions, HEAD_KEY: arc_predictions,
-                                                   ARC_PROBS: arc_probs, REL_PROBS: rel_probs},
+                                      predictions={constants.DEPREL_KEY: rel_predictions, constants.HEAD_KEY: arc_predictions,
+                                                   constants.ARC_PROBS: arc_probs, constants.REL_PROBS: rel_probs},
                                       loss=loss,
                                       train_op=train_op,
                                       eval_metric_ops=eval_metric_ops,

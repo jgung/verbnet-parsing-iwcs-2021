@@ -1,53 +1,55 @@
 {
-  "seq_feat": "word",
-  "targets": [
-    {
-      "name": "gold",
-      "key": "gold",
-      "rank": 2,
-      "indices": {
-        "O": 0
-      },
-      "unknown_word": "O"
-    }
-  ],
-  "features": [
-    {
-      "name": "word",
-      "key": "word",
-      "rank": 2,
-      "mapping_funcs": [
-        "lower"
-      ],
-      "config": {
-        "dim": 100,
-        "trainable": true,
-        "dropout": 0,
-        "initializer": {
-          "embedding": "/Users/jamesgung/data/vectors/glove.6B.100d.txt",
-          "pkl_path": "word-vectors.pkl"
+  "features": {
+    "seq_feat": "word",
+    "targets": [
+      {
+        "name": "gold",
+        "key": "gold",
+        "rank": 2,
+        "indices": {
+          "O": 0
         },
-        "func": {
+        "unknown_word": "O"
+      }
+    ],
+    "features": [
+      {
+        "name": "word",
+        "key": "word",
+        "rank": 2,
+        "mapping_funcs": [
+          "lower"
+        ],
+        "config": {
+          "dim": 100,
+          "trainable": true,
+          "dropout": 0,
+          "initializer": {
+            "embedding": "/Users/jamesgung/data/vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl"
+          },
+          "func": {
+          }
+        }
+      },
+      {
+        "name": "char",
+        "key": "word",
+        "rank": 3,
+        "left_padding": 2,
+        "right_padding": 2,
+        "max_len": 30,
+        "config": {
+          "dim": 30,
+          "trainable": true,
+          "dropout": 0.5,
+          "function": {
+            "name": "ConvNet",
+            "kernel_size": 3,
+            "num_filters": 30
+          }
         }
       }
-    },
-    {
-      "name": "char",
-      "key": "word",
-      "rank": 3,
-      "left_padding": 2,
-      "right_padding": 2,
-      "max_len": 30,
-      "config": {
-        "dim": 30,
-        "trainable": true,
-        "dropout": 0.5,
-        "function": {
-          "name": "ConvNet",
-          "kernel_size": 3,
-          "num_filters": 30
-        }
-      }
-    }
-  ]
+    ]
+  }
 }

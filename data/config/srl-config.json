@@ -9,12 +9,71 @@
   "encoder_layers": 8,
   "crf": false,
   "batch_size": 80,
-    "optimizer": {
+  "optimizer": {
     "name": "Adadelta",
     "params": {
       "epsilon": 1e-6
     },
     "lr": 1.0,
     "clip": 1.0
+  },
+  "features": {
+    "seq_feat": "word",
+    "targets": [
+      {
+        "name": "gold",
+        "key": "gold",
+        "rank": 2,
+        "indices": {
+          "O": 0
+        },
+        "unknown_word": "O"
+      }
+    ],
+    "features": [
+      {
+        "name": "text",
+        "key": "word",
+        "rank": 2,
+        "mapping_funcs": []
+      },
+      {
+        "name": "word",
+        "key": "word",
+        "rank": 2,
+        "mapping_funcs": [
+          "lower"
+        ],
+        "config": {
+          "dim": 100,
+          "trainable": true,
+          "dropout": 0,
+          "initializer": {
+            "embedding": "vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl",
+            "include_in_vocab": 100000
+          },
+          "func": {
+          }
+        }
+      },
+      {
+        "name": "marker",
+        "key": "marker",
+        "rank": 2,
+        "mapping_funcs": [],
+        "config": {
+          "dim": 100,
+          "trainable": true,
+          "dropout": 0,
+          "func": {
+          }
+        },
+        "indices": {
+          "0": 0
+        },
+        "unknown_word": "0"
+      }
+    ]
   }
 }
