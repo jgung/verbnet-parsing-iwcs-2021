@@ -7,10 +7,11 @@ from tensorflow.python.ops import clip_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
+from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
+from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
 
-from tfnlp.common.constants import LENGTH_KEY
-
+from tfnlp.common.constants import ELMO_KEY, LENGTH_KEY
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
@@ -32,7 +33,7 @@ def input_layer(features, params, training, elmo=False):
         tf.logging.info("Using ELMo module at %s", ELMO_URL)
         elmo_module = hub.Module(ELMO_URL, trainable=True)
         lengths = tf.cast(features[LENGTH_KEY], dtype=tf.int32)
-        elmo_embedding = elmo_module(inputs={'tokens': features['text'], 'sequence_len': lengths},
+        elmo_embedding = elmo_module(inputs={'tokens': features[ELMO_KEY], 'sequence_len': lengths},
                                      signature="tokens",
                                      as_dict=True)['elmo']
         inputs.append(elmo_embedding)
@@ -66,8 +67,8 @@ def stacked_bilstm(features, inputs, mode, params):
     outputs = inputs
     for i in range(params.config.encoder_layers):
         with tf.variable_scope("biRNN_%d" % i):
-            outputs, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw=cell(), cell_bw=cell(),
-                                                         inputs=outputs, sequence_length=features[LENGTH_KEY], dtype=tf.float32)
+            outputs, _ = bidirectional_dynamic_rnn(cell_fw=cell(), cell_bw=cell(), inputs=outputs,
+                                                   sequence_length=features[LENGTH_KEY], dtype=tf.float32)
             outputs = tf.concat(outputs, axis=-1, name="Concatenate_biRNN_outputs_%d" % i)
     return outputs
 
@@ -142,13 +143,13 @@ def deep_bidirectional_dynamic_rnn(cells, inputs, sequence_length):
             if i % 2 == 1:
                 with tf.variable_scope("bw-%s" % (i // 2)) as bw_scope:
                     inputs_reverse = _reverse(inputs, seq_lengths=sequence_length)
-                    outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=inputs_reverse, sequence_length=sequence_length,
-                                                   dtype=tf.float32, scope=bw_scope)
+                    outputs, _ = dynamic_rnn(cell=cell, inputs=inputs_reverse, sequence_length=sequence_length, dtype=tf.float32,
+                                             scope=bw_scope)
                     outputs = _reverse(outputs, seq_lengths=sequence_length)
             else:
                 with tf.variable_scope("fw-%s" % (i // 2)) as fw_scope:
-                    outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=inputs, sequence_length=sequence_length,
-                                                   dtype=tf.float32, scope=fw_scope)
+                    outputs, _ = dynamic_rnn(cell=cell, inputs=inputs, sequence_length=sequence_length, dtype=tf.float32,
+                                             scope=fw_scope)
             inputs = outputs
     return outputs
 

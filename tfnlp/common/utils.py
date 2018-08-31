@@ -1,7 +1,5 @@
 import json
-
 import os
-
 import pickle
 
 from tensorflow.python.lib.io import file_io
@@ -13,6 +11,10 @@ class Params(dict):
         for key, val in kwargs.items():
             setattr(self, key, val)
             self[key] = val
+
+    def __setattr__(self, key, value):
+        super().__setattr__(key, value)
+        self[key] = value
 
 
 def _convert_to_attributes(dictionary):
@@ -55,7 +57,7 @@ def serialize(serializable, out_path, out_name=None, overwrite=False):
     if out_name:
         out_name = out_name if out_name.endswith(".pkl") else "{}.pkl".format(out_name)
     path = os.path.join(out_path, out_name) if out_name else out_path
-    parent_path = os.path.abspath(os.path.join(path, os.pardir))
+    parent_path = os.path.abspath(os.path.join(path, os.path.pardir))
     try:
         os.makedirs(parent_path)
     except OSError:

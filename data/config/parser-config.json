@@ -27,18 +27,15 @@
     "clip": 5.0
   },
   "features": {
-    "seq_feat": "word",
     "targets": [
       {
         "name": "head",
         "key": "head",
-        "rank": 2,
         "numeric": true
       },
       {
         "name": "deprel",
         "key": "deprel",
-        "rank": 2,
         "indices": {
           "O": 0
         },
@@ -49,33 +46,25 @@
       {
         "name": "word",
         "key": "word",
-        "rank": 2,
         "mapping_funcs": [
           "lower"
         ],
         "config": {
           "dim": 100,
-          "trainable": true,
           "word_dropout": 0.33,
-          "dropout": 0,
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
             "include_in_vocab": 100000
-          },
-          "func": {
           }
         }
       },
       {
         "name": "pos",
         "key": "ppos",
-        "rank": 2,
         "config": {
           "dim": 100,
-          "trainable": true,
-          "word_dropout": 0.33,
-          "dropout": 0
+          "word_dropout": 0.33
         }
       }
     ]

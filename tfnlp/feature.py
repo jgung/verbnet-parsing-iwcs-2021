@@ -1,13 +1,11 @@
 import os
-import re
 from itertools import chain
 
 import tensorflow as tf
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
-from tfnlp.common.constants import END_WORD, INCLUDE_IN_VOCAB, INITIALIZER, LENGTH_KEY, LOWER, NORMALIZE_DIGITS, PAD_WORD, \
-    SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
+from tfnlp.common.constants import END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.utils import Params, deserialize, serialize
 
@@ -22,14 +20,6 @@ def write_features(examples, out_path):
         writer = tf.python_io.TFRecordWriter(file.name)
         for example in examples:
             writer.write(example.SerializeToString())
-
-
-def get_mapping_function(func):
-    if func == LOWER:
-        return lambda x: x.lower()
-    elif func == NORMALIZE_DIGITS:
-        return lambda x: re.sub("\d", "#", x)
-    raise AssertionError("Unexpected function name: {}".format(func))
 
 
 class Extractor(object):
@@ -50,7 +40,7 @@ class Extractor(object):
         self.key = key
         self.rank = 1
         self.config = config if config else Params()
-        self.mapping_funcs = [get_mapping_function(func) for func in mapping_funcs] if mapping_funcs else []
+        self.mapping_funcs = mapping_funcs if mapping_funcs else []
         self.dtype = tf.int64
 
     def extract(self, instance):
@@ -419,8 +409,8 @@ class FeatureExtractor(object):
             initializer = feature.config.get(INITIALIZER)
             if not initializer:
                 continue
-            num_vectors_to_read = initializer.get(INCLUDE_IN_VOCAB)
-            if not num_vectors_to_read:
+            num_vectors_to_read = initializer.include_in_vocab
+            if not num_vectors_to_read or num_vectors_to_read <= 0:
                 continue
 
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
@@ -440,7 +430,7 @@ class FeatureExtractor(object):
             if not feature.has_vocab():
                 continue
             path = os.path.join(base_path, feature.name)
-            parent_path = os.path.abspath(os.path.join(path, os.pardir))
+            parent_path = os.path.abspath(os.path.join(path, os.path.pardir))
             try:
                 os.makedirs(parent_path)
             except OSError:
@@ -451,8 +441,8 @@ class FeatureExtractor(object):
             initializer = feature.config.get(INITIALIZER)
 
             if initializer:
-                num_vectors_to_read = initializer.get(INCLUDE_IN_VOCAB)
-                if not num_vectors_to_read:
+                num_vectors_to_read = initializer.include_in_vocab
+                if not num_vectors_to_read or num_vectors_to_read <= 0:
                     continue
                 vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
                 tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)

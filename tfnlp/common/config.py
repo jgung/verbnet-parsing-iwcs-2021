@@ -1,15 +1,17 @@
 import numbers
+import re
 
 import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 import tfnlp.feature
-from tfnlp.common.constants import ELMO_KEY
+from tfnlp.common.constants import ELMO_KEY, LOWER, NORMALIZE_DIGITS, INITIALIZER
+from tfnlp.common.utils import Params
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
 
-def get_reduce_function(config, dim, length):
+def _get_reduce_function(config, dim, length):
     """
     Return a neural sequence reduction op given a configuration, input dimensionality, and max length.
     :param config: reduction op configuration
@@ -23,23 +25,106 @@ def get_reduce_function(config, dim, length):
         raise AssertionError("Unexpected feature function: {}".format(config.name))
 
 
-def get_feature(feature):
+def _get_mapping_function(func):
+    if func == LOWER:
+        return lambda x: x.lower()
+    elif func == NORMALIZE_DIGITS:
+        return lambda x: re.sub("\d", "#", x)
+    raise AssertionError("Unexpected function name: {}".format(func))
+
+
+class FeatureInitializer(Params):
+    def __init__(self, config, **kwargs):
+        super().__init__(**kwargs)
+        # number of entries (words) in initializer (embedding) to include in vocabulary
+        self.include_in_vocab = config.get('include_in_vocab', 0)
+        # path to raw embedding file
+        self.embedding = config.get('embedding')
+        if not self.embedding:
+            raise AssertionError("Missing 'embedding' parameter, which provides the path to raw embedding file")
+        # name of serialized initializer after vocabulary training
+        self.pkl_path = config.get('pkl_path')
+        if not self.pkl_path:
+            raise AssertionError("Missing 'pkl_path' parameter, which provides the path to the resulting serialized initializer")
+
+
+class FeatureHyperparameters(Params):
+    def __init__(self, config, feature, **kwargs):
+        super().__init__(**kwargs)
+        # dropout specific to this feature
+        self.dropout = config.get('dropout', 0)
+        # indicates whether variables for this feature should be trainable (`True`) or fixed (`False`)
+        self.trainable = config.get('trainable', True)
+        # dimensionality for this feature if an initializer is not provided
+        self.dim = config.get('dim', 0)
+        # variable initializer used to initialize lookup table for this feature (such as word embeddings)
+        initializer = config.get(INITIALIZER)
+        self.initializer = FeatureInitializer(initializer) if initializer else None
+        reduce_func = config.get('function')
+        if reduce_func:
+            self.func = _get_reduce_function(reduce_func, self.dim, feature.max_len)
+
+
+class FeatureConfig(Params):
+    def __init__(self, feature, **kwargs):
+        # name used to instantiate this feature
+        super().__init__(**kwargs)
+        self.name = feature.get('name')
+        # key used for lookup during feature extraction
+        self.key = feature.get('key')
+        # number of tokens to use for left padding
+        self.left_padding = feature.get('left_padding', 0)
+        # number of tokens to use for right padding
+        self.right_padding = feature.get('right_padding', 0)
+        # 2 most common feature rank for our NLP applications (word/token-level features)
+        self.rank = feature.get('rank', 2)
+        # string mapping functions applied during extraction
+        self.mapping_funcs = [_get_mapping_function(mapping_func) for mapping_func in feature.get('mapping_funcs', [])]
+        # maximum sequence length of feature
+        self.max_len = feature.get('max_len')
+        # word used to replace OOV tokens
+        self.unknown_word = feature.get('unknown_word')
+        # pre-initialized vocabulary
+        self.indices = feature.get('indices')
+        self.numeric = feature.get('numeric')
+        # hyperparameters related to this feature
+        config = feature.get('config', Params())
+        self.config = FeatureHyperparameters(config, self)
+
+
+class FeaturesConfig(object):
+    def __init__(self, features):
+        self.seq_feat = features.get('seq_feat', 'word')
+
+        targets = features.get('targets')
+        if not targets:
+            tf.logging.warn("No 'targets' parameter provided in feature configuration--this could be an error if training.")
+            self.targets = []
+        else:
+            self.targets = [_get_feature(target) for target in targets]
+
+        features = features.get('features')
+        if not features:
+            raise AssertionError("No 'features' parameter provided in feature configuration, requires at least one feature")
+        else:
+            self.features = [_get_feature(feature) for feature in features]
+
+
+def _get_feature(feature):
     """
     Create an individual feature from an input feature configuration.
     :param feature: feature configuration
     :return: feature
     """
-    numeric = feature.get('numeric')
-
+    feature = FeatureConfig(feature)
     if feature.name == ELMO_KEY:
         feat = tfnlp.feature.TextExtractor
     elif feature.rank == 3:
         feat = tfnlp.feature.SequenceListFeature
-        feature.config.func = get_reduce_function(feature.config.function, feature.config.dim, feature.max_len)
     elif feature.rank == 2:
-        feat = tfnlp.feature.SequenceExtractor if numeric else tfnlp.feature.SequenceFeature
+        feat = tfnlp.feature.SequenceExtractor if feature.numeric else tfnlp.feature.SequenceFeature
     elif feature.rank == 1:
-        feat = tfnlp.feature.Extractor if numeric else tfnlp.feature.Feature
+        feat = tfnlp.feature.Extractor if feature.numeric else tfnlp.feature.Feature
     else:
         raise AssertionError("Unexpected feature rank: {}".format(feature.rank))
     return feat(**feature)
@@ -51,17 +136,15 @@ def get_feature_extractor(config):
     :param config: feature configuration
     :return: feature extractor
     """
-    features = []
-    for feature in config.features:
-        features.append(get_feature(feature))
-    targets = []
-    for target in config.targets:
-        targets.append(get_feature(target))
+    # load default configurations
+    config = FeaturesConfig(config)
 
-    features.append(tfnlp.feature.LengthFeature(config.seq_feat))
-    features.append(tfnlp.feature.index_feature())
+    # use this feature to keep track of instance indices for error analysis
+    config.features.append(tfnlp.feature.index_feature())
+    # used to establish sequence length for bucketed batching
+    config.features.append(tfnlp.feature.LengthFeature(config.seq_feat))
 
-    return tfnlp.feature.FeatureExtractor(features, targets)
+    return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets)
 
 
 def get_learning_rate(lr_config, global_step):
