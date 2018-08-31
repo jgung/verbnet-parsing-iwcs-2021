@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_hub as hub
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clip_ops
@@ -11,18 +12,30 @@ from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, 
 from tfnlp.common.constants import LENGTH_KEY
 
 
-def input_layer(features, params, training):
+ELMO_URL = "https://tfhub.dev/google/elmo/2"
+
+
+def input_layer(features, params, training, elmo=False):
     """
     Declare an input layers that compose multiple features into a single tensor across multiple time steps.
     :param features: input dictionary from feature names to 3D/4D Tensors
     :param params: feature/network configurations/metadata
     :param training: true if training
+    :param elmo: if true, use elmo embedding
     :return: 3D tensor ([batch_size, time_steps, input_dim])
     """
     inputs = []
     for feature_config in params.extractor.features.values():
         if feature_config.has_vocab():
             inputs.append(_get_input(features[feature_config.name], feature_config, training))
+    if elmo:
+        tf.logging.info("Using ELMo module at %s", ELMO_URL)
+        elmo_module = hub.Module(ELMO_URL, trainable=True)
+        lengths = tf.cast(features[LENGTH_KEY], dtype=tf.int32)
+        elmo_embedding = elmo_module(inputs={'tokens': features['text'], 'sequence_len': lengths},
+                                     signature="tokens",
+                                     as_dict=True)['elmo']
+        inputs.append(elmo_embedding)
     inputs = tf.concat(inputs, -1, name="inputs")
     inputs = tf.layers.dropout(inputs, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
     return inputs

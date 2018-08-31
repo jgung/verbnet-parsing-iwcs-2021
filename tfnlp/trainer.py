@@ -11,7 +11,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor
-from tfnlp.common.constants import LABEL_KEY, WORD_KEY
+from tfnlp.common.constants import LABEL_KEY, WORD_KEY, SENTENCE_INDEX
 from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
@@ -102,8 +102,20 @@ class Trainer(object):
     def train(self):
         train_input_fn = self._input_fn(self._raw_train, True)
         valid_input_fn = self._input_fn(self._raw_valid, False)
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn)
-        train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=None),
+
+        os.makedirs(self._estimator.eval_dir())  # TODO This shouldn't be necessary
+        early_stopping = tf.contrib.estimator.stop_if_no_increase_hook(
+            self._estimator,
+            metric_name='F-Measure',
+            max_steps_without_increase=3000,
+            min_steps=100,
+            run_every_secs=None,
+            run_every_steps=100,
+        )
+
+        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn, compare_key='F-Measure')
+        train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=100000,
+                                                                              hooks=[early_stopping]),
                            eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],
                                                            throttle_secs=self._training_config.throttle_secs))
 
@@ -119,6 +131,8 @@ class Trainer(object):
         predictor = from_saved_model(self._save_path)
         while True:
             sentence = input(">>> ")
+            if not sentence:
+                return
             example = self._parse_fn(sentence)
             features = self._feature_extractor.extract(example, train=False).SerializeToString()
             serialized_feats = self._predict_input_fn(features)
@@ -146,7 +160,7 @@ class Trainer(object):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
         self._extract_features(self._raw_train, train=True)
-        self._extract_features(self._raw_valid, train=False)
+        self._extract_features(self._raw_valid, train=True)
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources)
 
     def _extract_features(self, path, train=False):
@@ -160,7 +174,7 @@ class Trainer(object):
         examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
 
         output_path = self._data_path_fn(path)
-        tf.logging.info("Writing extracted features to %s", output_path)
+        tf.logging.info("Writing extracted features for %d instances to %s", len(examples), output_path)
         write_features(examples, output_path)
 
     def _init_estimator(self):
@@ -186,7 +200,7 @@ class Trainer(object):
 
 
 def default_parser(sentence):
-    return {WORD_KEY: sentence.split()}
+    return {WORD_KEY: sentence.split(), SENTENCE_INDEX: 0}
 
 
 def default_formatter(result):

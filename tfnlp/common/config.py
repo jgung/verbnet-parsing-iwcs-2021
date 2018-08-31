@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 from tfnlp.feature import Extractor, Feature, FeatureExtractor, LengthFeature, SequenceExtractor, SequenceFeature, \
-    SequenceListFeature, index_feature
+    SequenceListFeature, index_feature, TextExtractor
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
@@ -18,7 +18,10 @@ def get_reduce_function(func, dim, length):
 
 def get_feature(feature):
     numeric = feature.get('numeric')
-    if feature.rank == 3:
+
+    if feature.name == 'text':
+        feat = TextExtractor
+    elif feature.rank == 3:
         feat = SequenceListFeature
         feature.config.func = get_reduce_function(feature.config.function, feature.config.dim, feature.max_len)
     elif feature.rank == 2:
