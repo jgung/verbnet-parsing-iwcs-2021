@@ -102,6 +102,8 @@ class ConllDepReader(ConllReader):
                 instance[LABEL_KEY] = instance[self.label_field][:]
             # add root
             for key, val in instance.items():
+                if key == SENTENCE_INDEX:
+                    continue
                 if key == HEAD_KEY:
                     val.insert(0, 0)
                 else:

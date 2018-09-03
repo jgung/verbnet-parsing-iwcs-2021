@@ -9,6 +9,7 @@
   "encoder_layers": 8,
   "crf": false,
   "batch_size": 80,
+  "metric": "F-Measure",
   "optimizer": {
     "name": "Adadelta",
     "params": {

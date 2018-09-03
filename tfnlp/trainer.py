@@ -31,8 +31,7 @@ def default_args():
     parser.add_argument('--save', type=str, required=True, help='Directory where models/checkpoints are saved.')
     parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
     parser.add_argument('--vocab', type=str, required=True, help='Directory where vocabulary files are saved.')
-    parser.add_argument('--mode', type=str, default="train", help='Command in [train, predict]')
-    parser.add_argument('--features', type=str, required=True, help='JSON file for configuring feature extractors')
+    parser.add_argument('--mode', type=str, default="train", help='Command in [train, eval, loop, predict]')
     parser.add_argument('--config', type=str, required=True, help='JSON file for configuring training')
     parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
     parser.add_argument('--type', type=str, default='tagger', help='(Optional) Model type')
@@ -107,14 +106,14 @@ class Trainer(object):
             os.makedirs(self._estimator.eval_dir())  # TODO This shouldn't be necessary
         early_stopping = tf.contrib.estimator.stop_if_no_increase_hook(
             self._estimator,
-            metric_name='F-Measure',
+            metric_name=self._training_config.metric,
             max_steps_without_increase=3000,
             min_steps=100,
             run_every_secs=None,
             run_every_steps=100,
         )
 
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn, compare_key='F-Measure')
+        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn, compare_key=self._training_config.metric)
         train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=100000,
                                                                               hooks=[early_stopping]),
                            eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],

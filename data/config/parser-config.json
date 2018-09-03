@@ -10,6 +10,7 @@
   "encoder_layers": 3,
   "batch_size": 10,
   "crf": true,
+  "metric": "LAS",
   "optimizer": {
     "name": "Adam",
     "params": {
@@ -43,6 +44,10 @@
       }
     ],
     "features": [
+      {
+        "name": "elmo",
+        "key": "word"
+      },
       {
         "name": "word",
         "key": "word",

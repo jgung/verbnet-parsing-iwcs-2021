@@ -9,6 +9,7 @@
   "encoder_layers": 1,
   "crf": true,
   "batch_size": 10,
+  "metric": "Accuracy",
   "optimizer": {
     "name": "Momentum",
     "params": {

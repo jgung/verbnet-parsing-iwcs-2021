@@ -9,7 +9,7 @@ from tfnlp.layers.layers import encoder, input_layer
 
 
 def parser_model_func(features, mode, params):
-    inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
+    inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN, features.get(constants.ELMO_KEY) is not None)
 
     outputs, output_size = encoder(features, inputs, mode, params)
 
