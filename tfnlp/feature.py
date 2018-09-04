@@ -231,6 +231,8 @@ class SequenceListFeature(SequenceFeature):
         super().__init__(name, key, config=config, train=train, indices=indices, unknown_word=unknown_word, **kwargs)
         self.rank = 3
         self.max_len = max_len
+        if not max_len:
+            raise AssertionError("Sequence list features require \"max_len\" to be specified")
 
         if pad_word not in self.indices:
             self.indices[pad_word] = len(self.indices)
@@ -270,10 +272,13 @@ class SequenceListFeature(SequenceFeature):
 class LengthFeature(Extractor):
     def __init__(self, key, name=LENGTH_KEY):
         super().__init__(name=name, key=key)
+        self.counts = {}
 
     def map(self, value):
         value = super(LengthFeature, self).map(value)
-        return len(value)
+        length = len(value)
+        self.counts[length] = self.counts.get(length, 0) + 1
+        return length
 
 
 def index_feature():
@@ -419,6 +424,8 @@ class FeatureExtractor(object):
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             for key in vectors:
+                if feature.rank == 3:
+                    key = [key]
                 feature.feat_to_index(key)
 
     def write_vocab(self, base_path, overwrite=False, resources=''):

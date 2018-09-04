@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from tensorflow.python.lib.io import file_io
 
-from tfnlp.common.chunk import chunk, convert_conll_to_bio
+from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, LABEL_KEY, LEMMA_KEY, \
     MARKER_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, PREDICATE_KEY, \
     ROLESET_KEY, SENTENCE_INDEX, WORD_KEY
@@ -25,7 +25,7 @@ class ConllReader(object):
         self.chunk_func = chunk_func
         self._sentence_count = 0
 
-    def read_files(self, path, extension="txt"):
+    def read_files(self, path, extension=".txt"):
         """
         Read instances from a given path--if the provided path is a directory, recursively find all files with provided extension.
         :param path: directory or single file
@@ -171,6 +171,125 @@ class ConllSrlReader(ConllReader):
         return predicates
 
 
+class CoNLLSrlPhraseReader(ConllSrlReader):
+    def __init__(self, index_field_map, pred_start, pred_end=0, pred_key="predicate", chunk_func=lambda x: x,
+                 line_filter=lambda line: False):
+        super().__init__(index_field_map, pred_start, pred_end, pred_key, chunk_func, line_filter)
+
+    def read_files(self, path, extension=".txt", phrase_ext=".phrases"):
+        """
+        Reads CoNLL files with their corresponding phrase files.
+        :param path: directory or single file
+        :param extension: extension of files in directory
+        :param phrase_ext: extension of phrase files
+        :return: CoNLL SRL instances divided into phrases
+        """
+        if extension and os.path.isdir(path):
+            for root, dir_names, file_names in os.walk(path):
+                for file_name in fnmatch.filter(file_names, '*' + extension):
+                    phrase_file = re.sub(extension + "$", phrase_ext, file_name)
+                    for instance in self.read_file(os.path.join(root, file_name), os.path.join(root, phrase_file)):
+                        yield instance
+        for instance in self.read_file(path):
+            yield instance
+
+    def read_file(self, path, phrase_path=None, phrase_ext=".phrases"):
+        """
+        Read CoNLL SRL phrase instances from a file at a given path.
+        :param path: path to single CoNLL-formatted file
+        :param phrase_path: phrase file path
+        :param phrase_ext: extension of phrase files
+        :return: CoNLL instances
+        """
+        if not phrase_path:
+            phrase_path = re.sub("\\..*?$", phrase_ext, path)
+        if not os.path.isfile(phrase_path):
+            raise ValueError('Missing SRL phrase file "{}" for path "{}"'.format(phrase_path, path))
+
+        with file_io.FileIO(path, 'r') as conll_file, file_io.FileIO(phrase_path, 'r') as phrase_file:
+            current, current_phrases = [], []
+            for line, chunk_line in zip(conll_file, phrase_file):
+                line, chunk_line = line.strip(), chunk_line.strip()
+                if (not line and chunk_line) or (not chunk_line and line):
+                    raise ValueError(
+                        'Misaligned phrase and CoNLL files: {} vs. {} in {} and {}'.format(chunk_line, line, phrase_path, path))
+                if not line or self.line_filter(line):
+                    if current:
+                        for instance in self.read_instances([line.split() for line in current], phrases=current_phrases):
+                            yield instance
+                        current, current_phrases = [], []
+                    continue
+                current.append(line)
+                current_phrases.append(chunk_line)
+            if current:
+                for instance in self.read_instances([line.split() for line in current], phrases=current_phrases):
+                    yield instance
+
+    def read_instances(self, rows, phrases=None):
+        if not phrases:
+            raise ValueError("Phrases not provided for instance: {}".format(rows))
+        instances = []
+        for index, labels in self.read_predicates(rows).items():
+            instance = self._read_phrases(rows, phrase_labels=phrases, predicate_index=index, labels=labels)
+            # noinspection PyTypeChecker
+            instance[INSTANCE_INDEX] = self.prop_count
+            # noinspection PyTypeChecker
+            instance[SENTENCE_INDEX] = self._sentence_count
+            instances.append(instance)
+            self.prop_count += 1
+        self._sentence_count += 1
+        return instances
+
+    def _read_phrases(self, rows, phrase_labels, predicate_index, labels):
+        new_labels = []  # label per phrase
+        predicate_chunk_index = -1  # index of phrase containing the predicate
+        phrases = []  # list of phrases, each phrase represented by a list of fields from the input file
+        curr_chunk = []  # the phrase currently being updated
+        prev_label = None
+        if not (len(rows) == len(phrase_labels) == len(labels)):
+            raise AssertionError(
+                'Unequal number of rows phrases, and labels: {} vs. {} vs. {}'.format(len(rows), len(phrase_labels), len(labels)))
+
+        for token_index, (row, curr_label) in enumerate(zip(rows, phrase_labels)):
+            if end_of_chunk(prev_label, curr_label):
+                phrases.append(curr_chunk)
+                curr_chunk = []
+            elif curr_chunk:
+                curr_chunk.append(row)
+
+            if start_of_chunk(prev_label, curr_label):
+                curr_chunk.append(row)
+            if predicate_index == token_index:
+                predicate_chunk_index = len(phrases)
+            prev_label = curr_label
+        if curr_chunk:
+            phrases.append(curr_chunk)
+
+        word_index = 0
+        new_index = -1
+        fixed_phrases = []
+        for index, phrase in enumerate(phrases):
+            if index == predicate_chunk_index:
+                for row in phrase:
+                    if word_index == predicate_index:
+                        new_index = len(fixed_phrases)
+                    fixed_phrases.append([row])
+                    new_labels.append(labels[word_index])
+                    word_index += 1
+            else:
+                fixed_phrases.append(phrase)
+                new_labels.append(labels[word_index])
+                word_index += len(phrase)
+
+        instance = defaultdict(list)
+        for phrase in [self.read_fields(phrase) for phrase in fixed_phrases]:
+            for key, val in phrase.items():
+                instance[key].append(val)
+        instance[LABEL_KEY] = new_labels
+        instance[MARKER_KEY] = [index == new_index and '1' or '0' for index in range(0, len(new_labels))]
+        return instance
+
+
 def conll_2003_reader(chunk_func=chunk):
     """
     Initialize and return a CoNLL reader for the CoNLL-2003 NER shared task.
@@ -195,14 +314,19 @@ def conll_2009_reader():
                           label_field=DEPREL_KEY)
 
 
-def conll_2005_reader():
-    return ConllSrlReader({0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: ROLESET_KEY, 5: PREDICATE_KEY},
-                          pred_start=6)
+def conll_2005_reader(phrase=False):
+    fields = {0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: ROLESET_KEY, 5: PREDICATE_KEY}
+    if phrase:
+        return CoNLLSrlPhraseReader(fields, pred_start=6)
+    return ConllSrlReader(fields, pred_start=6)
 
 
-def conll_2012_reader():
-    reader = ConllSrlReader({3: WORD_KEY, 4: POS_KEY, 5: PARSE_KEY, 6: PREDICATE_KEY, 7: ROLESET_KEY},
-                            pred_start=11, pred_end=1)
+def conll_2012_reader(phrase=False):
+    fields = {3: WORD_KEY, 4: POS_KEY, 5: PARSE_KEY, 6: PREDICATE_KEY, 7: ROLESET_KEY}
+
+    reader = CoNLLSrlPhraseReader(fields, pred_start=11, pred_end=1) if phrase else ConllSrlReader(
+        fields, pred_start=11, pred_end=1)
+
     reader.is_predicate = lambda line: line[6] is not '-' and line[7] is not '-'
     reader.skip_line = lambda line: line.startswith("#")  # skip comments
     return reader
@@ -219,8 +343,12 @@ def get_reader(reader_config):
         return conll_2009_reader()
     elif reader_config == 'conll_2005':
         return conll_2005_reader()
+    elif reader_config == 'conll_2005_phrase':
+        return conll_2005_reader(phrase=True)
     elif reader_config == 'conll_2012':
         return conll_2012_reader()
+    elif reader_config == 'conll_2012_phrase':
+        return conll_2012_reader(phrase=True)
     elif reader_config == 'ptb_pos':
         return ptb_pos_reader()
     else:

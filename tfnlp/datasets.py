@@ -1,13 +1,14 @@
 import tensorflow as tf
 from tensorflow.contrib.data import bucket_by_sequence_length
 from tensorflow.contrib.data import shuffle_and_repeat
+
 from tfnlp.common.constants import LENGTH_KEY
 
 
 def make_dataset(extractor, paths, batch_size=16, bucket_sizes=None, evaluate=False, num_parallel_calls=4,
                  num_parallel_reads=1, prefetch_batches=1, max_epochs=999):
     if bucket_sizes is None:
-        bucket_sizes = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100]
+        bucket_sizes = [5, 10, 25, 50, 100]
     if type(paths) not in [list, tuple]:
         paths = [paths]
 

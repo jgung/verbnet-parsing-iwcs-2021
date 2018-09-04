@@ -1,6 +1,5 @@
 {
   "reader": "conll_2003",
-  "throttle_secs": 0,
   "checkpoint_steps": 1500,
   "state_size": 200,
   "dropout": 0.5,

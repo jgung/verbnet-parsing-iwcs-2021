@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 import tfnlp.feature
-from tfnlp.common.constants import ELMO_KEY, LOWER, NORMALIZE_DIGITS, INITIALIZER
+from tfnlp.common.constants import ELMO_KEY, INITIALIZER, LOWER, NORMALIZE_DIGITS, UNKNOWN_WORD
 from tfnlp.common.utils import Params
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
@@ -25,10 +25,14 @@ def _get_reduce_function(config, dim, length):
         raise AssertionError("Unexpected feature function: {}".format(config.name))
 
 
-def _get_mapping_function(func):
+def _get_mapping_function(func, rank=2):
     if func == LOWER:
+        if rank == 3:
+            return lambda x: [word.lower() for word in x]
         return lambda x: x.lower()
     elif func == NORMALIZE_DIGITS:
+        if rank == 3:
+            return lambda x: [re.sub("\d", "#", word) for word in x]
         return lambda x: re.sub("\d", "#", x)
     raise AssertionError("Unexpected function name: {}".format(func))
 
@@ -79,11 +83,11 @@ class FeatureConfig(Params):
         # 2 most common feature rank for our NLP applications (word/token-level features)
         self.rank = feature.get('rank', 2)
         # string mapping functions applied during extraction
-        self.mapping_funcs = [_get_mapping_function(mapping_func) for mapping_func in feature.get('mapping_funcs', [])]
+        self.mapping_funcs = [_get_mapping_function(mapping_func, self.rank) for mapping_func in feature.get('mapping_funcs', [])]
         # maximum sequence length of feature
         self.max_len = feature.get('max_len')
         # word used to replace OOV tokens
-        self.unknown_word = feature.get('unknown_word')
+        self.unknown_word = feature.get('unknown_word', UNKNOWN_WORD)
         # pre-initialized vocabulary
         self.indices = feature.get('indices')
         self.numeric = feature.get('numeric')

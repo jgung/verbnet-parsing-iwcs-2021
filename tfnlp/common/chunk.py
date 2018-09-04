@@ -90,3 +90,31 @@ def chunk_besio(labeling):
 
 def chunk_conll(labeling):
     return chunk(labeling, conll=True)
+
+
+def end_of_chunk(prev, curr):
+    prev_val, prev_tag = _get_val_and_tag(prev)
+    curr_val, curr_tag = _get_val_and_tag(curr)
+    if prev_val == OUT:
+        return True
+    if not prev_val:
+        return False
+    if prev_tag != curr_tag or prev_val == 'E' or curr_val == 'B' or curr_val == 'O' or prev_val == 'O':
+        return True
+    return False
+
+
+def start_of_chunk(prev, curr):
+    prev_val, prev_tag = _get_val_and_tag(prev)
+    curr_val, curr_tag = _get_val_and_tag(curr)
+    if prev_tag != curr_tag or curr_val == 'B' or curr_val == 'O':
+        return True
+    return False
+
+
+def _get_val_and_tag(label):
+    if not label:
+        return '', ''
+    if label == 'O':
+        return label, ''
+    return label.split('-')

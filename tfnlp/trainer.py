@@ -117,7 +117,7 @@ class Trainer(object):
         train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=100000,
                                                                               hooks=[early_stopping]),
                            eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],
-                                                           throttle_secs=self._training_config.throttle_secs))
+                                                           throttle_secs=0))
 
     def eval(self):
         self._extract_features(self._raw_test, train=False)
@@ -196,7 +196,8 @@ class Trainer(object):
 
     def _input_fn(self, dataset, train=False):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
-                                    batch_size=self._training_config.batch_size, evaluate=not train)
+                                    batch_size=self._training_config.batch_size, evaluate=not train,
+                                    bucket_sizes=self._training_config.buckets)
 
 
 def default_parser(sentence):
