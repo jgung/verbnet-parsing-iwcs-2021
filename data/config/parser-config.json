@@ -8,13 +8,21 @@
   "encoder": "lstm",
   "encoder_layers": 3,
   "batch_size": 10,
+  "buckets": [
+    10,
+    15,
+    25,
+    30,
+    75,
+    100
+  ],
   "crf": true,
   "metric": "LAS",
   "optimizer": {
     "name": "Adam",
     "params": {
       "beta1": 0.9,
-      "beta2": 0.999
+      "beta2": 0.9
     },
     "lr": {
       "rate": 0.002,
