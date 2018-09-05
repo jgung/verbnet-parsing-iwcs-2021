@@ -35,12 +35,47 @@ def input_layer(features, params, training):
                                          as_dict=True)['elmo']
             inputs.append(elmo_embedding)
         elif feature_config.has_vocab():
-            feature_embedding = _get_input(features[feature_config.name], feature_config, training)
+            feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
             inputs.append(feature_embedding)
 
     inputs = tf.concat(inputs, -1, name="inputs")
     inputs = tf.layers.dropout(inputs, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
     return inputs
+
+
+def _get_embedding_input(feature_ids, feature, training):
+    config = feature.config
+
+    initializer = None
+    if training and feature.embedding is not None:
+        initializer = embedding_initializer(feature.embedding)
+
+    embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
+                                       shape=[feature.vocab_size(), config.dim],
+                                       initializer=initializer,
+                                       trainable=config.trainable)
+    result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
+                                    name='{}_lookup'.format(feature.name))  # wrapper of gather
+
+    if config.dropout > 0:
+        result = tf.layers.dropout(result,
+                                   rate=config.dropout,
+                                   training=training,
+                                   name='{}_dropout'.format(feature.name))
+
+    if feature.rank == 3:  # reduce multiple vectors per token to a single vector
+        with tf.name_scope('{}_reduction_op'.format(feature.name)):
+            result = config.func.apply(result)
+
+    if config.word_dropout > 0:
+        shape = tf.shape(result)
+        result = tf.layers.dropout(result,
+                                   rate=config.word_dropout,
+                                   training=training,
+                                   name='{}_dropout'.format(feature.name),
+                                   noise_shape=[shape[0], shape[1], 1])
+
+    return result
 
 
 def encoder(features, inputs, mode, config):
@@ -110,41 +145,6 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
                                                    sequence_length=sequence_lengths, dtype=tf.float32)
             outputs = tf.concat(outputs, axis=-1, name="Concatenate_biRNN_outputs_%d" % i)
     return outputs, config.state_size * 2
-
-
-def _get_input(feature_ids, feature, training):
-    config = feature.config
-
-    initializer = None
-    if training and feature.embedding is not None:
-        initializer = embedding_initializer(feature.embedding)
-
-    embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
-                                       shape=[feature.vocab_size(), config.dim],
-                                       initializer=initializer,
-                                       trainable=config.trainable)
-    result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
-                                    name='{}_lookup'.format(feature.name))  # wrapper of gather
-
-    if config.dropout > 0:
-        result = tf.layers.dropout(result,
-                                   rate=config.dropout,
-                                   training=training,
-                                   name='{}_dropout'.format(feature.name))
-
-    if feature.rank == 3:  # reduce multiple vectors per token to a single vector
-        with tf.name_scope('{}_reduction_op'.format(feature.name)):
-            result = config.func.apply(result)
-
-    if config.word_dropout > 0:
-        shape = tf.shape(result)
-        result = tf.layers.dropout(result,
-                                   rate=config.word_dropout,
-                                   training=training,
-                                   name='{}_dropout'.format(feature.name),
-                                   noise_shape=[shape[0], shape[1], 1])
-
-    return result
 
 
 def embedding_initializer(embedding):

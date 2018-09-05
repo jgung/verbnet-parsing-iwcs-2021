@@ -130,8 +130,18 @@ class BaseNetworkConfig(Params):
             tf.logging.warn("No 'batch_size' parameter provided. Using default value of %d", self.batch_size)
         self.checkpoint_steps = config.get('checkpoint_steps')
         if not self.checkpoint_steps:
-            self.checkpoint_steps = 1000
+            self.checkpoint_steps = self.batch_size * 100
             tf.logging.warn("No 'checkpoint_steps' parameter provided. Using default value of %d", self.checkpoint_steps)
+        self.patience = config.get('patience')
+        if not self.patience:
+            self.patience = self.checkpoint_steps * 5
+            tf.logging.warn("No 'patience' parameter provided. Using default value of %d", self.patience)
+        self.max_steps = config.get('max_steps')
+        if not self.max_steps:
+            self.max_steps = self.checkpoint_steps * 100
+            tf.logging.warn("No 'max_steps' parameter provided. Using default value of %d", self.checkpoint_steps)
+        self.exports_to_keep = config.get('exports_to_keep', 5)
+
         self.input_dropout = config.get('input_dropout', 0)
         self.buckets = config.get('buckets', [10, 15, 25, 30, 75])
         self.metric = config.get('metric', 'Accuracy')

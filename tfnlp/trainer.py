@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
 from tensorflow.python.estimator.export.export import ServingInputReceiver
+from tensorflow.python.estimator.exporter import BestExporter
 from tensorflow.python.estimator.run_config import RunConfig
 from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
@@ -12,7 +13,7 @@ from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor, get_network_config
 from tfnlp.common.constants import LABEL_KEY, WORD_KEY
-from tfnlp.common.eval import BestExporter
+from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
@@ -34,7 +35,7 @@ def default_args():
     parser.add_argument('--mode', type=str, default="train", help='Command in [train, eval, loop, predict]')
     parser.add_argument('--config', type=str, required=True, help='JSON file for configuring training')
     parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
-    parser.add_argument('--type', type=str, default='tagger', help='(Optional) Model type')
+    parser.add_argument('--type', type=str, default='tagger', help='(Optional) Model type in [tagger, parser]')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite previous trained models and vocabularies')
     parser.set_defaults(overwrite=False)
@@ -107,16 +108,23 @@ class Trainer(object):
         early_stopping = tf.contrib.estimator.stop_if_no_increase_hook(
             self._estimator,
             metric_name=self._training_config.metric,
-            max_steps_without_increase=3000,
+            max_steps_without_increase=self._training_config.patience,
             min_steps=100,
             run_every_secs=None,
             run_every_steps=100,
         )
 
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn, compare_key=self._training_config.metric)
-        train_and_evaluate(self._estimator, train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=100000,
-                                                                              hooks=[early_stopping]),
-                           eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn, steps=None, exporters=[exporter],
+        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
+                                compare_fn=metric_compare_fn(self._training_config.metric),
+                                exports_to_keep=self._training_config.exports_to_keep)
+
+        train_and_evaluate(self._estimator,
+                           train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn,
+                                                             max_steps=self._training_config.max_steps,
+                                                             hooks=[early_stopping]),
+                           eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn,
+                                                           steps=None,
+                                                           exporters=[exporter],
                                                            throttle_secs=0))
 
     def eval(self):
@@ -143,8 +151,7 @@ class Trainer(object):
         self._feature_extractor = get_feature_extractor(self._feature_config)
         if self._mode == "train":
             if not self._overwrite:
-                success = self._feature_extractor.read_vocab(self._vocab_path)
-                if success:
+                if self._feature_extractor.read_vocab(self._vocab_path):
                     tf.logging.info("Loaded pre-existing vocabulary at %s.", self._vocab_path)
                 else:
                     tf.logging.info("Unable to load pre-existing vocabulary at %s.", self._vocab_path)
@@ -213,12 +220,13 @@ def default_input_fn(features):
 
 
 def get_model_func(model_type):
-    if "tagger" == model_type:
-        return tagger_model_func
-    elif "parser" == model_type:
-        return parser_model_func
-    else:
+    model_funcs = {
+        "tagger": tagger_model_func,
+        "parser": parser_model_func
+    }
+    if model_type not in model_funcs:
         raise ValueError("Unexpected model type: " + model_type)
+    return model_funcs[model_type]
 
 
 if __name__ == '__main__':

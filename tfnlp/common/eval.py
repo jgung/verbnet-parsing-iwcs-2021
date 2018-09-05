@@ -1,4 +1,3 @@
-import os
 import re
 import subprocess
 import tempfile
@@ -7,11 +6,8 @@ from collections import defaultdict
 import numpy as np
 import tensorflow as tf
 from nltk import ConfusionMatrix
-from tensorflow.python.estimator.canned.metric_keys import MetricKeys
-from tensorflow.python.estimator.exporter import LatestExporter
 from tensorflow.python.lib.io import file_io
-from tensorflow.python.summary import summary_iterator
-from tensorflow.python.training import saver, session_run_hook
+from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
 from tfnlp.common.chunk import chunk
@@ -353,76 +349,22 @@ def write_parse_results_to_file(sentences, heads, rels, features, file):
     file.seek(0)
 
 
-class BestExporter(LatestExporter):
+def metric_compare_fn(metric_key):
+    def _metric_compare_fn(best_eval_result, current_eval_result):
+        if not best_eval_result or metric_key not in best_eval_result:
+            raise ValueError(
+                'best_eval_result cannot be empty or no loss is found in it.')
 
-    def __init__(self, serving_input_receiver_fn, assets_extra=None, as_text=False, exports_to_keep=5,
-                 compare_fn=None, event_file_pattern=None, compare_key=MetricKeys.LOSS):
-        super().__init__('best_model', serving_input_receiver_fn, assets_extra, as_text, exports_to_keep)
-        self._compare_fn = compare_fn or self._default_compare_fn
-        self._best_eval_result = self._get_best_eval_result(event_file_pattern)
-        self._default_compare_key = compare_key
+        if not current_eval_result or metric_key not in current_eval_result:
+            raise ValueError(
+                'current_eval_result cannot be empty or no loss is found in it.')
 
-    def export(self, estimator, export_path, checkpoint_path, eval_result, is_the_final_export):
-        if not checkpoint_path:
-            checkpoint_path = saver.latest_checkpoint(estimator.model_dir)
-        export_checkpoint_path, export_eval_result = self._update(checkpoint_path, eval_result)
+        new = current_eval_result[metric_key]
+        prev = best_eval_result[metric_key]
+        tf.logging.info("Comparing new score with previous best (%f vs. %f)", new, prev)
+        return prev < new
 
-        if export_checkpoint_path and export_eval_result is not None:
-            tf.logging.info("Exporting best result to %s", export_checkpoint_path)
-            checkpoint_base = os.path.basename(export_checkpoint_path)
-            export_dir = os.path.join(tf.compat.as_str_any(export_path), tf.compat.as_str_any(checkpoint_base))
-            return super().export(estimator, export_dir, export_checkpoint_path, export_eval_result, is_the_final_export)
-        else:
-            return ''
-
-    def _update(self, checkpoint_path, eval_result):
-        """
-        Records a given checkpoint and exports if this is the best model.
-        :param checkpoint_path: the checkpoint path to export
-        :param eval_result: a dictionary which is usually generated in evaluation runs
-        :return: path to export checkpoint and dictionary and eval_result, or None
-        """
-        if not checkpoint_path:
-            raise ValueError('Checkpoint path is empty.')
-        if eval_result is None:
-            raise ValueError('%s has empty evaluation results.', checkpoint_path)
-
-        if (self._best_eval_result is None or
-                self._compare_fn(self._best_eval_result, eval_result)):
-            tf.logging.info("Updating best result from %s to %s", self._best_eval_result, eval_result)
-            self._best_eval_result = eval_result
-            return checkpoint_path, eval_result
-        else:
-            return '', None
-
-    def _get_best_eval_result(self, event_files):
-        if not event_files:
-            return None
-
-        best_eval_result = None
-        for event_file in tf.gfile.Glob(os.path.join(event_files)):
-            for event in summary_iterator.summary_iterator(event_file):
-                if event.HasField('summary'):
-                    event_eval_result = {}
-                    for value in event.summary.value:
-                        if value.HasField('simple_value'):
-                            event_eval_result[value.tag] = value.simple_value
-                    if best_eval_result is None or self._compare_fn(best_eval_result, event_eval_result):
-                        best_eval_result = event_eval_result
-        if not best_eval_result:
-            tf.logging.info("Found best eval result at %s", best_eval_result)
-        return best_eval_result
-
-    def _default_compare_fn(self, curr_best_eval_result, cand_eval_result):
-        if not curr_best_eval_result or self._default_compare_key not in curr_best_eval_result:
-            raise ValueError('curr_best_eval_result cannot be empty or no loss is found in it.')
-        if not cand_eval_result or self._default_compare_key not in cand_eval_result:
-            raise ValueError('cand_eval_result cannot be empty or no loss is found in it.')
-
-        new = cand_eval_result[self._default_compare_key]
-        current = curr_best_eval_result[self._default_compare_key]
-        tf.logging.info("Comparing new score with previous best (%f vs. %f)", new, current)
-        return new > current
+    return _metric_compare_fn
 
 
 def log_trainable_variables():
