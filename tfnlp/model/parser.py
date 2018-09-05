@@ -29,17 +29,27 @@ def parser_model_func(features, mode, params):
     head_rel_mlp = mlp(rel_mlp_size, name="head_rel_mlp")
 
     with tf.variable_scope("arc_bilinear_logits"):
-        arc_logits = bilinear(dep_arc_mlp, head_arc_mlp, 1, time_steps, include_bias1=True)
-        arc_predictions = tf.argmax(arc_logits, axis=-1)
+        arc_logits = bilinear(dep_arc_mlp, head_arc_mlp, 1, time_steps, include_bias1=True)  # [batch_size, seq_len, seq_len]
+        arc_predictions = tf.argmax(arc_logits, axis=-1)  # [batch_size, seq_len]
+
+    def select_logits(logits, targets):
+        _one_hot = tf.one_hot(targets, time_steps)  # convert to [batch_size, seq_len, seq_len] one-hot Tensor
+
+        # don't include gradients for arcs that aren't predicted
+        # [batch_size, seq_len, num_label, seq_len] x [batch_size, seq_len, seq_len, 1]
+        # a.k.a. batch_size * seq_len [num_label, seq_len] x [seq_len, 1] matrix multiplications
+        _select_logits = tf.matmul(logits, tf.expand_dims(_one_hot, -1))
+        # [batch_size, seq_len, num_label]
+        _select_logits = tf.squeeze(_select_logits, axis=-1)
+        return _select_logits
 
     with tf.variable_scope("rel_bilinear_logits"):
         target = params.extractor.targets[constants.DEPREL_KEY]
         num_labels = target.vocab_size()
-        rel_logits = bilinear(dep_rel_mlp, head_rel_mlp, num_labels, time_steps, include_bias1=True, include_bias2=True)
 
-        one_hot = tf.one_hot(arc_predictions, time_steps)
-        select_rel_logits = tf.matmul(rel_logits, tf.expand_dims(one_hot, -1))
-        select_rel_logits = tf.squeeze(select_rel_logits, axis=-1)
+        # produces [batch_size, seq_len, num_labels, seq_len] Tensor
+        rel_logits = bilinear(dep_rel_mlp, head_rel_mlp, num_labels, time_steps, include_bias1=True, include_bias2=True)
+        select_rel_logits = select_logits(rel_logits, arc_predictions)
 
     loss = None
     train_op = None
@@ -64,8 +74,10 @@ def parser_model_func(features, mode, params):
             arc_loss = tf.reduce_mean(arc_losses)
 
         with tf.variable_scope("rel_bilinear_loss"):
+            gold_logits = select_logits(rel_logits, arc_targets)
             rel_targets = tf.identity(features[constants.DEPREL_KEY], name=constants.DEPREL_KEY)
-            rel_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=select_rel_logits, labels=rel_targets)
+
+            rel_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=gold_logits, labels=rel_targets)
             rel_losses = tf.boolean_mask(rel_losses, mask, name="mask_padding_from_loss")
             rel_loss = tf.reduce_mean(rel_losses)
         loss = arc_loss + rel_loss
