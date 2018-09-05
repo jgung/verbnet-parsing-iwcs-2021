@@ -12,8 +12,8 @@ from tfnlp.layers.layers import encoder, input_layer
 
 
 def tagger_model_func(features, mode, params):
-    inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN, features.get(constants.ELMO_KEY) is not None)
-    outputs, output_size = encoder(features, inputs, mode, params)
+    inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
+    outputs, output_size = encoder(features, inputs, mode, params.config)
 
     outputs = tf.concat(values=outputs, axis=-1)
     time_steps = tf.shape(outputs)[1]

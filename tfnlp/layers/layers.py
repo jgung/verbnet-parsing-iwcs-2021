@@ -16,98 +16,143 @@ from tfnlp.common.constants import ELMO_KEY, LENGTH_KEY
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
 
-def input_layer(features, params, training, elmo=False):
+def input_layer(features, params, training):
     """
     Declare an input layers that compose multiple features into a single tensor across multiple time steps.
     :param features: input dictionary from feature names to 3D/4D Tensors
     :param params: feature/network configurations/metadata
     :param training: true if training
-    :param elmo: if true, use elmo embedding
     :return: 3D tensor ([batch_size, time_steps, input_dim])
     """
     inputs = []
     for feature_config in params.extractor.features.values():
-        if feature_config.has_vocab():
-            inputs.append(_get_input(features[feature_config.name], feature_config, training))
-    if elmo:
-        tf.logging.info("Using ELMo module at %s", ELMO_URL)
-        elmo_module = hub.Module(ELMO_URL, trainable=True)
-        lengths = tf.cast(features[LENGTH_KEY], dtype=tf.int32)
-        elmo_embedding = elmo_module(inputs={'tokens': features[ELMO_KEY], 'sequence_len': lengths},
-                                     signature="tokens",
-                                     as_dict=True)['elmo']
-        inputs.append(elmo_embedding)
+        if feature_config.name == ELMO_KEY:
+            tf.logging.info("Using ELMo module at %s", ELMO_URL)
+            elmo_module = hub.Module(ELMO_URL, trainable=True)
+            elmo_embedding = elmo_module(inputs={'tokens': features[ELMO_KEY],
+                                                 'sequence_len': tf.cast(features[LENGTH_KEY], dtype=tf.int32)},
+                                         signature="tokens",
+                                         as_dict=True)['elmo']
+            inputs.append(elmo_embedding)
+        elif feature_config.has_vocab():
+            feature_embedding = _get_input(features[feature_config.name], feature_config, training)
+            inputs.append(feature_embedding)
+
     inputs = tf.concat(inputs, -1, name="inputs")
     inputs = tf.layers.dropout(inputs, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
     return inputs
 
 
-def encoder(features, inputs, mode, params):
-    if params.config.encoder == 'dblstm':
-        lengths = tf.identity(features[LENGTH_KEY])
-        keep_prob = (1.0 - params.config.encoder_dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
-        _encoder = deep_bidirectional_dynamic_rnn([highway_lstm_cell(params.config.state_size, keep_prob)
-                                                   for _ in range(params.config.encoder_layers)], inputs, sequence_length=lengths)
-        return _encoder, params.config.state_size
-    return stacked_bilstm(features, inputs, mode, params), params.config.state_size * 2
+def encoder(features, inputs, mode, config):
+    training = mode == tf.estimator.ModeKeys.TRAIN
+    sequence_lengths = features[LENGTH_KEY]
+
+    if config.encoder == 'dblstm':
+        return highway_dblstm(inputs, sequence_lengths, training, config)
+    elif config.encoder == 'lstm':
+        return stacked_bilstm(inputs, sequence_lengths, training, config)
+    else:
+        raise ValueError('No encoder of type "{}" available'.format(config.encoder))
 
 
-def highway_lstm_cell(size, keep_prob):
-    return DropoutWrapper(HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer),
-                          variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
+def highway_dblstm(inputs, sequence_lengths, training, config):
+    """
+    Initialize a deep bidirectional highway LSTM (with interleaved forward/backward layers) as described in
+    "Zhou, J. and Xu, W. End-to-end learning of semantic role labeling using recurrent neural networks" and
+    "He, Luheng, et al. Deep semantic role labeling: What works and what’s next."
+    :param inputs: batch major input tensor of shape: `[batch_size, max_time, input_dim]`
+    :param sequence_lengths:  A vector of size `[batch_size]` containing the actual lengths for each of sequence in the batch.
+    :param training: boolean used to indicate if dropout and other training-specific configurations should be enabled
+    :param config: network configuration
+    :return: tuple with encoder outputs and output dimensionality
+    """
+    keep_prob = (1.0 - config.encoder_dropout) if training else 1.0
+
+    def highway_lstm_cell(size):
+        _cell = HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer)
+        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
+
+    def _reverse(_input):
+        return array_ops.reverse_sequence(input=_input, seq_lengths=sequence_lengths, seq_axis=1, batch_axis=0)
+
+    outputs = None
+    with tf.variable_scope("dblstm"):
+        cells = [highway_lstm_cell(config.state_size) for _ in range(config.encoder_layers)]
+
+        for i, cell in enumerate(cells):
+            odd = i % 2 == 1
+            with tf.variable_scope("%s-%s" % ('bw' if odd else 'fw', i // 2)) as layer_scope:
+                inputs = _reverse(inputs) if odd else inputs
+
+                outputs, _ = dynamic_rnn(cell=cell, inputs=inputs,
+                                         sequence_length=sequence_lengths,
+                                         dtype=tf.float32,
+                                         scope=layer_scope)
+
+                outputs = _reverse(outputs) if odd else outputs
+            inputs = outputs
+
+    return outputs, config.state_size
 
 
-def stacked_bilstm(features, inputs, mode, params):
+def stacked_bilstm(inputs, sequence_lengths, training, config):
+    keep_prob = (1.0 - config.encoder_dropout) if training else 1.0
+
     def cell(name=None):
-        _cell = tf.nn.rnn_cell.LSTMCell(params.config.state_size, name=name, initializer=orthogonal_initializer(4))
-        keep_prob = (1.0 - params.config.encoder_dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
-        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
-                              output_keep_prob=keep_prob, state_keep_prob=keep_prob)
+        _cell = tf.nn.rnn_cell.LSTMCell(config.state_size, name=name, initializer=orthogonal_initializer(4))
+        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob,
+                              state_keep_prob=keep_prob)
 
     outputs = inputs
-    for i in range(params.config.encoder_layers):
+    for i in range(config.encoder_layers):
         with tf.variable_scope("biRNN_%d" % i):
             outputs, _ = bidirectional_dynamic_rnn(cell_fw=cell(), cell_bw=cell(), inputs=outputs,
-                                                   sequence_length=features[LENGTH_KEY], dtype=tf.float32)
+                                                   sequence_length=sequence_lengths, dtype=tf.float32)
             outputs = tf.concat(outputs, axis=-1, name="Concatenate_biRNN_outputs_%d" % i)
-    return outputs
+    return outputs, config.state_size * 2
 
 
 def _get_input(feature_ids, feature, training):
+    config = feature.config
+
     initializer = None
     if training and feature.embedding is not None:
-        # noinspection PyUnusedLocal
-        def initialize(name, dtype=None, partition_info=None):
-            return feature.embedding
-
-        initializer = initialize
+        initializer = embedding_initializer(feature.embedding)
 
     embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
-                                       shape=[feature.vocab_size(), feature.config.dim],
+                                       shape=[feature.vocab_size(), config.dim],
                                        initializer=initializer,
-                                       trainable=feature.config.trainable)
+                                       trainable=config.trainable)
     result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
                                     name='{}_lookup'.format(feature.name))  # wrapper of gather
 
-    if feature.config.dropout > 0:
+    if config.dropout > 0:
         result = tf.layers.dropout(result,
-                                   rate=feature.config.dropout,
+                                   rate=config.dropout,
                                    training=training,
                                    name='{}_dropout'.format(feature.name))
 
     if feature.rank == 3:  # reduce multiple vectors per token to a single vector
         with tf.name_scope('{}_reduction_op'.format(feature.name)):
-            result = feature.config.func.apply(result)
+            result = config.func.apply(result)
 
-    if 'word_dropout' in feature.config and feature.config.word_dropout > 0:
+    if config.word_dropout > 0:
         shape = tf.shape(result)
         result = tf.layers.dropout(result,
-                                   rate=feature.config.word_dropout,
+                                   rate=config.word_dropout,
                                    training=training,
                                    name='{}_dropout'.format(feature.name),
                                    noise_shape=[shape[0], shape[1], 1])
 
     return result
+
+
+def embedding_initializer(embedding):
+    # noinspection PyUnusedLocal
+    def _initializer(name, dtype=None, partition_info=None):
+        return embedding
+
+    return _initializer
 
 
 # noinspection PyUnusedLocal
@@ -131,27 +176,6 @@ def orthogonal_initializer(num_splits):
         return tf.concat(axis=1, values=matrices)
 
     return _initializer
-
-
-def deep_bidirectional_dynamic_rnn(cells, inputs, sequence_length):
-    def _reverse(_input, seq_lengths):
-        return array_ops.reverse_sequence(input=_input, seq_lengths=seq_lengths, seq_axis=1, batch_axis=0)
-
-    outputs = None
-    with tf.variable_scope("dblstm"):
-        for i, cell in enumerate(cells):
-            if i % 2 == 1:
-                with tf.variable_scope("bw-%s" % (i // 2)) as bw_scope:
-                    inputs_reverse = _reverse(inputs, seq_lengths=sequence_length)
-                    outputs, _ = dynamic_rnn(cell=cell, inputs=inputs_reverse, sequence_length=sequence_length, dtype=tf.float32,
-                                             scope=bw_scope)
-                    outputs = _reverse(outputs, seq_lengths=sequence_length)
-            else:
-                with tf.variable_scope("fw-%s" % (i // 2)) as fw_scope:
-                    outputs, _ = dynamic_rnn(cell=cell, inputs=inputs, sequence_length=sequence_length, dtype=tf.float32,
-                                             scope=fw_scope)
-            inputs = outputs
-    return outputs
 
 
 # noinspection PyAbstractClass
