@@ -3,10 +3,9 @@
   "checkpoint_steps": 1000,
   "state_size": 300,
   "input_dropout": 0.0,
-  "dropout": 0.1,
+  "encoder_dropout": 0.1,
   "encoder": "dblstm",
   "encoder_layers": 8,
-  "crf": false,
   "batch_size": 80,
   "buckets": [
     10,

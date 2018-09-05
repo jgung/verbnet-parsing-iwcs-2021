@@ -76,14 +76,14 @@ def tagger_model_func(features, mode, params):
                 constants.WORD_KEY: features[constants.WORD_KEY],
                 constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
             },
-                vocab=params.extractor.targets[constants.LABEL_KEY],
+                vocab=target,
                 word_vocab=params.extractor.features[constants.WORD_KEY])]
         else:
             evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
                                                  gold_tensor=targets,
                                                  predict_tensor=predictions,
                                                  length_tensor=features[constants.LENGTH_KEY],
-                                                 vocab=params.extractor.targets[constants.LABEL_KEY])]
+                                                 vocab=target)]
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,

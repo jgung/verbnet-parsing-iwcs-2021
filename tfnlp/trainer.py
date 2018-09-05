@@ -10,7 +10,7 @@ from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
-from tfnlp.common.config import get_feature_extractor
+from tfnlp.common.config import get_feature_extractor, get_network_config
 from tfnlp.common.constants import LABEL_KEY, WORD_KEY
 from tfnlp.common.eval import BestExporter
 from tfnlp.common.utils import read_json
@@ -55,7 +55,7 @@ class Trainer(object):
         self._vocab_path = args.vocab
         self._resources = args.resources
         self._eval_script_path = args.script
-        self._training_config = read_json(args.config)
+        self._training_config = get_network_config(read_json(args.config))
         self._feature_config = self._training_config.features
         self._model_fn = get_model_func(args.type)
 

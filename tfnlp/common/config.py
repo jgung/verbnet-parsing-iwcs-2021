@@ -57,6 +57,8 @@ class FeatureHyperparameters(Params):
         super().__init__(**kwargs)
         # dropout specific to this feature
         self.dropout = config.get('dropout', 0)
+        # word-level dropout for this feature
+        self.word_dropout = config.get('word_dropout', 0)
         # indicates whether variables for this feature should be trainable (`True`) or fixed (`False`)
         self.trainable = config.get('trainable', True)
         # dimensionality for this feature if an initializer is not provided
@@ -114,6 +116,33 @@ class FeaturesConfig(object):
             self.features = [_get_feature(feature) for feature in features]
 
 
+class BaseNetworkConfig(Params):
+    def __init__(self, config, **kwargs):
+        super().__init__(**kwargs)
+
+        self.features = config.get('features')
+        self.optimizer = config.get('optimizer')
+        self.reader = config.get('reader')
+
+        self.batch_size = config.get('batch_size')
+        if not self.batch_size:
+            self.batch_size = 10
+            tf.logging.warn("No 'batch_size' parameter provided. Using default value of %d", self.batch_size)
+        self.checkpoint_steps = config.get('checkpoint_steps')
+        if not self.checkpoint_steps:
+            self.checkpoint_steps = 1000
+            tf.logging.warn("No 'checkpoint_steps' parameter provided. Using default value of %d", self.checkpoint_steps)
+        self.input_dropout = config.get('input_dropout', 0)
+        self.buckets = config.get('buckets', [10, 15, 25, 30, 75])
+        self.metric = config.get('metric', 'Accuracy')
+        self.encoder = config.get('encoder', 'lstm')
+        self.encoder_dropout = config.get('encoder_dropout', 0)
+        self.encoder_layers = config.get('encoder_layers', 1)
+        self.state_size = config.get('state_size', 100)
+        self.crf = config.get('crf', False)
+        self.mlp_dropout = config.get('mlp_dropout', 0)
+
+
 def _get_feature(feature):
     """
     Create an individual feature from an input feature configuration.
@@ -149,6 +178,10 @@ def get_feature_extractor(config):
     config.features.append(tfnlp.feature.LengthFeature(config.seq_feat))
 
     return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets)
+
+
+def get_network_config(config):
+    return BaseNetworkConfig(config)
 
 
 def get_learning_rate(lr_config, global_step):

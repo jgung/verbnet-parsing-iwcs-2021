@@ -45,7 +45,7 @@ def input_layer(features, params, training, elmo=False):
 def encoder(features, inputs, mode, params):
     if params.config.encoder == 'dblstm':
         lengths = tf.identity(features[LENGTH_KEY])
-        keep_prob = (1.0 - params.config.dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
+        keep_prob = (1.0 - params.config.encoder_dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
         _encoder = deep_bidirectional_dynamic_rnn([highway_lstm_cell(params.config.state_size, keep_prob)
                                                    for _ in range(params.config.encoder_layers)], inputs, sequence_length=lengths)
         return _encoder, params.config.state_size
@@ -60,7 +60,7 @@ def highway_lstm_cell(size, keep_prob):
 def stacked_bilstm(features, inputs, mode, params):
     def cell(name=None):
         _cell = tf.nn.rnn_cell.LSTMCell(params.config.state_size, name=name, initializer=orthogonal_initializer(4))
-        keep_prob = (1.0 - params.config.dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
+        keep_prob = (1.0 - params.config.encoder_dropout) if mode == tf.estimator.ModeKeys.TRAIN else 1.0
         return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
                               output_keep_prob=keep_prob, state_keep_prob=keep_prob)
 
