@@ -153,16 +153,17 @@ class Feature(Extractor):
         :param path: vocabulary file
         :return: `True` if vocabulary successfully read
         """
-        self.indices = {}
-        self.reversed = None
+        indices = {}
         try:
             with file_io.FileIO(path, mode='r') as vocab:
                 for line in vocab:
                     line = line.strip()
                     if line:
-                        self.indices[line] = len(self.indices)
+                        indices[line] = len(indices)
         except NotFoundError:
             return False
+        self.indices = indices
+        self.reversed = None
         return True
 
     def vocab_size(self):
@@ -376,7 +377,7 @@ class FeatureExtractor(object):
     def get_padding(self, train=True):
         """
         Create a dictionary of default padding values for each feature. Used primarily for TF Dataset API.
-                :param train: include target padding if `True`
+        :param train: include target padding if `True`
         :return: dict from feature names to padding Tensors
         """
         padding = {}
