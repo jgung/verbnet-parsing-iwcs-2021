@@ -68,14 +68,22 @@ def _get_embedding_input(feature_ids, feature, training):
             result = config.func.apply(result)
 
     if config.word_dropout > 0:
-        shape = tf.shape(result)
-        result = tf.layers.dropout(result,
-                                   rate=config.word_dropout,
-                                   training=training,
-                                   name='{}_dropout'.format(feature.name),
-                                   noise_shape=[shape[0], shape[1], 1])
+        result = word_dropout(result, feature.config.word_dropout, feature.name)
 
     return result
+
+
+def word_dropout(inputs, embed_keep_prob, name):
+    shape = tf.shape(inputs)
+
+    mask_shape = [shape[0], shape[1], 1]
+    ones = tf.ones(mask_shape)
+    mask = tf.nn.dropout(ones, keep_prob=embed_keep_prob, noise_shape=mask_shape) * embed_keep_prob
+
+    drop = tf.get_variable('{}_drop'.format(name), shape[2])
+    inputs = mask * inputs + (1 - mask) * drop
+
+    return inputs
 
 
 def encoder(features, inputs, mode, config):

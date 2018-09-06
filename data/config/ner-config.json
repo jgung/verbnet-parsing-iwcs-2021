@@ -37,6 +37,10 @@
     ],
     "features": [
       {
+        "name": "elmo",
+        "key": "word"
+      },
+      {
         "name": "word",
         "key": "word",
         "mapping_funcs": [
