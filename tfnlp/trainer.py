@@ -34,6 +34,7 @@ def default_args():
     parser.add_argument('--test', type=str, help='File containing test data.')
     parser.add_argument('--job-dir', dest='save', type=str, required=True,
                         help='Directory where models/checkpoints/vocabularies are saved.')
+    parser.add_argument('--vocab', type=str, help='(Optional) Directory where vocabulary files are saved.')
     parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
     parser.add_argument('--mode', type=str, default="train", help='(Optional) Training command',
                         choices=['train', 'eval', 'loop', 'predict'])
@@ -56,7 +57,7 @@ class Trainer(object):
         self._overwrite = args.overwrite
 
         self._save_path = args.save
-        self._vocab_path = os.path.join(args.save, VOCAB_PATH)
+        self._vocab_path = args.vocab or os.path.join(args.save, VOCAB_PATH)
         self._resources = args.resources
         self._eval_script_path = args.script
 
