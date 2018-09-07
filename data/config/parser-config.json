@@ -1,5 +1,6 @@
 {
   "reader": "conll_2009",
+  "type": "parser",
   "checkpoint_steps": 1500,
   "state_size": 200,
   "encoder_dropout": 0.33,

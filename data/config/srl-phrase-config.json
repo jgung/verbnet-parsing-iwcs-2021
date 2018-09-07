@@ -1,5 +1,6 @@
 {
   "reader": "conll_2005_phrase",
+  "type": "srl",
   "checkpoint_steps": 1000,
   "state_size": 300,
   "input_dropout": 0.0,

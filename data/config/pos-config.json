@@ -1,5 +1,6 @@
 {
   "reader": "ptb_pos",
+  "type": "tagger",
   "checkpoint_steps": 3822,
   "state_size": 200,
   "encoder_dropout": 0.5,

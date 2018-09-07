@@ -1,5 +1,6 @@
 {
   "reader": "conll_2003",
+  "type": "tagger",
   "checkpoint_steps": 1500,
   "state_size": 200,
   "encoder_dropout": 0.5,

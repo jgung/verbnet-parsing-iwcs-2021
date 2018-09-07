@@ -67,7 +67,7 @@ def tagger_model_func(features, mode, params):
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)
         eval_metric_ops[constants.ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets, predictions=predictions)
 
-        if params.script_path and "srl" in params.script_path:
+        if params.config.type == constants.SRL_KEY:
             evaluation_hooks = [SrlEvalHook(tensors={
                 constants.LABEL_KEY: targets,
                 constants.PREDICT_KEY: predictions,

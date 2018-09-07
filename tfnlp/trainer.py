@@ -12,7 +12,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor, get_network_config
-from tfnlp.common.constants import LABEL_KEY, WORD_KEY
+from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, TAGGER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
@@ -20,6 +20,9 @@ from tfnlp.feature import write_features
 from tfnlp.model.parser import parser_model_func
 from tfnlp.model.tagger import tagger_model_func
 from tfnlp.readers import get_reader
+
+VOCAB_PATH = 'vocab'
+CONFIG_PATH = 'config.json'
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -29,13 +32,13 @@ def default_args():
     parser.add_argument('--train', type=str, help='File containing training data.')
     parser.add_argument('--valid', type=str, help='File containing validation data.')
     parser.add_argument('--test', type=str, help='File containing test data.')
-    parser.add_argument('--save', type=str, required=True, help='Directory where models/checkpoints are saved.')
+    parser.add_argument('--job-dir', dest='save', type=str, required=True,
+                        help='Directory where models/checkpoints/vocabularies are saved.')
     parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
-    parser.add_argument('--vocab', type=str, required=True, help='Directory where vocabulary files are saved.')
-    parser.add_argument('--mode', type=str, default="train", help='Command in [train, eval, loop, predict]')
-    parser.add_argument('--config', type=str, required=True, help='JSON file for configuring training')
+    parser.add_argument('--mode', type=str, default="train", help='(Optional) Training command',
+                        choices=['train', 'eval', 'loop', 'predict'])
+    parser.add_argument('--config', type=str, help='JSON file for configuring training')
     parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
-    parser.add_argument('--type', type=str, default='tagger', help='(Optional) Model type in [tagger, parser]')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite previous trained models and vocabularies')
     parser.set_defaults(overwrite=False)
@@ -53,48 +56,51 @@ class Trainer(object):
         self._overwrite = args.overwrite
 
         self._save_path = args.save
-        self._vocab_path = args.vocab
+        self._vocab_path = os.path.join(args.save, VOCAB_PATH)
         self._resources = args.resources
         self._eval_script_path = args.script
-        self._training_config = get_network_config(read_json(args.config))
+
+        # read configuration file
+        config_path = os.path.join(args.save, CONFIG_PATH)
+        if not tf.gfile.Exists(config_path):
+            if not args.config:
+                raise AssertionError('"--config" option is required when training for the first time')
+            tf.gfile.MakeDirs(args.save)
+            tf.gfile.Copy(args.config, config_path, overwrite=True)
+        self._training_config = get_network_config(read_json(config_path))
         self._feature_config = self._training_config.features
-        self._model_fn = get_model_func(args.type)
+
+        self._model_fn = get_model_func(self._training_config.type)
 
         self._feature_extractor = None
         self._estimator = None
 
         self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
-        self._data_path_fn = lambda orig: orig + ".tfrecords"
+        self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
         self._prediction_formatter_fn = default_formatter
 
-    def _get_arg_parser(self):
-        """
-        Initialize argument parser. Override this method when adding new arguments.
-        :return: argument parser instance
-        """
-        return default_args()
-
+    # noinspection PyMethodMayBeStatic
     def _validate_and_parse_args(self, args):
         """
         Parse arguments using argument parser. Can override for additional validation or logic.
         :param args: command-line arguments
         :return: parsed arguments
         """
-        return self._get_arg_parser().parse_args(args)
+        return default_args().parse_args(args)
 
     def run(self):
         self._init_feature_extractor()
         self._init_estimator()
         if self._mode == "train":
             self.train()
-        elif self._mode == "eval":
+        elif self._mode in ["eval", "test"]:
             self.eval()
         elif self._mode == "predict":
             self.predict()
-        elif self._mode == "loop":
+        elif self._mode in ["loop", "itl"]:
             self.itl()
         else:
             raise ValueError("Unexpected mode type: {}".format(self._mode))
@@ -126,6 +132,9 @@ class Trainer(object):
                                                            steps=None,
                                                            exporters=[exporter],
                                                            throttle_secs=0))
+        if self._raw_test:
+            self._mode = "eval"
+            self.run()
 
     def eval(self):
         self._extract_features(self._raw_test, train=False)
@@ -221,8 +230,8 @@ def default_input_fn(features):
 
 def get_model_func(model_type):
     model_funcs = {
-        "tagger": tagger_model_func,
-        "parser": parser_model_func
+        TAGGER_KEY: tagger_model_func,
+        PARSER_KEY: parser_model_func
     }
     if model_type not in model_funcs:
         raise ValueError("Unexpected model type: " + model_type)

@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 import tfnlp.feature
-from tfnlp.common.constants import ELMO_KEY, INITIALIZER, LOWER, NORMALIZE_DIGITS, UNKNOWN_WORD
+from tfnlp.common.constants import ELMO_KEY, INITIALIZER, LOWER, NORMALIZE_DIGITS, TAGGER_KEY, UNKNOWN_WORD
 from tfnlp.common.utils import Params
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
@@ -151,6 +151,7 @@ class BaseNetworkConfig(Params):
         self.state_size = config.get('state_size', 100)
         self.crf = config.get('crf', False)
         self.mlp_dropout = config.get('mlp_dropout', 0)
+        self.type = config.get('type', TAGGER_KEY)
 
 
 def _get_feature(feature):

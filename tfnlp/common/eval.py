@@ -124,14 +124,14 @@ def accuracy_eval(gold_batches, predicted_batches):
         gold.extend(gold_seq)
         test.extend(predicted_seq)
     cm = ConfusionMatrix(gold, test)
-    print(cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
+    tf.logging.info(cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
 
     if len(gold) != len(test):
         raise ValueError("Predictions and gold labels must have the same length.")
     correct = sum(x == y for x, y in zip(gold, test))
     total = len(test)
     accuracy = correct / total
-    print("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
+    tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
     return accuracy
 
 
