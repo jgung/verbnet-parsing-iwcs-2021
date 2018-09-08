@@ -34,6 +34,11 @@ APREDs_KEY = "apred"
 REL_PROBS = "rel_probs"
 ARC_PROBS = "arc_probs"
 
+XPOS_KEY = "xpos"
+DEP_FEATS_KEY = "feats"
+ENHANCED_DEPS_KEY = "edeps"
+MISC_KEY = "misc"
+
 MARKER_KEY = "marker"
 INSTANCE_INDEX = "instance_idx"
 SENTENCE_INDEX = "sentence_idx"

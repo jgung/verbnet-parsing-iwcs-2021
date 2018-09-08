@@ -1,5 +1,5 @@
 {
-  "reader": "conll_2009",
+  "reader": "conllx",
   "type": "parser",
   "checkpoint_steps": 1500,
   "state_size": 200,
@@ -77,7 +77,7 @@
       },
       {
         "name": "pos",
-        "key": "ppos",
+        "key": "pos",
         "config": {
           "dim": 100,
           "word_dropout": 0.33

@@ -63,7 +63,7 @@ class Trainer(object):
 
         # read configuration file
         config_path = os.path.join(args.save, CONFIG_PATH)
-        if not tf.gfile.Exists(config_path):
+        if not tf.gfile.Exists(config_path) or self._overwrite:
             if not args.config:
                 raise AssertionError('"--config" option is required when training for the first time')
             tf.gfile.MakeDirs(args.save)

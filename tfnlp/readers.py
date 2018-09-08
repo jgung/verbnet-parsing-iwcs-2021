@@ -8,7 +8,7 @@ from tensorflow.python.lib.io import file_io
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, LABEL_KEY, LEMMA_KEY, \
     MARKER_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, PREDICATE_KEY, \
-    ROLESET_KEY, SENTENCE_INDEX, WORD_KEY
+    ROLESET_KEY, SENTENCE_INDEX, WORD_KEY, XPOS_KEY, MISC_KEY, ENHANCED_DEPS_KEY
 
 
 class ConllReader(object):
@@ -314,6 +314,12 @@ def conll_2009_reader():
                           label_field=DEPREL_KEY)
 
 
+def conllx_reader():
+    return ConllDepReader(index_field_map={0: ID_KEY, 1: WORD_KEY, 2: LEMMA_KEY, 3: POS_KEY, 4: XPOS_KEY,
+                                           5: FEAT_KEY, 6: HEAD_KEY, 7: DEPREL_KEY, 8: ENHANCED_DEPS_KEY, 9: MISC_KEY},
+                          label_field=DEPREL_KEY)
+
+
 def conll_2005_reader(phrase=False):
     fields = {0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: ROLESET_KEY, 5: PREDICATE_KEY}
     if phrase:
@@ -341,6 +347,8 @@ def get_reader(reader_config):
         return conll_2003_reader()
     elif reader_config == 'conll_2009':
         return conll_2009_reader()
+    elif reader_config == 'conllx':
+        return conllx_reader()
     elif reader_config == 'conll_2005':
         return conll_2005_reader()
     elif reader_config == 'conll_2005_phrase':
