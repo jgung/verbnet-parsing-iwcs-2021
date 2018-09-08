@@ -107,7 +107,7 @@ def parser_model_func(features, mode, params):
                            constants.LABEL_SCORE: tf.metrics.mean(n_rel_correct / n_tokens),
                            constants.LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / n_tokens)}
         evaluation_hooks = [ParserEvalHook(
-            {constants.ARC_PROBS: arc_probs, constants.REL_PROBS: rel_probs, constants.WORD_KEY: features[constants.WORD_KEY],
+            {constants.ARC_PROBS: arc_probs, constants.REL_PROBS: rel_probs,
              constants.LENGTH_KEY: features[constants.LENGTH_KEY],
              constants.HEAD_KEY: features[constants.HEAD_KEY], constants.DEPREL_KEY: features[constants.DEPREL_KEY]},
             features=params.extractor, script_path=params.script_path, )]

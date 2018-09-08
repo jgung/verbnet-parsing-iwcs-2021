@@ -107,6 +107,9 @@ class Trainer(object):
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 
     def train(self):
+        self._extract_and_write(self._raw_train)
+        self._extract_and_write(self._raw_valid)
+
         train_input_fn = self._input_fn(self._raw_train, True)
         valid_input_fn = self._input_fn(self._raw_valid, False)
 
@@ -138,7 +141,7 @@ class Trainer(object):
             self.run()
 
     def eval(self):
-        self._extract_features(self._raw_test, train=False)
+        self._extract_and_write(self._raw_test)
         eval_input_fn = self._input_fn(self._raw_test, False)
         self._estimator.evaluate(eval_input_fn)
 
@@ -177,8 +180,7 @@ class Trainer(object):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
         self._extract_features(self._raw_train, train=True)
-        self._extract_features(self._raw_valid, train=True)
-        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources)
+        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
 
     def _extract_features(self, path, train=False):
         self._feature_extractor.train(train)
@@ -189,9 +191,15 @@ class Trainer(object):
             raise ValueError("No examples provided at path given by '{}'".format(path))
 
         examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
+        return examples
 
+    def _extract_and_write(self, path):
         output_path = self._data_path_fn(path)
-        tf.logging.info("Writing extracted features for %d instances to %s", len(examples), output_path)
+        if tf.gfile.Exists(output_path) and not self._overwrite:
+            tf.logging.info("Using existing features for %s from %s", path, output_path)
+            return
+        examples = self._extract_features(path)
+        tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
     def _init_estimator(self):

@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -24,6 +26,7 @@ def input_layer(features, params, training):
     :param training: true if training
     :return: 3D tensor ([batch_size, time_steps, input_dim])
     """
+    combined_feats = defaultdict(list)
     inputs = []
     for feature_config in params.extractor.features.values():
         if feature_config.name == ELMO_KEY:
@@ -36,7 +39,21 @@ def input_layer(features, params, training):
             inputs.append(elmo_embedding)
         elif feature_config.has_vocab():
             feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
-            inputs.append(feature_embedding)
+
+            merged = False
+            for combination_name, feature_list in params.extractor.combined.items():
+                if feature_config.name in feature_list:
+                    combined_feats[combination_name].append(feature_embedding)
+                    merged = True
+                    break
+            if not merged:
+                inputs.append(feature_embedding)
+
+    for feature_list in combined_feats.values():
+        base = feature_list[0]
+        for rest in feature_list[1:]:
+            base += rest
+        inputs.append(base)
 
     inputs = tf.concat(inputs, -1, name="inputs")
     inputs = tf.layers.dropout(inputs, rate=params.config.input_dropout, training=training, name='input_layer_dropout')

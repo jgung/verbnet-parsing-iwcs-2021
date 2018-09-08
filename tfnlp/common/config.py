@@ -78,6 +78,8 @@ class FeatureConfig(Params):
         self.name = feature.get('name')
         # key used for lookup during feature extraction
         self.key = feature.get('key')
+        # count threshold for features
+        self.threshold = feature.get('threshold', 0)
         # number of tokens to use for left padding
         self.left_padding = feature.get('left_padding', 0)
         # number of tokens to use for right padding
@@ -109,11 +111,13 @@ class FeaturesConfig(object):
         else:
             self.targets = [_get_feature(target) for target in targets]
 
-        features = features.get('features')
-        if not features:
+        feats = features.get('features')
+        if not feats:
             raise AssertionError("No 'features' parameter provided in feature configuration, requires at least one feature")
         else:
-            self.features = [_get_feature(feature) for feature in features]
+            self.features = [_get_feature(feature) for feature in feats]
+
+        self.combined = features.get('combined', {})
 
 
 class BaseNetworkConfig(Params):
@@ -188,7 +192,7 @@ def get_feature_extractor(config):
     # used to establish sequence length for bucketed batching
     config.features.append(tfnlp.feature.LengthFeature(config.seq_feat))
 
-    return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets)
+    return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets, combined=config.combined)
 
 
 def get_network_config(config):

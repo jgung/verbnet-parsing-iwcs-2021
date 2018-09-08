@@ -78,8 +78,8 @@ class Extractor(object):
 
 
 class Feature(Extractor):
-    def __init__(self, name, key, config=None, train=False, indices=None, unknown_word=UNKNOWN_WORD,
-                 mapping_funcs=None, **kwargs):
+    def __init__(self, name, key, config=None, train=False, indices=None, pad_word=PAD_WORD, unknown_word=UNKNOWN_WORD,
+                 threshold=0, mapping_funcs=None, **kwargs):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
         :param name: unique identifier for this feature
@@ -93,13 +93,27 @@ class Feature(Extractor):
         self.train = train
         self.indices = indices  # feat_to_index dict
         self.reversed = None  # index_to_feat dict
-        if self.indices is None:
-            self.indices = {PAD_WORD: 0, unknown_word: 1, START_WORD: 2, END_WORD: 3}
-
-        if unknown_word not in self.indices:
-            self.indices[unknown_word] = len(self.indices)
-        self.unknown_index = self.indices[unknown_word]
+        self.counts = {}
+        self.unknown_word = unknown_word
+        self.unknown_index = 0
+        self.pad_word = pad_word
+        self.pad_index = 0
+        self.threshold = threshold
         self.embedding = None
+
+    def initialize(self, indices=None):
+        if not indices:
+            indices = self.indices
+        if indices is None:
+            indices = {self.pad_word: 0, self.unknown_word: 1, START_WORD: 2, END_WORD: 3}
+        if self.unknown_word not in indices:
+            indices[self.unknown_word] = len(indices)
+        if self.pad_word not in indices:
+            indices[self.pad_word] = len(indices)
+        self.indices = indices
+        self.reversed = None
+        self.unknown_index = self.indices[self.unknown_word]
+        self.pad_index = self.indices[self.pad_word]
 
     def extract(self, instance):
         value = self.get_values(instance)
@@ -110,10 +124,11 @@ class Feature(Extractor):
     def map(self, value):
         return super(Feature, self).map(value)
 
-    def feat_to_index(self, feat):
+    def feat_to_index(self, feat, count=True):
         """
         Extract the index of a single feature, updating the index dictionary if training.
         :param feat: feature value
+        :param count: include in counts
         :return: feature index
         """
         index = self.indices.get(feat)
@@ -123,6 +138,8 @@ class Feature(Extractor):
                 self.indices[feat] = index
             else:
                 index = self.unknown_index
+        if self.train and count:
+            self.counts[feat] = self.counts.get(feat, 0) + 1
         return index
 
     def index_to_feat(self, index):
@@ -135,17 +152,29 @@ class Feature(Extractor):
             self.reversed = self._reverse()
         return self.reversed[index]
 
-    def write_vocab(self, path, overwrite=False):
+    def write_vocab(self, path, overwrite=False, prune=False):
         """
         Write vocabulary as a file with a single line per entry and index 0 corresponding to the first line.
         :param path: path to file to save vocabulary
         :param overwrite: overwrite previously saved vocabularies--if `False`, raises an error if there is a pre-existing file
+        :param prune: if `True`, prune feature vocabulary based on counts
         """
         if not overwrite and os.path.exists(path):
             raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
+        if prune:
+            self.prune_vocab()
         with file_io.FileIO(path, mode='w') as vocab:
             for i in range(len(self.indices)):
                 vocab.write('{}\n'.format(self.index_to_feat(i)))
+
+    def prune_vocab(self):
+        vocab = {}
+        counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)]
+        for feat, count in counts:
+            if count < self.threshold:
+                break
+            vocab[feat] = len(vocab)
+        self.initialize(vocab)
 
     def read_vocab(self, path):
         """
@@ -162,8 +191,7 @@ class Feature(Extractor):
                         indices[line] = len(indices)
         except NotFoundError:
             return False
-        self.indices = indices
-        self.reversed = None
+        self.initialize(indices)
         return True
 
     def vocab_size(self):
@@ -224,37 +252,41 @@ class SequenceListFeature(SequenceFeature):
 
     def __init__(self, name, key, config=None,
                  max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD, pad_word=PAD_WORD,
+                 threshold=0,
                  left_padding=0,
                  right_padding=0,
                  left_pad_word=START_WORD,
                  right_pad_word=END_WORD,
                  **kwargs):
-        super().__init__(name, key, config=config, train=train, indices=indices, unknown_word=unknown_word, **kwargs)
+        super().__init__(name, key, config=config, train=train, indices=indices,
+                         pad_word=pad_word, unknown_word=unknown_word, threshold=threshold, **kwargs)
         self.rank = 3
         self.max_len = max_len
         if not max_len:
             raise AssertionError("Sequence list features require \"max_len\" to be specified")
-
-        if pad_word not in self.indices:
-            self.indices[pad_word] = len(self.indices)
-        if left_pad_word not in self.indices:
-            self.indices[left_pad_word] = len(self.indices)
-        if right_pad_word not in self.indices:
-            self.indices[right_pad_word] = len(self.indices)
-
-        self.pad_index = self.indices[pad_word]
-        self.start_index = self.indices[left_pad_word]
-        self.end_index = self.indices[right_pad_word]
+        self.left_pad_word = left_pad_word
+        self.right_pad_word = right_pad_word
+        self.start_index = 0
+        self.end_index = 0
         self.left_padding = left_padding
         self.right_padding = right_padding
+
+    def initialize(self, indices=None):
+        super().initialize(indices)
+        if self.left_pad_word not in self.indices:
+            self.indices[self.left_pad_word] = len(self.indices)
+        if self.right_pad_word not in self.indices:
+            self.indices[self.right_pad_word] = len(self.indices)
+        self.start_index = self.indices[self.left_pad_word]
+        self.end_index = self.indices[self.right_pad_word]
 
     def extract(self, sequence):
         input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(self.map(result))))
                           for result in self.get_values(sequence)]
         return tf.train.FeatureList(feature=input_features)
 
-    def feat_to_index(self, features):
-        result = [super(SequenceListFeature, self).feat_to_index(feat) for feat in features]
+    def feat_to_index(self, features, count=True):
+        result = [super(SequenceListFeature, self).feat_to_index(feat, count) for feat in features]
         result = self.left_padding * [self.start_index] + result + self.right_padding * [self.end_index]
         if len(result) < self.max_len:
             result += (self.max_len - len(result)) * [self.pad_index]
@@ -287,7 +319,7 @@ def index_feature():
 
 
 class FeatureExtractor(object):
-    def __init__(self, features, targets=None):
+    def __init__(self, features, targets=None, combined=None):
         """
         This class encompasses multiple Feature objects, creating TFRecord-formatted instances.
         :param features: list of Features
@@ -296,6 +328,7 @@ class FeatureExtractor(object):
         super().__init__()
         self.features = {feature.name: feature for feature in features}
         self.targets = {target.name: target for target in targets} if targets else {}
+        self.combined = combined or {}
 
     def extractors(self, train=True):
         if train:
@@ -415,6 +448,9 @@ class FeatureExtractor(object):
         """
         self.train()
         for feature in self.extractors():
+            if feature.has_vocab():
+                feature.initialize()
+
             initializer = feature.config.get(INITIALIZER)
             if not initializer:
                 continue
@@ -427,15 +463,16 @@ class FeatureExtractor(object):
             for key in vectors:
                 if feature.rank == 3:
                     key = [key]
-                feature.feat_to_index(key)
+                feature.feat_to_index(key, False)
 
-    def write_vocab(self, base_path, overwrite=False, resources=''):
+    def write_vocab(self, base_path, overwrite=False, resources='', prune=False):
         """
         Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
         Creates pickled embeddings if explicit initializers are provided.
         :param base_path: base directory for vocabulary files
         :param overwrite: overwrite pre-existing vocabulary files--if `False`, raises an error when already existing
         :param resources: optional base path for embedding resources
+        :param prune: if `True`, prune feature vocabularies based on counts
         """
         for feature in self.extractors():
             if not feature.has_vocab():
@@ -447,7 +484,8 @@ class FeatureExtractor(object):
             except OSError:
                 if not os.path.isdir(parent_path):
                     raise
-            feature.write_vocab(path, overwrite=overwrite)
+
+            feature.write_vocab(path, overwrite=overwrite, prune=prune)
 
             initializer = feature.config.get(INITIALIZER)
 

@@ -262,40 +262,34 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
         self._arcs = None
         self._rel_probs = None
         self._rels = None
-        self._sentences = None
 
     def begin(self):
         self._arc_probs = []
         self._rel_probs = []
-        self._sentences = []
         self._rels = []
         self._arcs = []
 
     def before_run(self, run_context):
         fetches = {REL_PROBS: self._tensors[REL_PROBS],
                    ARC_PROBS: self._tensors[ARC_PROBS],
-                   WORD_KEY: self._tensors[WORD_KEY],
                    LENGTH_KEY: self._tensors[LENGTH_KEY],
                    HEAD_KEY: self._tensors[HEAD_KEY],
                    DEPREL_KEY: self._tensors[DEPREL_KEY]}
         return SessionRunArgs(fetches=fetches)
 
     def after_run(self, run_context, run_values):
-        for rel_probs, arc_probs, tokens, rels, heads, seq_len in zip(run_values.results[REL_PROBS],
-                                                                      run_values.results[ARC_PROBS],
-                                                                      run_values.results[WORD_KEY],
-                                                                      run_values.results[DEPREL_KEY],
-                                                                      run_values.results[HEAD_KEY],
-                                                                      run_values.results[LENGTH_KEY]):
+        for rel_probs, arc_probs, rels, heads, seq_len in zip(run_values.results[REL_PROBS],
+                                                              run_values.results[ARC_PROBS],
+                                                              run_values.results[DEPREL_KEY],
+                                                              run_values.results[HEAD_KEY],
+                                                              run_values.results[LENGTH_KEY]):
             self._rel_probs.append(rel_probs)  # rel_probs[:seq_len, :, :seq_len]
             self._arc_probs.append(arc_probs[:seq_len, :seq_len])
-            self._sentences.append(tokens[:seq_len])
             self._rels.append(rels[:seq_len])
             self._arcs.append(heads[:seq_len])
 
     def end(self, session):
-        parser_write_and_eval(sentences=self._sentences,
-                              arc_probs=self._arc_probs,
+        parser_write_and_eval(arc_probs=self._arc_probs,
                               rel_probs=self._rel_probs,
                               heads=self._arcs,
                               rels=self._rels,
@@ -305,14 +299,14 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
                               script_path=self._script_path)
 
 
-def parser_write_and_eval(sentences, arc_probs, rel_probs, heads, rels, features, script_path, out_path=None, gold_path=None):
+def parser_write_and_eval(arc_probs, rel_probs, heads, rels, features, script_path, out_path=None, gold_path=None):
     _gold_file = file_io.FileIO(gold_path, 'w') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     _out_file = file_io.FileIO(out_path, 'w') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
     with _out_file as system_file, _gold_file as gold_file:
         # tempfile.NamedTemporaryFile(mode='w', encoding='utf-8') as gold_file:
-        write_parse_results_to_file(sentences, sys_heads, sys_rels, features, system_file)
-        write_parse_results_to_file(sentences, heads, rels, features, gold_file)
+        write_parse_results_to_file(sys_heads, sys_rels, features, system_file)
+        write_parse_results_to_file(heads, rels, features, gold_file)
         result = subprocess.check_output(['perl', script_path, '-g', gold_file.name, '-s', system_file.name, '-q'],
                                          universal_newlines=True)
         tf.logging.info('\n%s', result)
@@ -331,14 +325,13 @@ def get_parse_predictions(arc_probs, rel_probs):
     return heads, rels
 
 
-def write_parse_results_to_file(sentences, heads, rels, features, file):
-    for sentence, sentence_heads, sentence_rels in zip(sentences, heads, rels):
-        for index, (word, arc_pred, rel_pred) in enumerate(
-                zip(sentence[1:], sentence_heads[1:], sentence_rels[1:])):
+def write_parse_results_to_file(heads, rels, features, file):
+    for sentence_heads, sentence_rels in zip(heads, rels):
+        for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
             # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
             token = ['_'] * 15
             token[0] = str(index + 1)
-            token[1] = features.feature(WORD_KEY).index_to_feat(word)
+            token[1] = '_'
             token[8] = str(arc_pred)
             token[9] = str(arc_pred)
             token[10] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
