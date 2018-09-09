@@ -138,8 +138,8 @@ class Feature(Extractor):
                 self.indices[feat] = index
             else:
                 index = self.unknown_index
-        if self.train and count:
-            self.counts[feat] = self.counts.get(feat, 0) + 1
+        if self.train:
+            self.counts[feat] = self.counts.get(feat, 0) + (1 if count else 0)
         return index
 
     def index_to_feat(self, index):

@@ -304,7 +304,6 @@ def parser_write_and_eval(arc_probs, rel_probs, heads, rels, features, script_pa
     _out_file = file_io.FileIO(out_path, 'w') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
     with _out_file as system_file, _gold_file as gold_file:
-        # tempfile.NamedTemporaryFile(mode='w', encoding='utf-8') as gold_file:
         write_parse_results_to_file(sys_heads, sys_rels, features, system_file)
         write_parse_results_to_file(heads, rels, features, gold_file)
         result = subprocess.check_output(['perl', script_path, '-g', gold_file.name, '-s', system_file.name, '-q'],

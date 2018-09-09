@@ -1,7 +1,7 @@
 {
   "reader": "conllx",
   "type": "parser",
-  "checkpoint_steps": 1500,
+  "checkpoint_steps": 5000,
   "state_size": 200,
   "encoder_dropout": 0.33,
   "input_dropout": 0.0,

@@ -143,7 +143,7 @@ class BaseNetworkConfig(Params):
         self.max_steps = config.get('max_steps')
         if not self.max_steps:
             self.max_steps = self.checkpoint_steps * 100
-            tf.logging.warn("No 'max_steps' parameter provided. Using default value of %d", self.checkpoint_steps)
+            tf.logging.warn("No 'max_steps' parameter provided. Using default value of %d", self.max_steps)
         self.exports_to_keep = config.get('exports_to_keep', 5)
 
         self.input_dropout = config.get('input_dropout', 0)
