@@ -84,14 +84,14 @@ def _get_embedding_input(feature_ids, feature, training):
         with tf.name_scope('{}_reduction_op'.format(feature.name)):
             result = config.func.apply(result)
 
-    if config.word_dropout > 0:
+    if config.word_dropout > 0 and training:
         shape = tf.shape(result)
         result = tf.layers.dropout(result,
                                    rate=config.word_dropout,
                                    training=training,
                                    name='{}_dropout'.format(feature.name),
                                    noise_shape=[shape[0], shape[1], 1])
-        # result = word_dropout(result, feature.config.word_dropout, feature.name)
+        # result = word_dropout(result, config.word_dropout, feature.name)
 
     return result
 
@@ -142,11 +142,16 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
     :param config: network configuration
     :return: tuple with encoder outputs and output dimensionality
     """
+    input_keep_prob = (1.0 - config.encoder_input_dropout) if training else 1.0
     keep_prob = (1.0 - config.encoder_dropout) if training else 1.0
+    output_keep_prob = (1.0 - config.encoder_output_dropout) if training else 1.0
 
     def highway_lstm_cell(size):
         _cell = HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer)
-        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob)
+        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
+                              state_keep_prob=keep_prob,
+                              input_keep_prob=input_keep_prob,
+                              output_keep_prob=output_keep_prob)
 
     def _reverse(_input):
         return array_ops.reverse_sequence(input=_input, seq_lengths=sequence_lengths, seq_axis=1, batch_axis=0)
@@ -173,16 +178,22 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
 
 def stacked_bilstm(inputs, sequence_lengths, training, config):
     keep_prob = (1.0 - config.encoder_dropout) if training else 1.0
+    input_keep_prob = (1.0 - config.encoder_input_dropout) if training else 1.0
+    output_keep_prob = (1.0 - config.encoder_output_dropout) if training else 1.0
 
-    def cell(name=None):
+    def cell(_size, name=None):
         _cell = tf.nn.rnn_cell.LSTMCell(config.state_size, name=name, initializer=orthogonal_initializer(4))
-        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32, output_keep_prob=keep_prob,
-                              state_keep_prob=keep_prob)
+        return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
+                              input_size=_size,
+                              output_keep_prob=output_keep_prob,
+                              state_keep_prob=keep_prob,
+                              input_keep_prob=input_keep_prob)
 
     outputs = inputs
     for i in range(config.encoder_layers):
         with tf.variable_scope("biRNN_%d" % i):
-            outputs, _ = bidirectional_dynamic_rnn(cell_fw=cell(), cell_bw=cell(), inputs=outputs,
+            size = outputs.get_shape().as_list()[-1]
+            outputs, _ = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
                                                    sequence_length=sequence_lengths, dtype=tf.float32)
             outputs = tf.concat(outputs, axis=-1, name="Concatenate_biRNN_outputs_%d" % i)
     return outputs, config.state_size * 2
