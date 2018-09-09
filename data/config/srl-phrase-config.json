@@ -4,7 +4,7 @@
   "checkpoint_steps": 1000,
   "state_size": 300,
   "input_dropout": 0.0,
-  "encoder_dropout": 0.1,
+  "encoder_output_dropout": 0.1,
   "encoder": "dblstm",
   "encoder_layers": 8,
   "crf": false,

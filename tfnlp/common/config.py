@@ -151,6 +151,8 @@ class BaseNetworkConfig(Params):
         self.metric = config.get('metric', 'Accuracy')
         self.encoder = config.get('encoder', 'lstm')
         self.encoder_dropout = config.get('encoder_dropout', 0)
+        self.encoder_input_dropout = config.get('encoder_input_dropout', 0)
+        self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
         self.crf = config.get('crf', False)

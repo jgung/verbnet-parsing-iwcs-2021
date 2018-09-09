@@ -4,6 +4,7 @@
   "checkpoint_steps": 3822,
   "state_size": 200,
   "encoder_dropout": 0.5,
+  "encoder_output_dropout": 0.5,
   "input_dropout": 0.5,
   "encoder": "lstm",
   "encoder_layers": 1,
