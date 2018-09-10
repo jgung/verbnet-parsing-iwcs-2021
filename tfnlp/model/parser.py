@@ -8,19 +8,43 @@ from tfnlp.common.eval import ParserEvalHook, log_trainable_variables
 from tfnlp.layers.layers import encoder, input_layer
 
 
+def _get_shape(tensor):
+    shape = []
+    dynamic_shape = tf.shape(tensor)
+    static_shape = tensor.get_shape().as_list()
+    for i in range(len(static_shape) - 1):
+        shape.append(dynamic_shape[i])
+    shape.append(static_shape[-1])
+    return shape
+
+
 def parser_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
 
+    input_shape = _get_shape(inputs)
+
     outputs, output_size = encoder(features, inputs, mode, params.config)
 
-    outputs = tf.concat(values=outputs, axis=-1)
     time_steps = tf.shape(outputs)[1]
-    rnn_outputs = tf.reshape(outputs, [-1, output_size], name="flatten_rnn_outputs_for_linear_projection")
 
     def mlp(size, name):
+
+        rnn_outputs = tf.layers.dropout(outputs,
+                                        params.config.mlp_dropout,
+                                        noise_shape=[input_shape[0], 1, output_size],
+                                        training=mode == tf.estimator.ModeKeys.TRAIN)
+        rnn_outputs = tf.reshape(rnn_outputs, [-1, output_size])
+
         result = tf.layers.dense(rnn_outputs, size, activation=tf.nn.relu, kernel_initializer=tf.orthogonal_initializer,
                                  name=name)
-        return tf.layers.dropout(result, params.config.mlp_dropout, training=mode == tf.estimator.ModeKeys.TRAIN)
+
+        result = tf.reshape(result, [input_shape[0], input_shape[1], size])
+
+        result = tf.layers.dropout(result,
+                                   params.config.mlp_dropout,
+                                   noise_shape=[input_shape[0], 1, size],
+                                   training=mode == tf.estimator.ModeKeys.TRAIN)
+        return tf.reshape(result, [-1, size])
 
     arc_mlp_size, rel_mlp_size = 500, 100
     dep_arc_mlp = mlp(arc_mlp_size, name="dep_arc_mlp")  # produces (batch_size * seq_len) x arc_mlp_size matrix

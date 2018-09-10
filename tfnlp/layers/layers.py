@@ -182,7 +182,8 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
     output_keep_prob = (1.0 - config.encoder_output_dropout) if training else 1.0
 
     def cell(_size, name=None):
-        _cell = tf.nn.rnn_cell.LSTMCell(config.state_size, name=name, initializer=orthogonal_initializer(4))
+        _cell = tf.nn.rnn_cell.LSTMCell(config.state_size, name=name, initializer=orthogonal_initializer(4),
+                                        forget_bias=config.forget_bias)
         return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
                               input_size=_size,
                               output_keep_prob=output_keep_prob,

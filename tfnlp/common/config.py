@@ -150,6 +150,7 @@ class BaseNetworkConfig(Params):
         self.buckets = config.get('buckets', [10, 15, 25, 30, 75])
         self.metric = config.get('metric', 'Accuracy')
         self.encoder = config.get('encoder', 'lstm')
+        self.forget_bias = config.get('forget_bias', 1)
         self.encoder_dropout = config.get('encoder_dropout', 0)
         self.encoder_input_dropout = config.get('encoder_input_dropout', 0)
         self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
