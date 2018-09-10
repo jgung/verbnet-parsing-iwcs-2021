@@ -1,7 +1,8 @@
 {
   "reader": "conllx",
   "type": "parser",
-  "checkpoint_steps": 5000,
+  "checkpoint_steps": 1000,
+  "patience": 5000,
   "state_size": 200,
   "encoder_dropout": 0.33,
   "encoder_input_dropout": 0.33,
@@ -9,7 +10,7 @@
   "mlp_dropout": 0.33,
   "encoder": "lstm",
   "encoder_layers": 3,
-  "batch_size": 10,
+  "batch_size": 100,
   "buckets": [
     5,
     10,
@@ -29,14 +30,7 @@
       "beta1": 0.9,
       "beta2": 0.99
     },
-    "lr": {
-      "rate": 0.002,
-      "name": "exponential_decay",
-      "params": {
-        "decay_steps": 5000,
-        "decay_rate": 0.75
-      }
-    },
+    "lr": 0.002,
     "clip": 5.0
   },
   "features": {
