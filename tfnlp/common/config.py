@@ -69,6 +69,7 @@ class FeatureHyperparameters(Params):
         reduce_func = config.get('function')
         if reduce_func:
             self.func = _get_reduce_function(reduce_func, self.dim, feature.max_len)
+        self.add_group = config.get('add_group')
 
 
 class FeatureConfig(Params):
@@ -116,8 +117,6 @@ class FeaturesConfig(object):
             raise AssertionError("No 'features' parameter provided in feature configuration, requires at least one feature")
         else:
             self.features = [_get_feature(feature) for feature in feats]
-
-        self.combined = features.get('combined', {})
 
 
 class BaseNetworkConfig(Params):
@@ -195,7 +194,7 @@ def get_feature_extractor(config):
     # used to establish sequence length for bucketed batching
     config.features.append(tfnlp.feature.LengthFeature(config.seq_feat))
 
-    return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets, combined=config.combined)
+    return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets)
 
 
 def get_network_config(config):

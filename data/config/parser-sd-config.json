@@ -50,12 +50,6 @@
         "unknown_word": "O"
       }
     ],
-    "combined": {
-      "words": [
-        "fix_word",
-        "train_word"
-      ]
-    },
     "features": [
       {
         "name": "fix_word",
@@ -67,6 +61,7 @@
           "dim": 100,
           "trainable": false,
           "word_dropout": 0.33,
+          "add_group": "words",
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
@@ -83,7 +78,8 @@
         ],
         "config": {
           "dim": 100,
-          "word_dropout": 0.33
+          "word_dropout": 0.33,
+          "add_group": "words"
         }
       },
       {

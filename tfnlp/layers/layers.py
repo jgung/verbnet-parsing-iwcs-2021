@@ -26,7 +26,7 @@ def input_layer(features, params, training):
     :param training: true if training
     :return: 3D tensor ([batch_size, time_steps, input_dim])
     """
-    combined_feats = defaultdict(list)
+    add_group_feats = defaultdict(list)
     inputs = []
     for feature_config in params.extractor.features.values():
         if feature_config.name == ELMO_KEY:
@@ -36,28 +36,25 @@ def input_layer(features, params, training):
                                                  'sequence_len': tf.cast(features[LENGTH_KEY], dtype=tf.int32)},
                                          signature="tokens",
                                          as_dict=True)['elmo']
-            inputs.append(elmo_embedding)
+            inputs.append((feature_config, elmo_embedding))
         elif feature_config.has_vocab():
             feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
+            if feature_config.config.add_group:
+                add_group_feats[feature_config.config.add_group].append((feature_config, feature_embedding))
+                continue
+            inputs.append((feature_config, feature_embedding))
 
-            merged = False
-            for combination_name, feature_list in params.extractor.combined.items():
-                if feature_config.name in feature_list:
-                    combined_feats[combination_name].append(feature_embedding)
-                    merged = True
-                    break
-            if not merged:
-                inputs.append(feature_embedding)
+    # add together any reduce sum feats (such as adding different encodings of the same word)
+    for feature_list in add_group_feats.values():
+        feature_config, feature_embedding = feature_list[0]
+        for _, emb in feature_list[1:]:
+            feature_embedding += emb
+        inputs.append((feature_config, feature_embedding))
 
-    for feature_list in combined_feats.values():
-        base = feature_list[0]
-        for rest in feature_list[1:]:
-            base += rest
-        inputs.append(base)
-
-    inputs = tf.concat(inputs, -1, name="inputs")
-    inputs = tf.layers.dropout(inputs, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
-    return inputs
+    results = tf.concat([feat for feat_config, feat in inputs], -1, name="inputs")
+    # apply dropout across entire input layer
+    results = tf.layers.dropout(results, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
+    return results
 
 
 def _get_embedding_input(feature_ids, feature, training):
@@ -103,7 +100,7 @@ def word_dropout(inputs, embed_keep_prob, name):
     ones = tf.ones(mask_shape)
     mask = tf.nn.dropout(ones, keep_prob=embed_keep_prob, noise_shape=mask_shape) * embed_keep_prob
 
-    drop = tf.get_variable('{}_drop'.format(name), shape[2])
+    drop = tf.get_variable('{}_drop'.format(name), shape[2], initializer=tf.zeros_initializer)
     inputs = mask * inputs + (1 - mask) * drop
 
     return inputs

@@ -319,7 +319,7 @@ def index_feature():
 
 
 class FeatureExtractor(object):
-    def __init__(self, features, targets=None, combined=None):
+    def __init__(self, features, targets=None):
         """
         This class encompasses multiple Feature objects, creating TFRecord-formatted instances.
         :param features: list of Features
@@ -328,7 +328,6 @@ class FeatureExtractor(object):
         super().__init__()
         self.features = {feature.name: feature for feature in features}
         self.targets = {target.name: target for target in targets} if targets else {}
-        self.combined = combined or {}
 
     def extractors(self, train=True):
         if train:
