@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
@@ -20,13 +21,11 @@ def parser_model_func(features, mode, params):
 
     # (3) apply 2 arc and 2 rel MLPs to each output vector (1 for representing dependents, 1 for heads)
     def _mlp(size, name):
-        return mlp(outputs, input_shape, params.config.mlp_dropout, size, mode == tf.estimator.ModeKeys.TRAIN, name)
+        return mlp(outputs, input_shape, params.config.mlp_dropout, size, mode == tf.estimator.ModeKeys.TRAIN, name, n_splits=2)
 
     arc_mlp_size, rel_mlp_size = 500, 100
-    dep_arc_mlp = _mlp(arc_mlp_size, name="dep_arc_mlp")  # (bn x d), where d == arc_mlp_size
-    head_arc_mlp = _mlp(arc_mlp_size, name="head_arc_mlp")
-    dep_rel_mlp = _mlp(rel_mlp_size, name="dep_rel_mlp")  # (bn x d), where d == rel_mlp_size
-    head_rel_mlp = _mlp(rel_mlp_size, name="head_rel_mlp")
+    dep_arc_mlp, head_arc_mlp = _mlp(arc_mlp_size, name="arc_mlp")  # (bn x d), where d == arc_mlp_size
+    dep_rel_mlp, head_rel_mlp = _mlp(rel_mlp_size, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
 
     # (4) apply binary biaffine classifier for arcs
     with tf.variable_scope("arc_bilinear_logits"):
@@ -108,13 +107,13 @@ def parser_model_func(features, mode, params):
 
         if params.script_path:
             hook = ParserEvalHook(
-                    {
-                        constants.ARC_PROBS: arc_probs,
-                        constants.REL_PROBS: rel_probs,
-                        constants.LENGTH_KEY: features[constants.LENGTH_KEY],
-                        constants.HEAD_KEY: features[constants.HEAD_KEY],
-                        constants.DEPREL_KEY: features[constants.DEPREL_KEY]
-                    }, features=params.extractor, script_path=params.script_path)
+                {
+                    constants.ARC_PROBS: arc_probs,
+                    constants.REL_PROBS: rel_probs,
+                    constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+                    constants.HEAD_KEY: features[constants.HEAD_KEY],
+                    constants.DEPREL_KEY: features[constants.DEPREL_KEY]
+                }, features=params.extractor, script_path=params.script_path)
             evaluation_hooks.append(hook)
 
     export_outputs = None
@@ -155,7 +154,10 @@ def select_logits(logits, targets, n_steps):
     return _select_logits
 
 
-def mlp(inputs, inputs_shape, dropout_rate, output_size, training, name):
+def mlp(inputs, inputs_shape, dropout_rate, output_size, training, name, n_splits=1):
+    def _leaky_relu(features):
+        return tf.nn.leaky_relu(features, alpha=0.1)
+
     def _dropout(_inputs):
         size = _inputs.get_shape().as_list()[-1]
         dropped = tf.layers.dropout(_inputs, dropout_rate, noise_shape=[inputs_shape[0], 1, size], training=training)
@@ -163,11 +165,55 @@ def mlp(inputs, inputs_shape, dropout_rate, output_size, training, name):
         return dropped
 
     inputs = _dropout(inputs)
-    result = tf.layers.dense(inputs, output_size, activation=tf.nn.relu, kernel_initializer=tf.orthogonal_initializer, name=name)
+
+    initializer = None
+    if training and not tf.get_variable_scope().reuse:
+        # initialize each split of the MLP into an individual orthonormal matrix
+        mat = orthonormal_initializer(inputs_shape[-1], output_size)
+        mat = np.concatenate([mat] * n_splits, axis=1)
+        initializer = tf.constant_initializer(mat)
+
+    output_size *= n_splits
+
+    result = tf.layers.dense(inputs, output_size, activation=_leaky_relu, kernel_initializer=initializer, name=name)
     result = tf.reshape(result, [inputs_shape[0], inputs_shape[1], output_size])
     result = _dropout(result)
 
-    return result
+    if n_splits == 1:
+        return result
+    return tf.split(result, num_or_size_splits=n_splits, axis=1)
+
+
+def orthonormal_initializer(input_size, output_size):
+    """
+    Return an orthogonal Numpy matrix.
+
+    Adapted from https://github.com/tdozat/Parser-v2/blob/master/parser/neural/linalg.py.
+
+    :param input_size: rows
+    :param output_size: columns
+    :return: orthogonal (input_size x output_size) matrix
+    """
+    identity = np.eye(output_size)
+    lr = .1
+    eps = .05 / (output_size + input_size)
+    success = False
+    while not success:
+        q = np.random.randn(input_size, output_size) / np.sqrt(output_size)
+        for i in range(100):
+            q_t_qm_i = q.T.dot(q) - identity
+            loss = np.sum(q_t_qm_i ** 2 / 2)
+            q2 = q ** 2
+            q -= lr * q.dot(q_t_qm_i) / (np.abs(q2 + q2.sum(axis=0, keepdims=True)
+                                                + q2.sum(axis=1, keepdims=True) - 1) + eps)
+            if np.isnan(q[0, 0]):
+                lr /= 2
+                break
+        if np.isfinite(loss) and np.max(q) < 1e6:
+            success = True
+        eps *= 2
+    tf.logging.info('Orthogonal initializer loss: %.2e', loss)
+    return q.astype(np.float32)
 
 
 def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include_bias2=True):

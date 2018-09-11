@@ -167,7 +167,7 @@ class Trainer(object):
                 if self._feature_extractor.read_vocab(self._vocab_path):
                     tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
                 else:
-                    tf.logging.info("Unable to load pre-existing vocabulary at %s", self._vocab_path)
+                    tf.logging.info("No valid pre-existing vocabulary found at %s", self._vocab_path)
                     self._train_vocab()
             else:
                 self._train_vocab()
