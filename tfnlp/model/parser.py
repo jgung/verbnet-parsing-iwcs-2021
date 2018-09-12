@@ -6,7 +6,7 @@ from tensorflow.python.saved_model import signature_constants
 import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
 from tfnlp.common.eval import ParserEvalHook, log_trainable_variables
-from tfnlp.layers.layers import encoder, input_layer
+from tfnlp.layers.layers import encoder, input_layer, numpy_orthogonal_matrix
 
 
 def parser_model_func(features, mode, params):
@@ -169,7 +169,7 @@ def mlp(inputs, inputs_shape, dropout_rate, output_size, training, name, n_split
     initializer = None
     if training and not tf.get_variable_scope().reuse:
         # initialize each split of the MLP into an individual orthonormal matrix
-        mat = orthonormal_initializer(inputs_shape[-1], output_size)
+        mat = numpy_orthogonal_matrix([inputs_shape[-1], output_size])
         mat = np.concatenate([mat] * n_splits, axis=1)
         initializer = tf.constant_initializer(mat)
 
@@ -182,38 +182,6 @@ def mlp(inputs, inputs_shape, dropout_rate, output_size, training, name, n_split
     if n_splits == 1:
         return result
     return tf.split(result, num_or_size_splits=n_splits, axis=1)
-
-
-def orthonormal_initializer(input_size, output_size):
-    """
-    Return an orthogonal Numpy matrix.
-
-    Adapted from https://github.com/tdozat/Parser-v2/blob/master/parser/neural/linalg.py.
-
-    :param input_size: rows
-    :param output_size: columns
-    :return: orthogonal (input_size x output_size) matrix
-    """
-    identity = np.eye(output_size)
-    lr = .1
-    eps = .05 / (output_size + input_size)
-    success = False
-    while not success:
-        q = np.random.randn(input_size, output_size) / np.sqrt(output_size)
-        for i in range(100):
-            q_t_qm_i = q.T.dot(q) - identity
-            loss = np.sum(q_t_qm_i ** 2 / 2)
-            q2 = q ** 2
-            q -= lr * q.dot(q_t_qm_i) / (np.abs(q2 + q2.sum(axis=0, keepdims=True)
-                                                + q2.sum(axis=1, keepdims=True) - 1) + eps)
-            if np.isnan(q[0, 0]):
-                lr /= 2
-                break
-        if np.isfinite(loss) and np.max(q) < 1e6:
-            success = True
-        eps *= 2
-    tf.logging.info('Orthogonal initializer loss: %.2e', loss)
-    return q.astype(np.float32)
 
 
 def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include_bias2=True):

@@ -205,13 +205,17 @@ def embedding_initializer(embedding):
     return _initializer
 
 
-# noinspection PyUnusedLocal
-def numpy_orthogonal_initializer(shape, dtype=tf.float32, partition_info=None):
+def numpy_orthogonal_matrix(shape):
     flat = (shape[0], np.prod(shape[1:]))
     a = np.random.normal(0.0, 1.0, flat)
     u, _, v = np.linalg.svd(a, full_matrices=False)
     q = (u if u.shape == flat else v).reshape(shape)
-    return tf.constant(q[:shape[0], :shape[1]], dtype=dtype)
+    return q[:shape[0], :shape[1]]
+
+
+# noinspection PyUnusedLocal
+def numpy_orthogonal_initializer(shape, dtype=tf.float32, partition_info=None):
+    return tf.constant(numpy_orthogonal_matrix(shape), dtype=dtype)
 
 
 def orthogonal_initializer(num_splits):
