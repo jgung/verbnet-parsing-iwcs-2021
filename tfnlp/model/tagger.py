@@ -21,7 +21,8 @@ def tagger_model_func(features, mode, params):
 
     target = params.extractor.targets[constants.LABEL_KEY]
     num_labels = target.vocab_size()
-    logits = tf.reshape(tf.layers.dense(rnn_outputs, num_labels), [-1, time_steps, num_labels], name="unflatten_logits")
+    logits = tf.layers.dense(rnn_outputs, num_labels, kernel_initializer=tf.zeros_initializer)
+    logits = tf.reshape(logits, [-1, time_steps, num_labels], name="unflatten_logits")
 
     if params.config.crf:
         transition_matrix = tf.get_variable("transitions", [num_labels, num_labels])

@@ -12,7 +12,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_feature_extractor, get_network_config
-from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, TAGGER_KEY, WORD_KEY
+from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, TAGGER_KEY, WORD_KEY, SRL_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
@@ -240,7 +240,8 @@ def default_input_fn(features):
 def get_model_func(model_type):
     model_funcs = {
         TAGGER_KEY: tagger_model_func,
-        PARSER_KEY: parser_model_func
+        PARSER_KEY: parser_model_func,
+        SRL_KEY: tagger_model_func,
     }
     if model_type not in model_funcs:
         raise ValueError("Unexpected model type: " + model_type)
