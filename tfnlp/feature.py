@@ -102,18 +102,22 @@ class Feature(Extractor):
         self.embedding = None
 
     def initialize(self, indices=None):
-        if not indices:
-            indices = self.indices
         if indices is None:
-            indices = {self.pad_word: 0, self.unknown_word: 1, START_WORD: 2, END_WORD: 3}
-        if self.unknown_word not in indices:
-            indices[self.unknown_word] = len(indices)
-        if self.pad_word not in indices:
-            indices[self.pad_word] = len(indices)
-        self.indices = indices
+            self.indices = {}
+            self.feat_to_index(self.pad_word)
+            self.feat_to_index(self.unknown_word)
+            self.feat_to_index(START_WORD)
+            self.feat_to_index(END_WORD)
+        else:
+            self.indices = indices
+        if self.train:
+            if self.unknown_word not in self.indices:
+                self.feat_to_index(self.unknown_word)
+            if self.pad_word not in self.indices:
+                self.feat_to_index(self.pad_word)
         self.reversed = None
-        self.unknown_index = self.indices[self.unknown_word]
-        self.pad_index = self.indices[self.pad_word]
+        self.unknown_index = self.indices.get(self.unknown_word, 0)
+        self.pad_index = self.indices.get(self.pad_word, 0)
 
     def extract(self, instance):
         value = self.get_values(instance)
@@ -273,12 +277,13 @@ class SequenceListFeature(SequenceFeature):
 
     def initialize(self, indices=None):
         super().initialize(indices)
-        if self.left_pad_word not in self.indices:
-            self.indices[self.left_pad_word] = len(self.indices)
-        if self.right_pad_word not in self.indices:
-            self.indices[self.right_pad_word] = len(self.indices)
-        self.start_index = self.indices[self.left_pad_word]
-        self.end_index = self.indices[self.right_pad_word]
+        if self.train:
+            if self.left_pad_word not in self.indices:
+                self.feat_to_index(self.left_pad_word)
+            if self.right_pad_word not in self.indices:
+                self.feat_to_index(self.right_pad_word)
+        self.start_index = self.indices.get(self.left_pad_word, 0)
+        self.end_index = self.indices.get(self.right_pad_word, 0)
 
     def extract(self, sequence):
         input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(self.map(result))))
@@ -460,8 +465,7 @@ class FeatureExtractor(object):
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             for key in vectors:
-                if feature.rank == 3:
-                    key = [key]
+                key = feature.map(key)
                 feature.feat_to_index(key, False)
 
     def write_vocab(self, base_path, overwrite=False, resources='', prune=False):
