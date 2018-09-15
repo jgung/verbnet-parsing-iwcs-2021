@@ -91,22 +91,8 @@ def _get_embedding_input(feature_ids, feature, training):
                                    training=training,
                                    name='{}_dropout'.format(feature.name),
                                    noise_shape=[shape[0], shape[1], 1])
-        # result = word_dropout(result, config.word_dropout, feature.name)
 
     return result
-
-
-def word_dropout(inputs, embed_keep_prob, name):
-    shape = _get_shape(inputs)
-
-    mask_shape = [shape[0], shape[1], 1]
-    ones = tf.ones(mask_shape)
-    mask = tf.nn.dropout(ones, keep_prob=embed_keep_prob, noise_shape=mask_shape) * embed_keep_prob
-
-    drop = tf.get_variable('{}_drop'.format(name), shape[2], initializer=tf.zeros_initializer)
-    inputs = mask * inputs + (1 - mask) * drop
-
-    return inputs
 
 
 def _get_shape(tensor):
