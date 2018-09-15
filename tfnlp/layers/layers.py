@@ -61,8 +61,11 @@ def _get_embedding_input(feature_ids, feature, training):
     config = feature.config
 
     initializer = None
-    if training and feature.embedding is not None:
-        initializer = embedding_initializer(feature.embedding)
+    if training:
+        if feature.embedding is not None:
+            initializer = embedding_initializer(feature.embedding)
+        else:
+            initializer = tf.zeros_initializer
 
     embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
                                        shape=[feature.vocab_size(), config.dim],
