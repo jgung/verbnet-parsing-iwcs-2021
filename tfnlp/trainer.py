@@ -190,7 +190,7 @@ class Trainer(object):
         if not raw_instances:
             raise ValueError("No examples provided at path given by '{}'".format(path))
 
-        examples = [self._feature_extractor.extract(instance) for instance in raw_instances]
+        examples = self._feature_extractor.extract_all(raw_instances)
         return examples
 
     def _extract_and_write(self, path):

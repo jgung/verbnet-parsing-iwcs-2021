@@ -35,17 +35,20 @@ def read_vectors(path, max_vecs=1000000):
     return vectors, dim
 
 
-def initialize_embedding_from_dict(vector_map, dim, vocabulary, initializer=zero_initializer, standardize=False):
+def initialize_embedding_from_dict(vector_map, dim, vocabulary, zero_init=False, standardize=False):
     """
     Initialize a numpy matrix from pre-existing vectors with indices corresponding to a given vocabulary. Words in vocabulary
     not in vectors are initialized using a given function.
     :param vector_map: dictionary from words to numpy arrays
     :param dim: dimensionality of vectors
     :param vocabulary: dictionary from words to corresponding indices
-    :param initializer: initialization function taking the word and dimensionality for words not in vector_map
+    :param zero_init: initialization function taking the word and dimensionality for words not in vector_map
     :param standardize: set word embedding values to have standard deviation of 1
     :return: numpy matrix with rows corresponding to vectors
     """
+    initializer = random_normal_initializer
+    if zero_init:
+        initializer = zero_initializer
     emb = np.zeros([len(vocabulary), dim], dtype=np.float32)
     for word, index in vocabulary.items():
         if word not in vector_map:

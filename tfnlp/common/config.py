@@ -5,7 +5,8 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 import tfnlp.feature
-from tfnlp.common.constants import ELMO_KEY, INITIALIZER, LOWER, NORMALIZE_DIGITS, TAGGER_KEY, UNKNOWN_WORD
+from tfnlp.common.constants import ELMO_KEY, INITIALIZER, LOWER, NORMALIZE_DIGITS, TAGGER_KEY, UNKNOWN_WORD, PAD_WORD, START_WORD, \
+    END_WORD
 from tfnlp.common.utils import Params
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
@@ -40,15 +41,17 @@ def _get_mapping_function(func, rank=2):
 class FeatureInitializer(Params):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
+        if not config:
+            config = {}
         # number of entries (words) in initializer (embedding) to include in vocabulary
         self.include_in_vocab = config.get('include_in_vocab', 0)
+        # initialize to zero if no pre-trained embedding is provided (if False, use Gaussian normal initialization)
+        self.zero_init = config.get('zero_init', True)
         # path to raw embedding file
         self.embedding = config.get('embedding')
-        if not self.embedding:
-            raise AssertionError("Missing 'embedding' parameter, which provides the path to raw embedding file")
         # name of serialized initializer after vocabulary training
         self.pkl_path = config.get('pkl_path')
-        if not self.pkl_path:
+        if self.embedding and not self.pkl_path:
             raise AssertionError("Missing 'pkl_path' parameter, which provides the path to the resulting serialized initializer")
 
 
@@ -64,8 +67,7 @@ class FeatureHyperparameters(Params):
         # dimensionality for this feature if an initializer is not provided
         self.dim = config.get('dim', 0)
         # variable initializer used to initialize lookup table for this feature (such as word embeddings)
-        initializer = config.get(INITIALIZER)
-        self.initializer = FeatureInitializer(initializer) if initializer else None
+        self.initializer = FeatureInitializer(config.get(INITIALIZER))
         reduce_func = config.get('function')
         if reduce_func:
             self.func = _get_reduce_function(reduce_func, self.dim, feature.max_len)
@@ -83,8 +85,12 @@ class FeatureConfig(Params):
         self.threshold = feature.get('threshold', 0)
         # number of tokens to use for left padding
         self.left_padding = feature.get('left_padding', 0)
+        # word used for left padding
+        self.left_pad_word = feature.get('left_pad_word', START_WORD)
         # number of tokens to use for right padding
         self.right_padding = feature.get('right_padding', 0)
+        # word used for right padding
+        self.right_pad_word = feature.get('right_pad_word', END_WORD)
         # 2 most common feature rank for our NLP applications (word/token-level features)
         self.rank = feature.get('rank', 2)
         # string mapping functions applied during extraction
@@ -93,6 +99,8 @@ class FeatureConfig(Params):
         self.max_len = feature.get('max_len')
         # word used to replace OOV tokens
         self.unknown_word = feature.get('unknown_word', UNKNOWN_WORD)
+        # padding token
+        self.pad_word = feature.get('pad_word', PAD_WORD)
         # pre-initialized vocabulary
         self.indices = feature.get('indices')
         self.numeric = feature.get('numeric')
@@ -157,6 +165,7 @@ class BaseNetworkConfig(Params):
         self.state_size = config.get('state_size', 100)
         self.crf = config.get('crf', False)
         self.mlp_dropout = config.get('mlp_dropout', 0)
+        self.zero_init = config.get('zero_init', True)
         self.type = config.get('type', TAGGER_KEY)
 
 

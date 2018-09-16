@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
-from tfnlp.common.constants import END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
+from tfnlp.common.constants import END_WORD, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.utils import Params, deserialize, serialize
 
@@ -106,8 +106,6 @@ class Feature(Extractor):
             self.indices = {}
             self.feat_to_index(self.pad_word)
             self.feat_to_index(self.unknown_word)
-            self.feat_to_index(START_WORD)
-            self.feat_to_index(END_WORD)
         else:
             self.indices = indices
         if self.train:
@@ -345,6 +343,9 @@ class FeatureExtractor(object):
     def target(self, name):
         return self.targets[name]
 
+    def extract_all(self, instances, train=True):
+        return [self.extract(instance, train) for instance in instances]
+
     def extract(self, instance, train=True):
         """
         Extract features for a single instance as a SequenceExample.
@@ -455,11 +456,11 @@ class FeatureExtractor(object):
             if feature.has_vocab():
                 feature.initialize()
 
-            initializer = feature.config.get(INITIALIZER)
-            if not initializer:
+            initializer = feature.config.initializer
+            if not initializer.embedding:
                 continue
             num_vectors_to_read = initializer.include_in_vocab
-            if not num_vectors_to_read or num_vectors_to_read <= 0:
+            if num_vectors_to_read <= 0:
                 continue
 
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
@@ -490,17 +491,18 @@ class FeatureExtractor(object):
 
             feature.write_vocab(path, overwrite=overwrite, prune=prune)
 
-            initializer = feature.config.get(INITIALIZER)
+            initializer = feature.config.initializer
+            if not initializer.embedding:
+                continue
+            num_vectors_to_read = initializer.include_in_vocab
+            if num_vectors_to_read <= 0:
+                continue
 
-            if initializer:
-                num_vectors_to_read = initializer.include_in_vocab
-                if not num_vectors_to_read or num_vectors_to_read <= 0:
-                    continue
-                vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
-                tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
-                feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices)
-                tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
-                serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
+            vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
+            feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
+            tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
+            serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 
     def read_vocab(self, base_path):
         """
@@ -515,9 +517,9 @@ class FeatureExtractor(object):
             success = feature.read_vocab(path)
             if not success:
                 return False
-            initializer = feature.config.get(INITIALIZER)
+            initializer = feature.config.initializer
             try:
-                if initializer:
+                if initializer.embedding:
                     feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
             except NotFoundError:
                 return False

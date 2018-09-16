@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
-
+from tensorflow.contrib import crf
 import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
 from tfnlp.common.eval import SequenceEvalHook, SrlEvalHook, log_trainable_variables
@@ -21,7 +21,13 @@ def tagger_model_func(features, mode, params):
 
     target = params.extractor.targets[constants.LABEL_KEY]
     num_labels = target.vocab_size()
-    logits = tf.layers.dense(rnn_outputs, num_labels, kernel_initializer=tf.zeros_initializer)
+
+    if params.config.zero_init:
+        initializer = tf.zeros_initializer
+    else:
+        initializer = tf.random_normal_initializer(stddev=0.01)
+
+    logits = tf.layers.dense(rnn_outputs, num_labels, kernel_initializer=initializer)
     logits = tf.reshape(logits, [-1, time_steps, num_labels], name="unflatten_logits")
 
     if params.config.crf:
@@ -62,7 +68,7 @@ def tagger_model_func(features, mode, params):
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
-        predictions, _ = tf.contrib.crf.crf_decode(logits, transition_matrix, tf.cast(features[constants.LENGTH_KEY], tf.int32))
+        predictions, _ = crf.crf_decode(logits, transition_matrix, tf.cast(features[constants.LENGTH_KEY], tf.int32))
 
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets)

@@ -64,8 +64,10 @@ def _get_embedding_input(feature_ids, feature, training):
     if training:
         if feature.embedding is not None:
             initializer = embedding_initializer(feature.embedding)
-        else:
+        elif config.initializer.zero_init:
             initializer = tf.zeros_initializer
+        else:
+            initializer = tf.random_normal_initializer(0, 0.01)
 
     embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
                                        shape=[feature.vocab_size(), config.dim],
@@ -324,6 +326,7 @@ class HighwayLSTMCell(LayerRNNCell):
         if self._highway:
             ih, jh, fh, oh, rh = array_ops.split(value=hidden_matrix, num_or_size_splits=5, axis=1)
             ix, jx, fx, ox, rx, hx = array_ops.split(value=input_matrix, num_or_size_splits=6, axis=1)
+            # TODO: consider i, j, f, o, r = array_ops.split(hidden_matrix + input_matrix[:5], axis=1)
 
             i = sigmoid(ih + ix)
             o = sigmoid(oh + ox)
