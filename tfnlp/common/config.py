@@ -53,6 +53,7 @@ class FeatureInitializer(Params):
         self.pkl_path = config.get('pkl_path')
         if self.embedding and not self.pkl_path:
             raise AssertionError("Missing 'pkl_path' parameter, which provides the path to the resulting serialized initializer")
+        self.restrict_vocab = config.get('restrict_vocab', False)
 
 
 class FeatureHyperparameters(Params):
@@ -120,11 +121,11 @@ class FeaturesConfig(object):
         else:
             self.targets = [_get_feature(target) for target in targets]
 
-        feats = features.get('features')
+        feats = features.get('inputs')
         if not feats:
-            raise AssertionError("No 'features' parameter provided in feature configuration, requires at least one feature")
+            raise AssertionError("No 'inputs' parameter provided in feature configuration, requires at least one input")
         else:
-            self.features = [_get_feature(feature) for feature in feats]
+            self.inputs = [_get_feature(feature) for feature in feats]
 
 
 class BaseNetworkConfig(Params):
@@ -199,11 +200,11 @@ def get_feature_extractor(config):
     config = FeaturesConfig(config)
 
     # use this feature to keep track of instance indices for error analysis
-    config.features.append(tfnlp.feature.index_feature())
+    config.inputs.append(tfnlp.feature.index_feature())
     # used to establish sequence length for bucketed batching
-    config.features.append(tfnlp.feature.LengthFeature(config.seq_feat))
+    config.inputs.append(tfnlp.feature.LengthFeature(config.seq_feat))
 
-    return tfnlp.feature.FeatureExtractor(features=config.features, targets=config.targets)
+    return tfnlp.feature.FeatureExtractor(features=config.inputs, targets=config.targets)
 
 
 def get_network_config(config):

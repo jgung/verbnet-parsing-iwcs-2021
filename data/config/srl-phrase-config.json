@@ -37,7 +37,7 @@
         "unknown_word": "O"
       }
     ],
-    "features": [
+    "inputs": [
       {
         "name": "word",
         "key": "word",

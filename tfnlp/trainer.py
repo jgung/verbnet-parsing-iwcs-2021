@@ -179,12 +179,10 @@ class Trainer(object):
     def _train_vocab(self):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
-        self._extract_features(self._raw_train, train=True)
+        self._extract_features(self._raw_train)
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
 
-    def _extract_features(self, path, train=False):
-        self._feature_extractor.train(train)
-
+    def _extract_features(self, path):
         tf.logging.info("Extracting features from %s", path)
         raw_instances = self._raw_instance_reader_fn(path)
         if not raw_instances:

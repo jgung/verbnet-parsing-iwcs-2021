@@ -100,6 +100,7 @@ class Feature(Extractor):
         self.pad_index = 0
         self.threshold = threshold
         self.embedding = None
+        self.reserved_words = [unknown_word, pad_word]
 
     def initialize(self, indices=None):
         if indices is None:
@@ -173,7 +174,7 @@ class Feature(Extractor):
         vocab = {}
         counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)]
         for feat, count in counts:
-            if count < self.threshold:
+            if count < self.threshold and feat not in self.reserved_words:
                 break
             vocab[feat] = len(vocab)
         self.initialize(vocab)
@@ -272,14 +273,15 @@ class SequenceListFeature(SequenceFeature):
         self.end_index = 0
         self.left_padding = left_padding
         self.right_padding = right_padding
+        self.reserved_words.extend([left_pad_word, right_pad_word])
 
     def initialize(self, indices=None):
         super().initialize(indices)
         if self.train:
             if self.left_pad_word not in self.indices:
-                self.feat_to_index(self.left_pad_word)
+                super(SequenceListFeature, self).feat_to_index(self.left_pad_word)
             if self.right_pad_word not in self.indices:
-                self.feat_to_index(self.right_pad_word)
+                super(SequenceListFeature, self).feat_to_index(self.right_pad_word)
         self.start_index = self.indices.get(self.left_pad_word, 0)
         self.end_index = self.indices.get(self.right_pad_word, 0)
 
@@ -453,8 +455,9 @@ class FeatureExtractor(object):
         """
         self.train()
         for feature in self.extractors():
-            if feature.has_vocab():
-                feature.initialize()
+            if not feature.has_vocab():
+                continue
+            feature.initialize()
 
             initializer = feature.config.initializer
             if not initializer.embedding:
@@ -466,8 +469,9 @@ class FeatureExtractor(object):
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             for key in vectors:
-                key = feature.map(key)
-                feature.feat_to_index(key, False)
+                feature.feat_to_index(feature.map(key), False)
+            if initializer.restrict_vocab:
+                feature.train = False
 
     def write_vocab(self, base_path, overwrite=False, resources='', prune=False):
         """
@@ -498,7 +502,13 @@ class FeatureExtractor(object):
             if num_vectors_to_read <= 0:
                 continue
 
-            vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+            _vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+            vectors = {}
+            for key, vector in _vectors.items():
+                key = feature.map(key)
+                if key not in vectors:
+                    vectors[key] = vector
+
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
             tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
