@@ -65,7 +65,8 @@
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000
+            "include_in_vocab": 400000,
+            "zero_init": true
           }
         }
       },
@@ -79,7 +80,10 @@
         "config": {
           "dim": 100,
           "word_dropout": 0.33,
-          "add_group": "words"
+          "add_group": "words",
+          "initializer": {
+            "zero_init": true
+          }
         }
       },
       {
@@ -88,7 +92,10 @@
         "threshold": 2,
         "config": {
           "dim": 100,
-          "word_dropout": 0.33
+          "word_dropout": 0.33,
+          "initializer": {
+            "zero_init": true
+          }
         }
       }
     ]

@@ -65,8 +65,10 @@ def _get_embedding_input(feature_ids, feature, training):
         if feature.embedding is not None:
             initializer = embedding_initializer(feature.embedding)
         elif config.initializer.zero_init:
+            tf.logging.info("Zero init for feature embedding: %s", feature.name)
             initializer = tf.zeros_initializer
         else:
+            tf.logging.info("Gaussian init for feature embedding: %s", feature.name)
             initializer = tf.random_normal_initializer(0, 0.01)
 
     embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),

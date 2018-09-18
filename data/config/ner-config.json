@@ -39,10 +39,6 @@
     ],
     "inputs": [
       {
-        "name": "elmo",
-        "key": "word"
-      },
-      {
         "name": "word",
         "key": "word",
         "mapping_funcs": [
@@ -53,7 +49,8 @@
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 100000
+            "include_in_vocab": 400000,
+            "restrict_vocab": true
           }
         }
       },

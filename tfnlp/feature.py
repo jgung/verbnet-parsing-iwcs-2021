@@ -276,12 +276,21 @@ class SequenceListFeature(SequenceFeature):
         self.reserved_words.extend([left_pad_word, right_pad_word])
 
     def initialize(self, indices=None):
-        super().initialize(indices)
+        if indices is None:
+            self.indices = {}
+            super(SequenceListFeature, self).feat_to_index(self.unknown_word)
+            super(SequenceListFeature, self).feat_to_index(self.pad_word)
+            super(SequenceListFeature, self).feat_to_index(self.left_pad_word)
+            super(SequenceListFeature, self).feat_to_index(self.right_pad_word)
+        else:
+            self.indices = indices
         if self.train:
-            if self.left_pad_word not in self.indices:
-                super(SequenceListFeature, self).feat_to_index(self.left_pad_word)
-            if self.right_pad_word not in self.indices:
-                super(SequenceListFeature, self).feat_to_index(self.right_pad_word)
+            for reserved in self.reserved_words:
+                if reserved not in self.indices:
+                    super(SequenceListFeature, self).feat_to_index(reserved)
+        self.reversed = None
+        self.unknown_index = self.indices.get(self.unknown_word, 0)
+        self.pad_index = self.indices.get(self.pad_word, 0)
         self.start_index = self.indices.get(self.left_pad_word, 0)
         self.end_index = self.indices.get(self.right_pad_word, 0)
 
@@ -510,7 +519,7 @@ class FeatureExtractor(object):
                     vectors[key] = vector
 
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
-            feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
+            feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, zero_init=True)
             tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
             serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 

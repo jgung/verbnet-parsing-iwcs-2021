@@ -46,7 +46,7 @@ class FeatureInitializer(Params):
         # number of entries (words) in initializer (embedding) to include in vocabulary
         self.include_in_vocab = config.get('include_in_vocab', 0)
         # initialize to zero if no pre-trained embedding is provided (if False, use Gaussian normal initialization)
-        self.zero_init = config.get('zero_init', True)
+        self.zero_init = config.get('zero_init', False)
         # path to raw embedding file
         self.embedding = config.get('embedding')
         # name of serialized initializer after vocabulary training
