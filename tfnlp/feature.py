@@ -10,18 +10,6 @@ from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.utils import Params, deserialize, serialize
 
 
-def write_features(examples, out_path):
-    """
-    Write a list of feature instances (SequenceExamples) to a given output file as TFRecords.
-    :param examples:  list of SequenceExample
-    :param out_path: output path
-    """
-    with file_io.FileIO(out_path, 'w') as file:
-        writer = tf.python_io.TFRecordWriter(file.name)
-        for example in examples:
-            writer.write(example.SerializeToString())
-
-
 class Extractor(object):
     """
     This class encompasses features that do not use vocabularies. This includes non-categorical features as well as
@@ -32,9 +20,10 @@ class Extractor(object):
         """
         Initialize an extractor.
         :param name: unique identifier for this feature
-        :param key: key used for extracting values from input instance dictionary
+        :param key: key used for extracting values from input instance dictionary. Distinct from `name`, as we
+        may perform different transformations to the same input to create different features
         :param config: extra parameters used during training
-        :param mapping_funcs: list of functions mapping features to new values
+        :param mapping_funcs: list of functions mapping features to new values (e.g. converting to lowercase, normalizing digits)
         """
         self.name = name
         self.key = key
@@ -56,7 +45,7 @@ class Extractor(object):
 
     def map(self, value):
         """
-        Function applied to each token in a sequence.
+        Function applied to each token in a sequence, such as converting to lowercase or normalizing digits.
         :param value: input token
         :return: transformed value
         """
@@ -83,11 +72,13 @@ class Feature(Extractor):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
         :param name: unique identifier for this feature
-        :param key: key used for extracting values from input instance dictionary
+        :param key: key used for extracting values from input instance dictionary. Distinct from `name`, as we
+        may perform different transformations to the same input to create different features
         :param train: if `True`, then update vocabulary upon encountering new words--otherwise, leave it unmodified
-        :param indices: (optional) initial indices
+        :param indices: (optional) initial indices used to initialize the vocabulary
+        :param pad_word: (optional) pad word form
         :param unknown_word: (optional) unknown word form
-        :param mapping_funcs: list of functions mapping features to new values
+        :param mapping_funcs: list of functions mapping features to new values (e.g. converting to lowercase, normalizing digits)
         """
         super(Feature, self).__init__(name=name, key=key, config=config, mapping_funcs=mapping_funcs, **kwargs)
         self.train = train
@@ -95,28 +86,22 @@ class Feature(Extractor):
         self.reversed = None  # index_to_feat dict
         self.counts = {}
         self.unknown_word = unknown_word
-        self.unknown_index = 0
         self.pad_word = pad_word
-        self.pad_index = 0
+        self.reserved_words = {unknown_word, pad_word}
         self.threshold = threshold
         self.embedding = None
-        self.reserved_words = [unknown_word, pad_word]
+        self.frozen = False
 
     def initialize(self, indices=None):
-        if indices is None:
-            self.indices = {}
-            self.feat_to_index(self.pad_word)
-            self.feat_to_index(self.unknown_word)
-        else:
-            self.indices = indices
-        if self.train:
-            if self.unknown_word not in self.indices:
-                self.feat_to_index(self.unknown_word)
-            if self.pad_word not in self.indices:
-                self.feat_to_index(self.pad_word)
+        self.indices = indices if indices is not None else {}
+        for reserved_word in self.reserved_words:
+            if reserved_word in self.indices:
+                continue
+            if self.train:
+                self.indices[reserved_word] = len(self.indices)
+            else:
+                raise AssertionError('Missing reserved word "{}" in vocabulary'.format(reserved_word))
         self.reversed = None
-        self.unknown_index = self.indices.get(self.unknown_word, 0)
-        self.pad_index = self.indices.get(self.pad_word, 0)
 
     def extract(self, instance):
         value = self.get_values(instance)
@@ -136,11 +121,14 @@ class Feature(Extractor):
         """
         index = self.indices.get(feat)
         if index is None:
-            if self.train:
+            # when the vocabulary is frozen, we continue keeping track of counts, but do not add new entries
+            # this facilitates achieving a vocabulary that is an intersection between a pre-trained vocabulary (such as from word
+            # embeddings) and the training data
+            if self.train and not self.frozen:
                 index = len(self.indices)
                 self.indices[feat] = index
             else:
-                index = self.unknown_index
+                index = self.indices[self.unknown_word]
         if self.train:
             self.counts[feat] = self.counts.get(feat, 0) + (1 if count else 0)
         return index
@@ -171,17 +159,29 @@ class Feature(Extractor):
                 vocab.write('{}\n'.format(self.index_to_feat(i)))
 
     def prune_vocab(self):
+        """
+        Filter vocabulary by count threshold (remove all vocabulary entries occurring less than `threshold` times, other than
+        reserved words. Reinitialize this feature with the pruned vocabulary. Note, this does not preserve original indices, and
+        should be performed prior to feature extraction.
+        """
         vocab = {}
         counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)]
+        for reserved_word in self.reserved_words:
+            vocab[reserved_word] = len(vocab)
         for feat, count in counts:
-            if count < self.threshold and feat not in self.reserved_words:
+            if feat in self.reserved_words or feat not in self.indices:
+                continue
+            if count < self.threshold:
                 break
             vocab[feat] = len(vocab)
+
+        # re-initialize with pruned vocabulary
         self.initialize(vocab)
 
     def read_vocab(self, path):
         """
         Read vocabulary from file at given path, with a single line per entry and index 0 corresponding to the first line.
+        If vocabulary is not found at the path, returns `False` in lieu of raising an exception.
         :param path: vocabulary file
         :return: `True` if vocabulary successfully read
         """
@@ -191,11 +191,14 @@ class Feature(Extractor):
                 for line in vocab:
                     line = line.strip()
                     if line:
+                        if line in indices:
+                            raise AssertionError('Duplicate entry in vocabulary given at {}: {}'.format(path, line))
                         indices[line] = len(indices)
+            # re-initialize with vocabulary read from file
+            self.initialize(indices)
+            return True
         except NotFoundError:
             return False
-        self.initialize(indices)
-        return True
 
     def vocab_size(self):
         """
@@ -267,32 +270,9 @@ class SequenceListFeature(SequenceFeature):
         self.max_len = max_len
         if not max_len:
             raise AssertionError("Sequence list features require \"max_len\" to be specified")
-        self.left_pad_word = left_pad_word
-        self.right_pad_word = right_pad_word
-        self.start_index = 0
-        self.end_index = 0
-        self.left_padding = left_padding
-        self.right_padding = right_padding
-        self.reserved_words.extend([left_pad_word, right_pad_word])
-
-    def initialize(self, indices=None):
-        if indices is None:
-            self.indices = {}
-            super(SequenceListFeature, self).feat_to_index(self.unknown_word)
-            super(SequenceListFeature, self).feat_to_index(self.pad_word)
-            super(SequenceListFeature, self).feat_to_index(self.left_pad_word)
-            super(SequenceListFeature, self).feat_to_index(self.right_pad_word)
-        else:
-            self.indices = indices
-        if self.train:
-            for reserved in self.reserved_words:
-                if reserved not in self.indices:
-                    super(SequenceListFeature, self).feat_to_index(reserved)
-        self.reversed = None
-        self.unknown_index = self.indices.get(self.unknown_word, 0)
-        self.pad_index = self.indices.get(self.pad_word, 0)
-        self.start_index = self.indices.get(self.left_pad_word, 0)
-        self.end_index = self.indices.get(self.right_pad_word, 0)
+        self.left_pad_word, self.right_pad_word = left_pad_word, right_pad_word
+        self.reserved_words = self.reserved_words | {left_pad_word, right_pad_word}
+        self.left_padding, self.right_padding = left_padding, right_padding
 
     def extract(self, sequence):
         input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(self.map(result))))
@@ -301,11 +281,19 @@ class SequenceListFeature(SequenceFeature):
 
     def feat_to_index(self, features, count=True):
         result = [super(SequenceListFeature, self).feat_to_index(feat, count) for feat in features]
-        result = self.left_padding * [self.start_index] + result + self.right_padding * [self.end_index]
+
+        # add BOS and EOS padding to sequence
+        left_pad_index = self.indices[self.left_pad_word]
+        right_pad_index = self.indices[self.right_pad_word]
+        result = self.left_padding * [left_pad_index] + result + self.right_padding * [right_pad_index]
+
+        # add (zero) padding to the max sequence length
         if len(result) < self.max_len:
-            result += (self.max_len - len(result)) * [self.pad_index]
+            pad_index = self.indices[self.pad_word]
+            result += (self.max_len - len(result)) * [pad_index]
         else:
             result = result[:self.max_len]
+
         return result
 
     def map(self, value):
@@ -433,8 +421,8 @@ class FeatureExtractor(object):
         for feature in self.extractors(train):
             index = 0
             if feature.has_vocab():
-                if hasattr(feature, 'pad_index'):
-                    index = feature.pad_index
+                if hasattr(feature, 'pad_word'):
+                    index = feature.indices[feature.pad_word]
                 elif PAD_WORD in feature.indices:
                     index = feature.indices[PAD_WORD]
                 padding[feature.name] = tf.constant(index, dtype=tf.int64)
@@ -480,7 +468,7 @@ class FeatureExtractor(object):
             for key in vectors:
                 feature.feat_to_index(feature.map(key), False)
             if initializer.restrict_vocab:
-                feature.train = False
+                feature.frozen = True
 
     def write_vocab(self, base_path, overwrite=False, resources='', prune=False):
         """
@@ -519,7 +507,7 @@ class FeatureExtractor(object):
                     vectors[key] = vector
 
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
-            feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, zero_init=True)
+            feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
             tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
             serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
 
@@ -543,3 +531,15 @@ class FeatureExtractor(object):
             except NotFoundError:
                 return False
         return True
+
+
+def write_features(examples, out_path):
+    """
+    Write a list of feature instances (SequenceExamples) to a given output file as TFRecords.
+    :param examples:  list of SequenceExample
+    :param out_path: output path
+    """
+    with file_io.FileIO(out_path, 'w') as file:
+        writer = tf.python_io.TFRecordWriter(file.name)
+        for example in examples:
+            writer.write(example.SerializeToString())

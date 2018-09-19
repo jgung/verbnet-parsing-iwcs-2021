@@ -1,9 +1,10 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib import crf
 from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
-from tensorflow.contrib import crf
+
 import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
 from tfnlp.common.eval import SequenceEvalHook, SrlEvalHook, log_trainable_variables
@@ -94,7 +95,7 @@ def tagger_model_func(features, mode, params):
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
-                                                         default_value=target.index_to_feat(target.unknown_index))
+                                                         default_value=target.unknown_word)
         predictions = index_to_label.lookup(tf.cast(predictions, dtype=tf.int64))
         export_outputs = {constants.PREDICT_KEY: PredictOutput(predictions)}
 

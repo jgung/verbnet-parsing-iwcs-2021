@@ -5,8 +5,8 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 import tfnlp.feature
-from tfnlp.common.constants import ELMO_KEY, INITIALIZER, LOWER, NORMALIZE_DIGITS, TAGGER_KEY, UNKNOWN_WORD, PAD_WORD, START_WORD, \
-    END_WORD
+from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LOWER, NORMALIZE_DIGITS, PAD_WORD, START_WORD, TAGGER_KEY, \
+    UNKNOWN_WORD
 from tfnlp.common.utils import Params
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
@@ -53,6 +53,7 @@ class FeatureInitializer(Params):
         self.pkl_path = config.get('pkl_path')
         if self.embedding and not self.pkl_path:
             raise AssertionError("Missing 'pkl_path' parameter, which provides the path to the resulting serialized initializer")
+        # if `True`, restrict vocabulary to entries with corresponding embeddings
         self.restrict_vocab = config.get('restrict_vocab', False)
 
 
