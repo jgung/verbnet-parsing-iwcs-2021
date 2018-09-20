@@ -12,7 +12,7 @@ from tensorflow.python.training.session_run_hook import SessionRunArgs
 
 from tfnlp.common.chunk import chunk
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, MARKER_KEY, PREDICT_KEY, REL_PROBS, \
-    SENTENCE_INDEX, WORD_KEY
+    SENTENCE_INDEX
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
@@ -36,30 +36,29 @@ def conll_eval(gold_batches, predicted_batches, script_path):
         return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
 
 
-def conll_srl_eval(gold_batches, predicted_batches, words, markers, ids):
+def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
     """
     Run the CoNLL-2005 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
     :param predicted_batches: list of predicted label sequences
-    :param words: list of word sequences
     :param markers: list of predicate marker sequences
     :param ids: list of sentence indices
     :return: tuple of (overall F-score, script_output)
     """
-    gold_props = _convert_to_sentences(xs=words, ys=gold_batches, indices=markers, ids=ids)
-    pred_props = _convert_to_sentences(xs=words, ys=predicted_batches, indices=markers, ids=ids)
+    gold_props = _convert_to_sentences(ys=gold_batches, indices=markers, ids=ids)
+    pred_props = _convert_to_sentences(ys=predicted_batches, indices=markers, ids=ids)
     result = evaluate(gold_props, pred_props)
     return result.evaluation.prec_rec_f1()[2], str(result)
 
 
-def _convert_to_sentences(xs, ys, indices, ids):
+def _convert_to_sentences(ys, indices, ids):
     sentences = []
     current_sentence = defaultdict(list)
     prev_sentence = -1
 
     predicates = []
     args = []
-    for words, labels, markers, sentence in zip(xs, ys, indices, ids):
+    for labels, markers, sentence in zip(ys, indices, ids):
         if prev_sentence != sentence:
             prev_sentence = sentence
             if predicates:
@@ -74,7 +73,7 @@ def _convert_to_sentences(xs, ys, indices, ids):
         if not predicates:
             predicates = ["-"] * markers.size
         index = markers.tolist().index(1)
-        predicates[index] = words[index]
+        predicates[index] = 'x'
         args.append(chunk(labels, conll=True))
 
     if predicates:
@@ -86,12 +85,12 @@ def _convert_to_sentences(xs, ys, indices, ids):
     return sentences
 
 
-def _write_to_file(output_file, xs, ys, indices, ids):
+def _write_to_file(output_file, ys, indices, ids):
     prev_sentence = -1
 
     predicates = []
     args = []
-    for words, labels, markers, sentence in zip(xs, ys, indices, ids):
+    for labels, markers, sentence in zip(ys, indices, ids):
         if prev_sentence != sentence:
             prev_sentence = sentence
             if predicates:
@@ -104,7 +103,7 @@ def _write_to_file(output_file, xs, ys, indices, ids):
         if not predicates:
             predicates = ["-"] * markers.size
         index = markers.tolist().index(1)
-        predicates[index] = words[index]
+        predicates[index] = 'x'
         args.append(chunk(labels, conll=True))
 
     if predicates:
@@ -185,7 +184,7 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
 
 
 class SrlEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, tensors, vocab, word_vocab):
+    def __init__(self, tensors, vocab):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors
@@ -195,16 +194,13 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         self._gold_tensor = tensors[LABEL_KEY]
         self._length_tensor = tensors[LENGTH_KEY]
         self._marker_tensor = tensors[MARKER_KEY]
-        self._word_tensor = tensors[WORD_KEY]
         self._index_tensor = tensors[SENTENCE_INDEX]
         self._vocab = vocab
-        self._word_vocab = word_vocab
 
         # initialized in self.begin
         self._predictions = None
         self._gold = None
         self._markers = None
-        self._words = None
         self._ids = None
         self._best = -1
 
@@ -212,7 +208,6 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         self._predictions = []
         self._gold = []
         self._markers = []
-        self._words = []
         self._ids = []
 
     def before_run(self, run_context):
@@ -220,27 +215,24 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
                    PREDICT_KEY: self._predict_tensor,
                    LENGTH_KEY: self._length_tensor,
                    MARKER_KEY: self._marker_tensor,
-                   WORD_KEY: self._word_tensor,
                    SENTENCE_INDEX: self._index_tensor}
         return SessionRunArgs(fetches=fetches)
 
     def after_run(self, run_context, run_values):
-        for gold, predictions, words, markers, seq_len, idx in zip(run_values.results[LABEL_KEY],
-                                                                   run_values.results[PREDICT_KEY],
-                                                                   run_values.results[WORD_KEY],
-                                                                   run_values.results[MARKER_KEY],
-                                                                   run_values.results[LENGTH_KEY],
-                                                                   run_values.results[SENTENCE_INDEX]):
+        for gold, predictions, markers, seq_len, idx in zip(run_values.results[LABEL_KEY],
+                                                            run_values.results[PREDICT_KEY],
+                                                            run_values.results[MARKER_KEY],
+                                                            run_values.results[LENGTH_KEY],
+                                                            run_values.results[SENTENCE_INDEX]):
             self._gold.append([self._vocab.index_to_feat(val) for val in gold][:seq_len])
             self._predictions.append([self._vocab.index_to_feat(val) for val in predictions][:seq_len])
-            self._words.append([self._word_vocab.index_to_feat(val) for val in words][:seq_len])
             self._markers.append(markers[:seq_len])
             self._ids.append(idx)
 
     def end(self, session):
         if self._best >= 0:
             tf.logging.info("Current best score: %f", self._best)
-        score, result = conll_srl_eval(self._gold, self._predictions, self._words, self._markers, self._ids)
+        score, result = conll_srl_eval(self._gold, self._predictions, self._markers, self._ids)
         tf.logging.info(result)
         if score > self._best:
             self._best = score

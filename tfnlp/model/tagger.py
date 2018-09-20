@@ -76,16 +76,16 @@ def tagger_model_func(features, mode, params):
         eval_metric_ops[constants.ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets, predictions=predictions)
 
         if params.config.type == constants.SRL_KEY:
-            evaluation_hooks = [SrlEvalHook(tensors={
-                constants.LABEL_KEY: targets,
-                constants.PREDICT_KEY: predictions,
-                constants.LENGTH_KEY: features[constants.LENGTH_KEY],
-                constants.MARKER_KEY: features[constants.MARKER_KEY],
-                constants.WORD_KEY: features[constants.WORD_KEY],
-                constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
-            },
-                vocab=target,
-                word_vocab=params.extractor.features[constants.WORD_KEY])]
+            eval_hook = SrlEvalHook(
+                tensors={
+                    constants.LABEL_KEY: targets,
+                    constants.PREDICT_KEY: predictions,
+                    constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+                    constants.MARKER_KEY: features[constants.MARKER_KEY],
+                    constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
+                },
+                vocab=target)
+            evaluation_hooks = [eval_hook]
         else:
             evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
                                                  gold_tensor=targets,
