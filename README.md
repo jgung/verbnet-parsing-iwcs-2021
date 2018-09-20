@@ -1,13 +1,14 @@
 # Tensorflow NLP
 
-This project aims to provide modular boilerplate code for natural language processing applications implemented in Tensorflow. Currently, this supports
+This project aims to provide modular boilerplate code for natural language processing applications (sequence tagging, semantic role labeling, and parsing) implemented in Tensorflow. The project is compatible with Google Cloud Platform and ML Engine to ease remote training.
 
 ## Getting Started
-### Prerequisites
+### Local Prerequisites
 * Python 3
 * virtualenv
+* (optional) TF (CUDA 9 / CuDNN 7) compatible GPU
 
-You can use virtualenv to create a self-contained installation with the necessary dependencies.
+You can use virtualenv to create a self-contained installation with the necessary dependencies. For GPU training, you will need to follow the [TF GPU installation instructions](https://www.tensorflow.org/install/install_linux#NVIDIARequirements).
 
 ```bash
 virtualenv -p python3 ~/.venvs/tfnlp
@@ -26,7 +27,7 @@ unzip data/vectors/glove.6B.zip -d data/vectors && rm data/vectors/glove.6B.zip
 ```
 
 ### Google Cloud Platform
-Alternatively, you can train models via [Google Cloud ML Engine](https://cloud.google.com/ml-engine/), as this project is fully compatible. To package the project, you can simply run `python setup.py sdist`, which will create a tar archive under `dist/tfnlp-*.tar.gz`.
+Alternatively, you can train models via [Google Cloud ML Engine](https://cloud.google.com/ml-engine/). To package the project, you can simply run `python setup.py sdist`, which will create a tar archive under `dist/tfnlp-*.tar.gz`.
 
 Then follow the [latest instructions](https://cloud.google.com/ml-engine/docs/tensorflow/training-jobs) for running a training job in ML Engine. You can use the same training arguments you would locally after the empty `--` flag, other than specifying `--job-dir` before this flag.
 <aside class="notice">
