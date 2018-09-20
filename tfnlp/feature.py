@@ -1,13 +1,187 @@
 import os
+import re
 from itertools import chain
 
 import tensorflow as tf
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
-from tfnlp.common.constants import END_WORD, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
+from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.utils import Params, deserialize, serialize
+from tfnlp.layers.reduce import ConvNet
+
+LOWER = "lower"
+NORMALIZE_DIGITS = "digit_norm"
+CHARACTERS = "chars"
+
+
+def _get_reduce_function(config, dim, length):
+    """
+    Return a neural sequence reduction op given a configuration, input dimensionality, and max length.
+    :param config: reduction op configuration
+    :param dim: input dimensionality
+    :param length: input max length
+    :return: neural sequence reduction operation
+    """
+    if config.name == "ConvNet":
+        return ConvNet(input_size=dim, kernel_size=config.kernel_size, num_filters=config.num_filters, max_length=length)
+    else:
+        raise AssertionError("Unexpected feature function: {}".format(config.name))
+
+
+def lower(raw):
+    if isinstance(raw, str):
+        return raw.lower()
+    return [word.lower() for word in raw]
+
+
+def normalize_digits(raw):
+    if isinstance(raw, str):
+        return re.sub("\d", "#", raw)
+    return [re.sub("\d", "#", word) for word in raw]
+
+
+def characters(value):
+    return list(value)
+
+
+def _get_mapping_function(func):
+    if func == LOWER:
+        return lower
+    elif func == NORMALIZE_DIGITS:
+        return normalize_digits
+    elif func == CHARACTERS:
+        return characters
+    raise AssertionError("Unexpected function name: {}".format(func))
+
+
+class FeatureInitializer(Params):
+    def __init__(self, config, **kwargs):
+        super().__init__(**kwargs)
+        if not config:
+            config = {}
+        # number of entries (words) in initializer (embedding) to include in vocabulary
+        self.include_in_vocab = config.get('include_in_vocab', 0)
+        # initialize to zero if no pre-trained embedding is provided (if False, use Gaussian normal initialization)
+        self.zero_init = config.get('zero_init', False)
+        # path to raw embedding file
+        self.embedding = config.get('embedding')
+        # name of serialized initializer after vocabulary training
+        self.pkl_path = config.get('pkl_path')
+        if self.embedding and not self.pkl_path:
+            raise AssertionError("Missing 'pkl_path' parameter, which provides the path to the resulting serialized initializer")
+        # if `True`, restrict vocabulary to entries with corresponding embeddings
+        self.restrict_vocab = config.get('restrict_vocab', False)
+
+
+class FeatureHyperparameters(Params):
+    def __init__(self, config, feature, **kwargs):
+        super().__init__(**kwargs)
+        # dropout specific to this feature
+        self.dropout = config.get('dropout', 0)
+        # word-level dropout for this feature
+        self.word_dropout = config.get('word_dropout', 0)
+        # indicates whether variables for this feature should be trainable (`True`) or fixed (`False`)
+        self.trainable = config.get('trainable', True)
+        # dimensionality for this feature if an initializer is not provided
+        self.dim = config.get('dim', 0)
+        # variable initializer used to initialize lookup table for this feature (such as word embeddings)
+        self.initializer = FeatureInitializer(config.get(INITIALIZER))
+        reduce_func = config.get('function')
+        if reduce_func:
+            self.func = _get_reduce_function(reduce_func, self.dim, feature.max_len)
+        self.add_group = config.get('add_group')
+
+
+class FeatureConfig(Params):
+    def __init__(self, feature, **kwargs):
+        # name used to instantiate this feature
+        super().__init__(**kwargs)
+        self.name = feature.get('name')
+        # key used for lookup during feature extraction
+        self.key = feature.get('key')
+        # count threshold for features
+        self.threshold = feature.get('threshold', 0)
+        # number of tokens to use for left padding
+        self.left_padding = feature.get('left_padding', 0)
+        # word used for left padding
+        self.left_pad_word = feature.get('left_pad_word', START_WORD)
+        # number of tokens to use for right padding
+        self.right_padding = feature.get('right_padding', 0)
+        # word used for right padding
+        self.right_pad_word = feature.get('right_pad_word', END_WORD)
+        # 2 most common feature rank for our NLP applications (word/token-level features)
+        self.rank = feature.get('rank', 2)
+        # string mapping functions applied during extraction
+        self.mapping_funcs = [_get_mapping_function(mapping_func) for mapping_func in feature.get('mapping_funcs', [])]
+        # maximum sequence length of feature
+        self.max_len = feature.get('max_len')
+        # word used to replace OOV tokens
+        self.unknown_word = feature.get('unknown_word', UNKNOWN_WORD)
+        # padding token
+        self.pad_word = feature.get('pad_word', PAD_WORD)
+        # pre-initialized vocabulary
+        self.indices = feature.get('indices')
+        self.numeric = feature.get('numeric')
+        # hyperparameters related to this feature
+        config = feature.get('config', Params())
+        self.config = FeatureHyperparameters(config, self)
+
+
+class FeaturesConfig(object):
+    def __init__(self, features):
+        self.seq_feat = features.get('seq_feat', 'word')
+
+        targets = features.get('targets')
+        if not targets:
+            tf.logging.warn("No 'targets' parameter provided in feature configuration--this could be an error if training.")
+            self.targets = []
+        else:
+            self.targets = [_get_feature(target) for target in targets]
+
+        feats = features.get('inputs')
+        if not feats:
+            raise AssertionError("No 'inputs' parameter provided in feature configuration, requires at least one input")
+        else:
+            self.inputs = [_get_feature(feature) for feature in feats]
+
+
+def _get_feature(feature):
+    """
+    Create an individual feature from an input feature configuration.
+    :param feature: feature configuration
+    :return: feature
+    """
+    feature = FeatureConfig(feature)
+    if feature.name == ELMO_KEY:
+        feat = TextExtractor
+    elif feature.rank == 3:
+        feat = SequenceListFeature
+    elif feature.rank == 2:
+        feat = SequenceExtractor if feature.numeric else SequenceFeature
+    elif feature.rank == 1:
+        feat = Extractor if feature.numeric else Feature
+    else:
+        raise AssertionError("Unexpected feature rank: {}".format(feature.rank))
+    return feat(**feature)
+
+
+def get_feature_extractor(config):
+    """
+    Create a `FeatureExtractor` from a given feature configuration.
+    :param config: feature configuration
+    :return: feature extractor
+    """
+    # load default configurations
+    config = FeaturesConfig(config)
+
+    # use this feature to keep track of instance indices for error analysis
+    config.inputs.append(index_feature())
+    # used to establish sequence length for bucketed batching
+    config.inputs.append(LengthFeature(config.seq_feat))
+
+    return FeatureExtractor(features=config.inputs, targets=config.targets)
 
 
 class Extractor(object):
@@ -28,7 +202,7 @@ class Extractor(object):
         self.name = name
         self.key = key
         self.rank = 1
-        self.config = config if config else Params()
+        self.config = config if config else FeatureHyperparameters(Params(), None)
         self.mapping_funcs = mapping_funcs if mapping_funcs else []
         self.default_val = default_val
         self.dtype = tf.int64
@@ -164,6 +338,8 @@ class Feature(Extractor):
         reserved words. Reinitialize this feature with the pruned vocabulary. Note, this does not preserve original indices, and
         should be performed prior to feature extraction.
         """
+        if not self.train:
+            tf.logging.warn("Pruning vocabulary '%s' with `train==False` is a likely error", self.name)
         vocab = {}
         counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)]
         for reserved_word in self.reserved_words:
@@ -263,9 +439,10 @@ class SequenceListFeature(SequenceFeature):
                  right_padding=0,
                  left_pad_word=START_WORD,
                  right_pad_word=END_WORD,
+                 mapping_funcs=None,
                  **kwargs):
         super().__init__(name, key, config=config, train=train, indices=indices,
-                         pad_word=pad_word, unknown_word=unknown_word, threshold=threshold, **kwargs)
+                         pad_word=pad_word, unknown_word=unknown_word, threshold=threshold, mapping_funcs=mapping_funcs, **kwargs)
         self.rank = 3
         self.max_len = max_len
         if not max_len:

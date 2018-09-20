@@ -4,7 +4,7 @@ import unittest
 
 import tensorflow as tf
 
-from test.feature_test import test_extractor
+from test.test_feature import test_extractor
 from tfnlp.common.constants import CHAR_KEY, LABEL_KEY, WORD_KEY
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import write_features
@@ -33,7 +33,8 @@ class TestDatasets(unittest.TestCase):
             next_element = sess.run(next_element)
 
             char_feature = self.extractor.feature(CHAR_KEY)
-            padding = (char_feature.max_len - 3) * [char_feature.pad_index]
+            pad_index = char_feature.indices.get(char_feature.pad_word)
+            padding = (char_feature.max_len - 3) * [pad_index]
             self.assertEqual([4, 5, 6] + padding, next_element[CHAR_KEY][0][0].tolist())
-            self.assertEqual(4, next_element[WORD_KEY][0][0])
-            self.assertEqual(4, next_element[LABEL_KEY][0])
+            self.assertEqual(2, next_element[WORD_KEY][0][0])
+            self.assertEqual(2, next_element[LABEL_KEY][0])

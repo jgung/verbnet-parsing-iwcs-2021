@@ -11,12 +11,12 @@ from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
-from tfnlp.common.config import get_feature_extractor, get_network_config
-from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, TAGGER_KEY, WORD_KEY, SRL_KEY
+from tfnlp.common.config import get_network_config
+from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
-from tfnlp.feature import write_features
+from tfnlp.feature import get_feature_extractor, write_features
 from tfnlp.model.parser import parser_model_func
 from tfnlp.model.tagger import tagger_model_func
 from tfnlp.readers import get_reader

@@ -2,9 +2,9 @@ import unittest
 
 import pkg_resources
 
-from test.feature_test import test_extractor
+from test.test_feature import test_extractor
 from tfnlp.common.constants import LABEL_KEY, WORD_KEY
-from tfnlp.common.embedding import read_vectors, initialize_embedding_from_dict
+from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 
 
 class TestEmbedding(unittest.TestCase):
