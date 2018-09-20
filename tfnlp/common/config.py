@@ -26,15 +26,23 @@ def _get_reduce_function(config, dim, length):
         raise AssertionError("Unexpected feature function: {}".format(config.name))
 
 
-def _get_mapping_function(func, rank=2):
+def lower(raw):
+    if isinstance(raw, str):
+        return raw.lower()
+    return [word.lower() for word in raw]
+
+
+def normalize_digits(raw):
+    if isinstance(raw, str):
+        return re.sub("\d", "#", raw)
+    return [re.sub("\d", "#", word) for word in raw]
+
+
+def _get_mapping_function(func):
     if func == LOWER:
-        if rank == 3:
-            return lambda x: [word.lower() for word in x]
-        return lambda x: x.lower()
+        return lower
     elif func == NORMALIZE_DIGITS:
-        if rank == 3:
-            return lambda x: [re.sub("\d", "#", word) for word in x]
-        return lambda x: re.sub("\d", "#", x)
+        return normalize_digits
     raise AssertionError("Unexpected function name: {}".format(func))
 
 
@@ -96,7 +104,7 @@ class FeatureConfig(Params):
         # 2 most common feature rank for our NLP applications (word/token-level features)
         self.rank = feature.get('rank', 2)
         # string mapping functions applied during extraction
-        self.mapping_funcs = [_get_mapping_function(mapping_func, self.rank) for mapping_func in feature.get('mapping_funcs', [])]
+        self.mapping_funcs = [_get_mapping_function(mapping_func) for mapping_func in feature.get('mapping_funcs', [])]
         # maximum sequence length of feature
         self.max_len = feature.get('max_len')
         # word used to replace OOV tokens

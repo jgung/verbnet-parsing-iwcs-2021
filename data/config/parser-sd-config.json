@@ -66,7 +66,8 @@
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
             "include_in_vocab": 400000,
-            "zero_init": true
+            "zero_init": true,
+            "restrict_vocab": true
           }
         }
       },

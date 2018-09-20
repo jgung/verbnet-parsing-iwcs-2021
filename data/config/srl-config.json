@@ -67,7 +67,7 @@
     "lr": 1.0,
     "clip": 1.0
   },
-  "features": {
+  "inputs": {
     "seq_feat": "word",
     "targets": [
       {

@@ -280,6 +280,9 @@ class SequenceListFeature(SequenceFeature):
         return tf.train.FeatureList(feature=input_features)
 
     def feat_to_index(self, features, count=True):
+        if isinstance(features, str):
+            return super(SequenceListFeature, self).feat_to_index(features)
+
         result = [super(SequenceListFeature, self).feat_to_index(feat, count) for feat in features]
 
         # add BOS and EOS padding to sequence
@@ -297,11 +300,29 @@ class SequenceListFeature(SequenceFeature):
         return result
 
     def map(self, value):
-        value = super(SequenceListFeature, self).map(value)
-        return list(value)
+        return super(SequenceListFeature, self).map(value)
 
     def get_values(self, sequence):
-        return super(SequenceListFeature, self).get_values(sequence)
+        values = super(SequenceListFeature, self).get_values(sequence)
+        if isinstance(values, str):
+            return list(values)
+        return values
+
+
+class ConcatenatingListFeatureExtractor(SequenceListFeature):
+    def __init__(self, name, key, config=None, max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD,
+                 pad_word=PAD_WORD, threshold=0, left_padding=0, right_padding=0, left_pad_word=START_WORD,
+                 right_pad_word=END_WORD, **kwargs):
+        super().__init__(name, key, config, max_len, train, indices, unknown_word, pad_word, threshold, left_padding,
+                         right_padding, left_pad_word, right_pad_word, **kwargs)
+
+    def get_values(self, sequence):
+        words = super(ConcatenatingListFeatureExtractor, self).get_values(sequence)
+        result = []
+        for word in words:
+            for char in list(word):
+                result.append(char)
+        return words
 
 
 class LengthFeature(Extractor):
