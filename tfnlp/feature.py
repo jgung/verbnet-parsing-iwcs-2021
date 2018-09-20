@@ -300,12 +300,13 @@ class SequenceListFeature(SequenceFeature):
         return result
 
     def map(self, value):
-        return super(SequenceListFeature, self).map(value)
+        mapped = super(SequenceListFeature, self).map(value)
+        if isinstance(mapped, str):
+            return list(mapped)
+        return mapped
 
     def get_values(self, sequence):
         values = super(SequenceListFeature, self).get_values(sequence)
-        if isinstance(values, str):
-            return list(values)
         return values
 
 
