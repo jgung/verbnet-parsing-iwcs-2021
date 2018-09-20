@@ -44,7 +44,8 @@
         "key": "word",
         "threshold": 0,
         "mapping_funcs": [
-          "lower"
+          "lower",
+          "digit_norm"
         ],
         "config": {
           "dim": 100,
@@ -64,6 +65,9 @@
         "left_padding": 2,
         "right_padding": 2,
         "max_len": 30,
+        "mapping_funcs": [
+          "chars"
+        ],
         "config": {
           "dim": 30,
           "dropout": 0.5,

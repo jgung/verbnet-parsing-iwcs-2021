@@ -65,9 +65,6 @@ CONFIG_FIELD = "config"
 INITIALIZER = "initializer"
 INCLUDE_IN_VOCAB = "include_in_vocab"
 
-LOWER = "lower"
-NORMALIZE_DIGITS = "digit_norm"
-
 F1_METRIC_KEY = "F-Measure"
 RECALL_METRIC_KEY = "Recall"
 PRECISION_METRIC_KEY = "Precision"

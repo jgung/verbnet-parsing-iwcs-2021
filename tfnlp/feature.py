@@ -301,8 +301,6 @@ class SequenceListFeature(SequenceFeature):
 
     def map(self, value):
         mapped = super(SequenceListFeature, self).map(value)
-        if isinstance(mapped, str):
-            return list(mapped)
         return mapped
 
     def get_values(self, sequence):
@@ -318,12 +316,12 @@ class ConcatenatingListFeatureExtractor(SequenceListFeature):
                          right_padding, left_pad_word, right_pad_word, **kwargs)
 
     def get_values(self, sequence):
-        words = super(ConcatenatingListFeatureExtractor, self).get_values(sequence)
+        lists = super(ConcatenatingListFeatureExtractor, self).get_values(sequence)
         result = []
-        for word in words:
-            for char in list(word):
-                result.append(char)
-        return words
+        for item in lists:
+            for sublist in item:
+                result.append(sublist)
+        return lists
 
 
 class LengthFeature(Extractor):

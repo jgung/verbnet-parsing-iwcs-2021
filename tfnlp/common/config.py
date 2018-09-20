@@ -5,11 +5,14 @@ import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 import tfnlp.feature
-from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LOWER, NORMALIZE_DIGITS, PAD_WORD, START_WORD, TAGGER_KEY, \
-    UNKNOWN_WORD
+from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, PAD_WORD, START_WORD, TAGGER_KEY, UNKNOWN_WORD
 from tfnlp.common.utils import Params
 from tfnlp.layers.reduce import ConvNet
 from tfnlp.optim.nadam import NadamOptimizerSparse
+
+LOWER = "lower"
+NORMALIZE_DIGITS = "digit_norm"
+CHARACTERS = "chars"
 
 
 def _get_reduce_function(config, dim, length):
@@ -38,11 +41,17 @@ def normalize_digits(raw):
     return [re.sub("\d", "#", word) for word in raw]
 
 
+def characters(value):
+    return list(value)
+
+
 def _get_mapping_function(func):
     if func == LOWER:
         return lower
     elif func == NORMALIZE_DIGITS:
         return normalize_digits
+    elif func == CHARACTERS:
+        return characters
     raise AssertionError("Unexpected function name: {}".format(func))
 
 
