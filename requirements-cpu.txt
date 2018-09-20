@@ -1,0 +1,4 @@
+numpy
+tensorflow>=1.10.0
+nltk
+tensorflow-hub
