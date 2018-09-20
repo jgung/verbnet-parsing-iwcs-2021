@@ -30,10 +30,8 @@ unzip data/vectors/glove.6B.zip -d data/vectors && rm data/vectors/glove.6B.zip
 Alternatively, you can train models via [Google Cloud ML Engine](https://cloud.google.com/ml-engine/). To package the project, you can simply run `python setup.py sdist`, which will create a tar archive under `dist/tfnlp-*.tar.gz`.
 
 Then follow the [latest instructions](https://cloud.google.com/ml-engine/docs/tensorflow/training-jobs) for running a training job in ML Engine. You can use the same training arguments you would locally after the empty `--` flag, other than specifying `--job-dir` before this flag.
-<aside class="notice">
-Perl scripts will not run in Cloud ML Engine, so you will need to leave off the `--script` argument, and run the evaluation script locally to see any official scores.
-</aside>
 
+Perl scripts will not run in Cloud ML Engine, so you will need to leave off the `--script` argument, and run the evaluation script locally to see any official scores.
 
 ## Example Applications
 We provide several examples of NLP applications–named entity recognition, semantic role labeling, and dependency parsing.
@@ -62,6 +60,8 @@ where `path/to/conll03` gives the location of the CoNLL 2003 corpus. You can run
 `--resources data/` indicates the base path to any resources, such as word embeddings, specified in the configuration file given by `--config data/config/ner-config.json`.
 
 Typically, the development F1 score reaches ~94, with a test F1 score of ~90.5.
+
+To train using ELMo–described in the paper [Deep contextualized word representations](https://arxiv.org/abs/1802.05365)–use `ner-elmo-config.json` instead of `ner-config.json`.
 
 ### Semantic Role Labeling
 To train a model based on [Deep Semantic Role Labeling: What works and what's next](https://homes.cs.washington.edu/~luheng/files/acl2017_hllz.pdf), you will need to download and prepare PropBank data from either the [CoNLL-2005 shared task](http://www.lsi.upc.edu/~srlconll/soft.html) or the the train-dev-test split from [CoNLL-2012](http://cemantix.org/data/ontonotes.html).

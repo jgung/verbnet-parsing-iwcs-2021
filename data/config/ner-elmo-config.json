@@ -1,0 +1,87 @@
+{
+  "reader": "conll_2003",
+  "type": "tagger",
+  "checkpoint_steps": 1500,
+  "state_size": 200,
+  "encoder_dropout": 0.5,
+  "encoder_output_dropout": 0.5,
+  "input_dropout": 0.5,
+  "encoder": "lstm",
+  "encoder_layers": 1,
+  "crf": true,
+  "batch_size": 10,
+  "metric": "F-Measure",
+  "optimizer": {
+    "name": "Momentum",
+    "params": {
+      "momentum": 0.9
+    },
+    "lr": {
+      "rate": 0.015,
+      "name": "inverse_time_decay",
+      "params": {
+        "decay_steps": 2000,
+        "decay_rate": 0.05
+      }
+    },
+    "clip": 5.0
+  },
+  "features": {
+    "targets": [
+      {
+        "name": "gold",
+        "key": "gold",
+        "indices": {
+          "O": 0
+        },
+        "unknown_word": "O",
+        "pad_word": "O"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "elmo",
+        "key": "word"
+      },
+      {
+        "name": "word",
+        "key": "word",
+        "threshold": 0,
+        "mapping_funcs": [
+          "lower",
+          "digit_norm"
+        ],
+        "config": {
+          "dim": 100,
+          "initializer": {
+            "embedding": "vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl",
+            "include_in_vocab": 400000,
+            "zero_init": true,
+            "restrict_vocab": true
+          }
+        }
+      },
+      {
+        "name": "char",
+        "key": "word",
+        "rank": 3,
+        "left_padding": 2,
+        "right_padding": 2,
+        "max_len": 30,
+        "mapping_funcs": [
+          "chars"
+        ],
+        "config": {
+          "dim": 30,
+          "dropout": 0.5,
+          "function": {
+            "name": "ConvNet",
+            "kernel_size": 3,
+            "num_filters": 30
+          }
+        }
+      }
+    ]
+  }
+}
