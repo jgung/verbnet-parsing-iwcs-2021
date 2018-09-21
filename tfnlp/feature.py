@@ -277,9 +277,13 @@ class Feature(Extractor):
                 raise AssertionError('Missing reserved word "{}" in vocabulary'.format(reserved_word))
         self.reversed = None
 
-    def extract(self, instance):
+    def _extract_raw(self, instance):
         value = self.get_values(instance)
         value = self.map(value)
+        return value
+
+    def extract(self, instance):
+        value = self._extract_raw(instance)
         index = self.feat_to_index(value)
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[index]))
 
@@ -390,40 +394,46 @@ class Feature(Extractor):
 
 
 class SequenceExtractor(Extractor):
-    def __init__(self, name, key, config=None, mapping_funcs=None, **kwargs):
-        super().__init__(name, key, config, mapping_funcs, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.rank = 2
 
+    def _extract_raw(self, sequence):
+        return [self.map(result) for result in self.get_values(sequence)]
+
     def extract(self, sequence):
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[self.map(result)]))
-                          for result in self.get_values(sequence)]
+        raw = self._extract_raw(sequence)
+        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[result])) for result in raw]
         return tf.train.FeatureList(feature=input_features)
 
 
 class TextExtractor(Extractor):
-    def __init__(self, name, key, config=None, mapping_funcs=None, **kwargs):
-        super().__init__(name, key, config, mapping_funcs, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.rank = 2
         self.dtype = tf.string
 
-    def extract(self, sequence):
-        input_features = [tf.train.Feature(bytes_list=tf.train.BytesList(value=[bytes(self.map(result), encoding='utf-8')]))
-                          for result in self.get_values(sequence)]
-        return tf.train.FeatureList(feature=input_features)
+    def _extract_raw(self, sequence):
+        return [self.map(result) for result in self.get_values(sequence)]
 
-    def map(self, value):
-        return value
+    def extract(self, sequence):
+        raw = self._extract_raw(sequence)
+        input_features = [tf.train.Feature(bytes_list=tf.train.BytesList(value=[bytes(result, encoding='utf-8')]))
+                          for result in raw]
+        return tf.train.FeatureList(feature=input_features)
 
 
 class SequenceFeature(Feature):
-
-    def __init__(self, name, key, config=None, train=False, indices=None, unknown_word=UNKNOWN_WORD, **kwargs):
-        super().__init__(name, key, config=config, train=train, indices=indices, unknown_word=unknown_word, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.rank = 2
 
+    def _extract_raw(self, sequence):
+        return [self.map(result) for result in self.get_values(sequence)]
+
     def extract(self, sequence):
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[self.feat_to_index(self.map(result))]))
-                          for result in self.get_values(sequence)]
+        raw = self._extract_raw(sequence)
+        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[self.feat_to_index(result)])) for result in raw]
         return tf.train.FeatureList(feature=input_features)
 
     def map(self, value):
@@ -452,8 +462,8 @@ class SequenceListFeature(SequenceFeature):
         self.left_padding, self.right_padding = left_padding, right_padding
 
     def extract(self, sequence):
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(self.map(result))))
-                          for result in self.get_values(sequence)]
+        raw = self._extract_raw(sequence)
+        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(result))) for result in raw]
         return tf.train.FeatureList(feature=input_features)
 
     def feat_to_index(self, features, count=True):
@@ -486,11 +496,8 @@ class SequenceListFeature(SequenceFeature):
 
 
 class ConcatenatingListFeatureExtractor(SequenceListFeature):
-    def __init__(self, name, key, config=None, max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD,
-                 pad_word=PAD_WORD, threshold=0, left_padding=0, right_padding=0, left_pad_word=START_WORD,
-                 right_pad_word=END_WORD, **kwargs):
-        super().__init__(name, key, config, max_len, train, indices, unknown_word, pad_word, threshold, left_padding,
-                         right_padding, left_pad_word, right_pad_word, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def get_values(self, sequence):
         lists = super(ConcatenatingListFeatureExtractor, self).get_values(sequence)
