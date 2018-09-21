@@ -42,7 +42,6 @@
       {
         "name": "word",
         "key": "word",
-        "threshold": 0,
         "mapping_funcs": [
           "lower",
           "digit_norm"

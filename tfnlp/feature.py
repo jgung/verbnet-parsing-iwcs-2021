@@ -333,8 +333,15 @@ class Feature(Extractor):
         if prune:
             self.prune_vocab()
         with file_io.FileIO(path, mode='w') as vocab:
-            for i in range(len(self.indices)):
-                vocab.write('{}\n'.format(self.index_to_feat(i)))
+            for feat in self.ordered_feats():
+                vocab.write('{}\n'.format(feat))
+
+    def ordered_feats(self):
+        for i in range(len(self.indices)):
+            yield self.index_to_feat(i)
+
+    def unk_index(self):
+        return self.indices[self.unknown_word]
 
     def prune_vocab(self):
         """

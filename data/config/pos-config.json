@@ -11,6 +11,54 @@
   "crf": true,
   "batch_size": 10,
   "metric": "Accuracy",
+  "buckets": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    50,
+    52,
+    56,
+    61,
+    99
+  ],
   "optimizer": {
     "name": "Momentum",
     "params": {
@@ -31,11 +79,11 @@
       {
         "name": "gold",
         "key": "gold",
-        "rank": 2,
         "indices": {
           "FW": 0
         },
-        "unknown_word": "FW"
+        "unknown_word": "FW",
+        "pad_word": "FW"
       }
     ],
     "inputs": [
@@ -43,14 +91,17 @@
         "name": "word",
         "key": "word",
         "mapping_funcs": [
-          "lower"
+          "lower",
+          "digit_norm"
         ],
         "config": {
           "dim": 100,
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 100000
+            "include_in_vocab": 400000,
+            "zero_init": true,
+            "restrict_vocab": true
           }
         }
       },
@@ -61,6 +112,9 @@
         "left_padding": 2,
         "right_padding": 2,
         "max_len": 30,
+        "mapping_funcs": [
+          "chars"
+        ],
         "config": {
           "dim": 30,
           "dropout": 0.5,
