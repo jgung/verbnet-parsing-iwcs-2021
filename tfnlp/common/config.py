@@ -2,6 +2,7 @@ import numbers
 
 import tensorflow as tf
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
+from tensorflow.contrib.opt import LazyAdamOptimizer
 
 from tfnlp.common.constants import TAGGER_KEY
 from tfnlp.common.utils import Params
@@ -94,6 +95,8 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
         opt = tf.train.AdadeltaOptimizer(lr, **optimizer.params)
     elif "Adam" == name:
         opt = tf.train.AdamOptimizer(lr, **optimizer.params)
+    elif "LazyAdam" == name:
+        opt = LazyAdamOptimizer(lr, **optimizer.params)
     elif "SGD" == name:
         opt = tf.train.GradientDescentOptimizer(lr)
     elif "Momentum" == name:

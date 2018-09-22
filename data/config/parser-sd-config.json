@@ -26,10 +26,10 @@
   ],
   "metric": "LAS",
   "optimizer": {
-    "name": "Adam",
+    "name": "LazyAdam",
     "params": {
       "beta1": 0.9,
-      "beta2": 0.99
+      "beta2": 0.9
     },
     "lr": 0.002,
     "clip": 5.0
