@@ -17,16 +17,20 @@ from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
 
-def conll_eval(gold_batches, predicted_batches, script_path):
+def conll_eval(gold_batches, predicted_batches, indices, script_path, output_file=None):
     """
     Run the CoNLL-2003 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
     :param predicted_batches: list of predicted label sequences
+    :param indices: order of sequences
     :param script_path: path to CoNLL-2003 eval script
+    :param output_file: optional output file name for predictions
     :return: tuple of (overall F-score, script_output)
     """
-    with tempfile.NamedTemporaryFile(mode='wt') as temp:
-        for gold_seq, predicted_seq in zip(gold_batches, predicted_batches):
+    _output_file = file_io.FileIO(output_file, 'w') if output_file else tempfile.NamedTemporaryFile(mode='wt')
+    with _output_file as temp:
+        # sort by sentence index to maintain original order of instances
+        for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
             for label, prediction in zip(gold_seq, predicted_seq):
                 temp.write("_ {} {}\n".format(label, prediction))
             temp.write("\n")  # sentence break
@@ -116,9 +120,18 @@ def _write_to_file(output_file, ys, indices, ids):
     output_file.seek(0)
 
 
-def accuracy_eval(gold_batches, predicted_batches):
+def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
     gold = []
     test = []
+
+    if output_file:
+        with file_io.FileIO(output_file, 'w') as _out_file:
+            # sort by sentence index to maintain original order of instances
+            for predicted_seq, index in sorted(zip(predicted_batches, indices), key=lambda k: k[1]):
+                for prediction in predicted_seq:
+                    _out_file.write("{}\n".format(prediction))
+                _out_file.write("\n")  # sentence break
+
     for gold_seq, predicted_seq in zip(gold_batches, predicted_batches):
         gold.extend(gold_seq)
         test.extend(predicted_seq)
@@ -135,50 +148,49 @@ def accuracy_eval(gold_batches, predicted_batches):
 
 
 class SequenceEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, script_path, predict_tensor, gold_tensor, length_tensor, vocab):
+    def __init__(self, script_path, tensors, vocab, output_file=None):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param script_path: path to eval script
-        :param predict_tensor: iterable over a batch of predictions
-        :param gold_tensor: iterable over the corresponding batch of labels
-        :param length_tensor: batch-sized tensor of sequence lengths
+        :param tensors: dictionary of batch-sized tensors necessary for computing evaluation
         :param vocab: label feature vocab
+        :param output_file: optional output file name for predictions
         """
         self._script_path = script_path
-        self._predict_tensor = predict_tensor
-        self._gold_tensor = gold_tensor
-        self._length_tensor = length_tensor
+        self._fetches = tensors
         self._vocab = vocab
+        self._output_file = output_file
 
         self._predictions = None
         self._gold = None
+        self._indices = None
         self._best = -1
 
     def begin(self):
         self._predictions = []
         self._gold = []
+        self._indices = []
 
     def before_run(self, run_context):
-        fetches = {LABEL_KEY: self._gold_tensor,
-                   PREDICT_KEY: self._predict_tensor,
-                   LENGTH_KEY: self._length_tensor}
-        return SessionRunArgs(fetches=fetches)
+        return SessionRunArgs(fetches=self._fetches)
 
     def after_run(self, run_context, run_values):
-        for gold, predictions, seq_len in zip(run_values.results[LABEL_KEY],
-                                              run_values.results[PREDICT_KEY],
-                                              run_values.results[LENGTH_KEY]):
+        for gold, predictions, seq_len, idx in zip(run_values.results[LABEL_KEY],
+                                                   run_values.results[PREDICT_KEY],
+                                                   run_values.results[LENGTH_KEY],
+                                                   run_values.results[SENTENCE_INDEX]):
             self._gold.append([self._vocab.index_to_feat(val) for val in gold][:seq_len])
             self._predictions.append([self._vocab.index_to_feat(val) for val in predictions][:seq_len])
+            self._indices.append(idx)
 
     def end(self, session):
         if self._best >= 0:
             tf.logging.info("Current best score: %f", self._best)
         if self._script_path is not None:
-            score, result = conll_eval(self._gold, self._predictions, self._script_path)
+            score, result = conll_eval(self._gold, self._predictions, self._indices, self._script_path, self._output_file)
             tf.logging.info(result)
         else:
-            score = accuracy_eval(self._gold, self._predictions)
+            score = accuracy_eval(self._gold, self._predictions, output_file=self._output_file)
         if score > self._best:
             self._best = score
 
@@ -190,11 +202,7 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         :param tensors
         :param vocab: label feature vocab
         """
-        self._predict_tensor = tensors[PREDICT_KEY]
-        self._gold_tensor = tensors[LABEL_KEY]
-        self._length_tensor = tensors[LENGTH_KEY]
-        self._marker_tensor = tensors[MARKER_KEY]
-        self._index_tensor = tensors[SENTENCE_INDEX]
+        self._fetches = tensors
         self._vocab = vocab
 
         # initialized in self.begin
@@ -211,12 +219,7 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         self._ids = []
 
     def before_run(self, run_context):
-        fetches = {LABEL_KEY: self._gold_tensor,
-                   PREDICT_KEY: self._predict_tensor,
-                   LENGTH_KEY: self._length_tensor,
-                   MARKER_KEY: self._marker_tensor,
-                   SENTENCE_INDEX: self._index_tensor}
-        return SessionRunArgs(fetches=fetches)
+        return SessionRunArgs(fetches=self._fetches)
 
     def after_run(self, run_context, run_values):
         for gold, predictions, markers, seq_len, idx in zip(run_values.results[LABEL_KEY],
@@ -262,12 +265,7 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
         self._arcs = []
 
     def before_run(self, run_context):
-        fetches = {REL_PROBS: self._tensors[REL_PROBS],
-                   ARC_PROBS: self._tensors[ARC_PROBS],
-                   LENGTH_KEY: self._tensors[LENGTH_KEY],
-                   HEAD_KEY: self._tensors[HEAD_KEY],
-                   DEPREL_KEY: self._tensors[DEPREL_KEY]}
-        return SessionRunArgs(fetches=fetches)
+        return SessionRunArgs(fetches=self._tensors)
 
     def after_run(self, run_context, run_values):
         for rel_probs, arc_probs, rels, heads, seq_len in zip(run_values.results[REL_PROBS],

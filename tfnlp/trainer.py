@@ -42,6 +42,7 @@ def default_args():
     parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite previous trained models and vocabularies')
+    parser.add_argument('--output', type=str, help='Path to output predictions (during evaluation and application)')
     parser.set_defaults(overwrite=False)
     return parser
 
@@ -55,6 +56,7 @@ class Trainer(object):
         self._raw_valid = args.valid
         self._raw_test = args.test
         self._overwrite = args.overwrite
+        self._output = args.output
 
         self._save_path = args.save
         self._vocab_path = args.vocab or os.path.join(args.save, VOCAB_PATH)
@@ -215,7 +217,8 @@ class Trainer(object):
         return HParams(extractor=self._feature_extractor,
                        config=self._training_config,
                        script_path=self._eval_script_path,
-                       label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY))
+                       label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY),
+                       output=self._output)
 
     def _input_fn(self, dataset, train=False):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),

@@ -88,10 +88,14 @@ def tagger_model_func(features, mode, params):
             evaluation_hooks = [eval_hook]
         else:
             evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
-                                                 gold_tensor=targets,
-                                                 predict_tensor=predictions,
-                                                 length_tensor=features[constants.LENGTH_KEY],
-                                                 vocab=target)]
+                                                 tensors={
+                                                     constants.LABEL_KEY: targets,
+                                                     constants.PREDICT_KEY: predictions,
+                                                     constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+                                                     constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
+                                                 },
+                                                 vocab=target,
+                                                 output_file=params.output)]
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
