@@ -12,8 +12,8 @@ from tfnlp.feature import Feature, FeatureExtractor, LengthFeature, SequenceFeat
 
 def test_extractor():
     num_feature = Feature(LABEL_KEY, LABEL_KEY)
-    len_feature = LengthFeature(WORD_KEY)
     word_feature = SequenceFeature(WORD_KEY, WORD_KEY)
+    len_feature = LengthFeature(word_feature)
     char_feature = SequenceListFeature(CHAR_KEY, WORD_KEY, mapping_funcs=[characters])
     extractor = FeatureExtractor([word_feature, char_feature, len_feature], [num_feature])
     extractor.initialize()

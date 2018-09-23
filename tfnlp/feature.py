@@ -196,7 +196,8 @@ def get_feature_extractor(config):
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
     # used to establish sequence length for bucketed batching
-    seq_feat = next((feat for feat in config.targets if feat.name == config.seq_feat), None)
+    seq_feat = next((feat for feat in config.targets if feat.name == config.seq_feat),
+                    next((feat for feat in config.inputs if feat.name == config.seq_feat), None))
     if not seq_feat:
         raise AssertionError("No sequence length feature provided with name: " + config.seq_feat)
     config.inputs.append(LengthFeature(seq_feat))
