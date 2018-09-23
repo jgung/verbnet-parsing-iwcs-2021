@@ -3,7 +3,7 @@
   "type": "parser",
   "checkpoint_steps": 1000,
   "patience": 5000,
-  "state_size": 200,
+  "state_size": 400,
   "encoder_dropout": 0.33,
   "encoder_input_dropout": 0.33,
   "input_dropout": 0.0,
@@ -29,7 +29,7 @@
     "name": "Adam",
     "params": {
       "beta1": 0.9,
-      "beta2": 0.99
+      "beta2": 0.9
     },
     "lr": 0.002,
     "clip": 5.0

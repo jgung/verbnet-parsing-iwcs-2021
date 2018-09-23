@@ -293,9 +293,12 @@ def parser_write_and_eval(arc_probs, rel_probs, heads, rels, features, script_pa
     _gold_file = file_io.FileIO(gold_path, 'w') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     _out_file = file_io.FileIO(out_path, 'w') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
+
+    write_func = write_parse_results_to_conllx_file if 'conllx' in script_path else write_parse_results_to_file
+
     with _out_file as system_file, _gold_file as gold_file:
-        write_parse_results_to_file(sys_heads, sys_rels, features, system_file)
-        write_parse_results_to_file(heads, rels, features, gold_file)
+        write_func(sys_heads, sys_rels, features, system_file)
+        write_func(heads, rels, features, gold_file)
         result = subprocess.check_output(['perl', script_path, '-g', gold_file.name, '-s', system_file.name, '-q'],
                                          universal_newlines=True)
         tf.logging.info('\n%s', result)
@@ -325,6 +328,21 @@ def write_parse_results_to_file(heads, rels, features, file):
             token[9] = str(arc_pred)
             token[10] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
             token[11] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
+            file.write('\t'.join(token) + '\n')
+        file.write('\n')
+    file.flush()
+    file.seek(0)
+
+
+def write_parse_results_to_conllx_file(heads, rels, features, file):
+    for sentence_heads, sentence_rels in zip(heads, rels):
+        for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
+            # ID FORM LEMMA CPOS POS FEAT HEAD DEPREL PHEAD PDEPREL
+            token = ['_'] * 10
+            token[0] = str(index + 1)
+            token[1] = 'x'
+            token[6] = str(arc_pred)
+            token[7] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
             file.write('\t'.join(token) + '\n')
         file.write('\n')
     file.flush()
