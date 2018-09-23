@@ -131,7 +131,7 @@ class MultiConllReader(object):
         instances = {}
         for reader, suffix, part in zip(self.readers, self.suffixes, zip(*current)):
             instances[suffix] = reader.read_instances([line.split() for line in part])
-        for instance_fields in zip(*instances.values()):
+        for instance_fields in zip(*(instances[key] for key in self.suffixes)):
             instance = defaultdict(list)
             for field in instance_fields:
                 instance.update(field)
@@ -383,24 +383,29 @@ def get_reader(reader_config):
     Return a corpus reader for a given config.
     :param reader_config: reader configuration
     """
-    if reader_config == 'conll_2003':
-        return conll_2003_reader()
-    elif reader_config == 'conll_2009':
-        return conll_2009_reader()
-    elif reader_config == 'conllx':
-        return conllx_reader()
-    elif reader_config == 'conll_2005':
-        return conll_2005_reader()
-    elif reader_config == 'conll_2005_phrase':
-        return conll_2005_reader(phrase=True)
-    elif reader_config == 'conll_2012':
-        return conll_2012_reader()
-    elif reader_config == 'conll_2012_phrase':
-        return conll_2012_reader(phrase=True)
-    elif reader_config == 'ptb_pos':
-        return ptb_pos_reader()
+    if isinstance(reader_config, str):
+        if reader_config == 'conll_2003':
+            return conll_2003_reader()
+        elif reader_config == 'conll_2009':
+            return conll_2009_reader()
+        elif reader_config == 'conllx':
+            return conllx_reader()
+        elif reader_config == 'conll_2005':
+            return conll_2005_reader()
+        elif reader_config == 'conll_2005_phrase':
+            return conll_2005_reader(phrase=True)
+        elif reader_config == 'conll_2012':
+            return conll_2012_reader()
+        elif reader_config == 'conll_2012_phrase':
+            return conll_2012_reader(phrase=True)
+        elif reader_config == 'ptb_pos':
+            return ptb_pos_reader()
     else:
-        raise ValueError("Unexpected reader type: " + reader_config)
+        if reader_config.get('field_index_map'):
+            return ConllReader({val: key for key, val in reader_config.field_index_map.items()})
+        elif reader_config.get('readers'):
+            return MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
+    raise ValueError("Unexpected reader type: " + reader_config)
 
 
 def write_ptb_pos_files(wsj_path, out_dir):

@@ -10,10 +10,11 @@ class TestChunk(unittest.TestCase):
 
     def test_multi_reader(self):
         filepath = pkg_resources.resource_filename(__name__, "resources/conllx.txt")
-        multireader = MultiConllReader([conllx_reader(), ConllReader({0: "pred_pos"})], ['.dep', '.pos'])
+        multireader = MultiConllReader([conllx_reader(), ConllReader({0: "pos"})], ['.dep', '.pos'])
         instances = list(multireader.read_file(filepath))
         self.assertEqual(2, len(instances))
-        self.assertTrue("pred_pos" in instances[0])
+        self.assertTrue("pos" in instances[0])
+        self.assertEqual("XX", instances[0]["pos"][0])
 
     def test_reader_single(self):
         filepath = pkg_resources.resource_filename(__name__, "resources/conll03-test.txt")

@@ -1,5 +1,18 @@
 {
-  "reader": "conllx",
+  "reader": {
+    "readers": [
+      "conllx",
+      {
+        "field_index_map": {
+          "pos": 0
+        }
+      }
+    ],
+    "suffixes": [
+      "",
+      ".pos"
+    ]
+  },
   "type": "parser",
   "checkpoint_steps": 1000,
   "patience": 5000,
