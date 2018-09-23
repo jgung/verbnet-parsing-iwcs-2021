@@ -67,8 +67,8 @@
     "lr": 1.0,
     "clip": 1.0
   },
-  "inputs": {
-    "seq_feat": "word",
+  "features": {
+    "seq_feat": "gold",
     "targets": [
       {
         "name": "gold",
@@ -80,7 +80,7 @@
         "pad_word": "O"
       }
     ],
-    "features": [
+    "inputs": [
       {
         "name": "elmo",
         "key": "word"

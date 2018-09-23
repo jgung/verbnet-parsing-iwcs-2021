@@ -68,7 +68,7 @@
     "clip": 1.0
   },
   "features": {
-    "seq_feat": "word",
+    "seq_feat": "gold",
     "targets": [
       {
         "name": "gold",

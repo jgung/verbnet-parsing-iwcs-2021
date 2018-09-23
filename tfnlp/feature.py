@@ -14,6 +14,7 @@ from tfnlp.layers.reduce import ConvNet
 LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"
 CHARACTERS = "chars"
+PADDING = "pad"
 
 
 def _get_reduce_function(config, dim, length):
@@ -53,7 +54,21 @@ def _get_mapping_function(func):
         return normalize_digits
     elif func == CHARACTERS:
         return characters
-    raise AssertionError("Unexpected function name: {}".format(func))
+    else:
+        raise AssertionError("Unexpected function name: {}".format(func))
+
+
+def _get_padding_function(func):
+    func_type = func['type']
+    if func_type == PADDING:
+        val = func.get('value', PAD_WORD)
+        count = func.get('count', 1)
+
+        def padding(value):
+            return count * [val] + value
+
+        return padding
+    raise AssertionError("Unexpected function type: {}".format(func_type))
 
 
 class FeatureInitializer(Params):
@@ -115,6 +130,8 @@ class FeatureConfig(Params):
         self.rank = feature.get('rank', 2)
         # string mapping functions applied during extraction
         self.mapping_funcs = [_get_mapping_function(mapping_func) for mapping_func in feature.get('mapping_funcs', [])]
+        # padding functions applied during extraction
+        self.padding_funcs = [_get_padding_function(padding_func) for padding_func in feature.get('padding_funcs', [])]
         # maximum sequence length of feature
         self.max_len = feature.get('max_len')
         # word used to replace OOV tokens
@@ -179,7 +196,10 @@ def get_feature_extractor(config):
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
     # used to establish sequence length for bucketed batching
-    config.inputs.append(LengthFeature(config.seq_feat))
+    seq_feat = next((feat for feat in config.targets if feat.name == config.seq_feat), None)
+    if not seq_feat:
+        raise AssertionError("No sequence length feature provided with name: " + config.seq_feat)
+    config.inputs.append(LengthFeature(seq_feat))
 
     return FeatureExtractor(features=config.inputs, targets=config.targets)
 
@@ -190,7 +210,7 @@ class Extractor(object):
     metadata such as sequence lengths and identifiers.
     """
 
-    def __init__(self, name, key, config=None, mapping_funcs=None, default_val=None, **kwargs):
+    def __init__(self, name, key, config=None, mapping_funcs=None, padding_funcs=None, default_val=None, **kwargs):
         """
         Initialize an extractor.
         :param name: unique identifier for this feature
@@ -198,12 +218,14 @@ class Extractor(object):
         may perform different transformations to the same input to create different features
         :param config: extra parameters used during training
         :param mapping_funcs: list of functions mapping features to new values (e.g. converting to lowercase, normalizing digits)
+        :param padding_funcs: list of padding functions
         """
         self.name = name
         self.key = key
         self.rank = 1
         self.config = config if config else FeatureHyperparameters(Params(), None)
         self.mapping_funcs = mapping_funcs if mapping_funcs else []
+        self.padding_funcs = padding_funcs if padding_funcs else []
         self.default_val = default_val
         self.dtype = tf.int64
 
@@ -232,29 +254,30 @@ class Extractor(object):
         :param sequence: dictionary of sequences for feature extraction
         :return: target(s) for feature extraction
         """
-        if self.default_val is not None:
-            return sequence.get(self.key, self.default_val)
-        return sequence[self.key]
+        val = sequence.get(self.key, self.default_val) if self.default_val is not None else sequence[self.key]
+        for func in self.padding_funcs:
+            val = func(val)
+        return val
 
     def has_vocab(self):
         return False
 
 
 class Feature(Extractor):
-    def __init__(self, name, key, config=None, train=False, indices=None, pad_word=PAD_WORD, unknown_word=UNKNOWN_WORD,
-                 threshold=0, mapping_funcs=None, **kwargs):
+    def __init__(self, name, key, train=False, indices=None, pad_word=PAD_WORD, unknown_word=UNKNOWN_WORD,
+                 threshold=0, **kwargs):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
         :param name: unique identifier for this feature
         :param key: key used for extracting values from input instance dictionary. Distinct from `name`, as we
         may perform different transformations to the same input to create different features
         :param train: if `True`, then update vocabulary upon encountering new words--otherwise, leave it unmodified
-        :param indices: (optional) initial indices used to initialize the vocabulary
-        :param pad_word: (optional) pad word form
-        :param unknown_word: (optional) unknown word form
-        :param mapping_funcs: list of functions mapping features to new values (e.g. converting to lowercase, normalizing digits)
+        :param indices: initial indices used to initialize the vocabulary
+        :param pad_word: pad word form
+        :param unknown_word: unknown word form
+        :param threshold: minimum count of this feature to be saved in vocabulary
         """
-        super(Feature, self).__init__(name=name, key=key, config=config, mapping_funcs=mapping_funcs, **kwargs)
+        super(Feature, self).__init__(name=name, key=key, **kwargs)
         self.train = train
         self.indices = indices  # feat_to_index dict
         self.reversed = None  # index_to_feat dict
@@ -516,15 +539,19 @@ class ConcatenatingListFeatureExtractor(SequenceListFeature):
 
 
 class LengthFeature(Extractor):
-    def __init__(self, key, name=LENGTH_KEY):
-        super().__init__(name=name, key=key)
+    def __init__(self, seq_feat, name=LENGTH_KEY):
+        super().__init__(name=name, key=seq_feat.key)
+        self.seq_feat = seq_feat
         self.counts = {}
 
     def map(self, value):
-        value = super(LengthFeature, self).map(value)
+        value = self.seq_feat.map(value)
         length = len(value)
         self.counts[length] = self.counts.get(length, 0) + 1
         return length
+
+    def get_values(self, sequence):
+        return self.seq_feat.get_values(sequence)
 
 
 def index_feature():

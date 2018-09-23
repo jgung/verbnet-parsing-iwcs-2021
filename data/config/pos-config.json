@@ -75,6 +75,7 @@
     "clip": 5.0
   },
   "features": {
+    "seq_feat": "gold",
     "targets": [
       {
         "name": "gold",

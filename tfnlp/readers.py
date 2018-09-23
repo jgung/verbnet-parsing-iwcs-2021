@@ -89,10 +89,58 @@ class ConllReader(object):
         return sentence
 
 
+class MultiConllReader(object):
+    def __init__(self, readers, suffixes):
+        """
+        Initialize a CoNLL reader with a given map from column indices to field names.
+        :param readers: individual readers
+        :param suffixes: target suffixes for each reader
+        """
+        super(MultiConllReader, self).__init__()
+        self.readers = readers
+        self.suffixes = suffixes
+
+    def read_file(self, path):
+        """
+        Read instances from files at a given path.
+        :param path: base path to CoNLL-formatted files
+        :return: CoNLL instances
+        """
+        files = []
+        try:
+            files = [file_io.FileIO(path + suffix, 'r') for suffix in self.suffixes]
+            current = []
+            for views in zip(*files):
+                views = [line.strip() for line in views]
+                blank_line = any(not line or reader.line_filter(line) for line, reader in zip(views, self.readers))
+                if blank_line:
+                    if current:
+                        for instance in self.read_instances(current):
+                            yield instance
+                        current = []
+                    continue
+                current.append(views)
+            if current:  # read last instance if there is no newline at end of file
+                for instance in self.read_instances(current):
+                    yield instance
+        finally:
+            for file in files:
+                file.close()
+
+    def read_instances(self, current):
+        instances = {}
+        for reader, suffix, part in zip(self.readers, self.suffixes, zip(*current)):
+            instances[suffix] = reader.read_instances([line.split() for line in part])
+        for instance_fields in zip(*instances.values()):
+            instance = defaultdict(list)
+            for field in instance_fields:
+                instance.update(field)
+            yield instance
+
+
 class ConllDepReader(ConllReader):
-    def __init__(self, index_field_map, line_filter=lambda line: False, label_field=None):
-        super().__init__(index_field_map=index_field_map, line_filter=line_filter, label_field=label_field,
-                         chunk_func=lambda x: x)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def read_instances(self, rows):
         instances = [self.read_fields(rows)]
@@ -100,14 +148,6 @@ class ConllDepReader(ConllReader):
             instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
             if self.label_field is not None:
                 instance[LABEL_KEY] = instance[self.label_field][:]
-            # add root
-            for key, val in instance.items():
-                if key == SENTENCE_INDEX:
-                    continue
-                if key == HEAD_KEY:
-                    val.insert(0, 0)
-                else:
-                    val.insert(0, '<ROOT>')
 
         return instances
 

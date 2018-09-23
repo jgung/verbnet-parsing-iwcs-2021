@@ -190,7 +190,7 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
             score, result = conll_eval(self._gold, self._predictions, self._indices, self._script_path, self._output_file)
             tf.logging.info(result)
         else:
-            score = accuracy_eval(self._gold, self._predictions, output_file=self._output_file)
+            score = accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
         if score > self._best:
             self._best = score
 

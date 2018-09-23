@@ -35,11 +35,19 @@
     "clip": 5.0
   },
   "features": {
+    "seq_feat": "head",
     "targets": [
       {
         "name": "head",
         "key": "head",
-        "numeric": true
+        "numeric": true,
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": 0
+          }
+        ]
       },
       {
         "name": "deprel",
@@ -47,7 +55,14 @@
         "indices": {
           "O": 0
         },
-        "unknown_word": "O"
+        "unknown_word": "O",
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": "<ROOT>"
+          }
+        ]
       }
     ],
     "inputs": [
@@ -56,6 +71,13 @@
         "key": "word",
         "mapping_funcs": [
           "lower"
+        ],
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": "<ROOT>"
+          }
         ],
         "config": {
           "dim": 100,
@@ -78,6 +100,13 @@
         "mapping_funcs": [
           "lower"
         ],
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": "<ROOT>"
+          }
+        ],
         "config": {
           "dim": 100,
           "word_dropout": 0.33,
@@ -97,7 +126,14 @@
           "initializer": {
             "zero_init": true
           }
-        }
+        },
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": "<ROOT>"
+          }
+        ]
       }
     ]
   }
