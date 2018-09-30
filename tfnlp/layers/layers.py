@@ -3,6 +3,8 @@ from collections import defaultdict
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+from tensor2tensor.layers.common_attention import multihead_attention, attention_bias_ignore_padding, add_timing_signal_1d
+from tensorflow.contrib.layers import layer_norm
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clip_ops
@@ -117,6 +119,8 @@ def encoder(features, inputs, mode, config):
         return highway_dblstm(inputs, sequence_lengths, training, config)
     elif config.encoder == 'lstm':
         return stacked_bilstm(inputs, sequence_lengths, training, config)
+    elif config.encoder == 'transformer':
+        return transformer_encoder(inputs, sequence_lengths, training, config)
     else:
         raise ValueError('No encoder of type "{}" available'.format(config.encoder))
 
@@ -358,3 +362,63 @@ class HighwayLSTMCell(LayerRNNCell):
 
         new_state = (LSTMStateTuple(c, m))
         return m, new_state
+
+
+def transformer_encoder(inputs, sequence_lengths, training, config):
+    with tf.variable_scope("encoder_input_proj"):
+        inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim), alpha=0.1)
+    with tf.variable_scope('transformer'):
+        mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.int32)
+        # e.g. [0 0 0 0 -inf -inf -inf] for a sequence length of 4
+        attention_bias = attention_bias_ignore_padding(tf.cast(1 - mask, tf.float32))
+        # add timing signal
+        inputs = add_timing_signal_1d(inputs)
+        for i in range(config.encoder_layers):
+            with tf.variable_scope('layer%d' % i):
+                inputs = transformer(inputs, attention_bias, training, config)
+
+    inputs = layer_norm(inputs)
+
+    return inputs, config.head_dim
+
+
+def transformer(inputs, attention_bias, training, config):
+    with tf.name_scope('transformer_layer'):
+        with tf.variable_scope("self_attention"):
+            x = inputs
+            y = multihead_attention(query_antecedent=x, memory_antecedent=None,
+                                    bias=attention_bias,
+                                    total_key_depth=config.head_dim,
+                                    total_value_depth=config.head_dim,
+                                    output_depth=config.head_dim,
+                                    num_heads=config.num_heads,
+                                    dropout_rate=(config.attention_dropout if training else 0),
+                                    attention_type="dot_product")
+            x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
+
+        with tf.variable_scope("ffnn"):
+            x = layer_norm(x)
+            y = conv_hidden_relu(x, hidden_size=config.relu_hidden_size, output_size=config.head_dim,
+                                 keep_prob=(1 - config.relu_dropout) if training else 1)
+            x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
+
+        return x
+
+
+def conv_hidden_relu(inputs, hidden_size, output_size, keep_prob):
+    """Hidden layer with RELU activation followed by linear projection."""
+    with tf.variable_scope("conv_hidden_relu", [inputs]):
+        inputs = tf.expand_dims(inputs, 1)
+        in_size = inputs.get_shape().as_list()[-1]
+        params1 = tf.get_variable("ff1", [1, 1, in_size, hidden_size])
+        params2 = tf.get_variable("ff2", [1, 1, hidden_size, hidden_size])
+        params3 = tf.get_variable("ff3", [1, 1, hidden_size, output_size])
+        h = tf.nn.conv2d(inputs, params1, [1, 1, 1, 1], "SAME")
+        h = tf.nn.leaky_relu(h, alpha=0.1)
+        h = tf.nn.dropout(h, keep_prob)
+        h = tf.nn.conv2d(h, params2, [1, 1, 1, 1], "SAME")
+        h = tf.nn.leaky_relu(h, alpha=0.1)
+        h = tf.nn.dropout(h, keep_prob)
+        ret = tf.nn.conv2d(h, params3, [1, 1, 1, 1], "SAME")
+        ret = tf.squeeze(ret, 1)
+        return ret

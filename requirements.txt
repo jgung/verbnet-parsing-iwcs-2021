@@ -2,3 +2,4 @@ numpy
 tensorflow-gpu>=1.10.0
 nltk
 tensorflow-hub
+tensor2tensor

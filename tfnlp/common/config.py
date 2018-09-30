@@ -1,11 +1,12 @@
 import numbers
 
 import tensorflow as tf
-from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 from tensorflow.contrib.opt import LazyAdamOptimizer
+from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 from tfnlp.common.constants import TAGGER_KEY
 from tfnlp.common.utils import Params
+from tfnlp.optim.lazy_adam import LazyAdamOptimizer as LazyNadamOptimizer
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
 
@@ -50,6 +51,13 @@ class BaseNetworkConfig(Params):
         self.zero_init = config.get('zero_init', True)
         self.type = config.get('type', TAGGER_KEY)
 
+        self.num_heads = config.get('num_heads', 8)
+        self.head_dim = config.get('head_dim', 25) * self.num_heads
+        self.attention_dropout = config.get('attention_dropout', 0.1)
+        self.relu_hidden_size = config.get('relu_hidden_size', 0.1)
+        self.relu_dropout = config.get('relu_dropout', 0.1)
+        self.prepost_dropout = config.get('prepost_dropout', 0.1)
+
 
 def get_network_config(config):
     return BaseNetworkConfig(config)
@@ -68,9 +76,29 @@ def get_learning_rate(lr_config, global_step):
         decay = exponential_decay(lr, global_step, **lr_config.params)
     elif "inverse_time_decay" == name:
         decay = inverse_time_decay(lr, global_step, **lr_config.params)
+    elif "vaswani" == name:
+        decay = _transformer_learning_rate(lr_config, global_step)
     else:
         raise ValueError("Unknown learning rate schedule: {}".format(name))
     return decay
+
+
+def _transformer_learning_rate(lr_config, global_step):
+    lr = lr_config.rate
+    warmup_steps = lr_config.warmup_steps
+    decay_rate = lr_config.decay_rate
+    if warmup_steps > 0:
+        # add 1 to global_step so that we start at 1 instead of 0
+        global_step_float = tf.cast(global_step, tf.float32) + 1.
+        lr *= tf.minimum(tf.rsqrt(global_step_float),
+                         tf.multiply(global_step_float, warmup_steps ** -decay_rate))
+        return lr
+    else:
+        decay_steps = lr_config.decay_steps
+        if decay_steps > 0:
+            return lr * decay_rate ** (global_step / decay_steps)
+        else:
+            return lr
 
 
 def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(learning_rate=1.0)):
@@ -97,6 +125,8 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
         opt = tf.train.AdamOptimizer(lr, **optimizer.params)
     elif "LazyAdam" == name:
         opt = LazyAdamOptimizer(lr, **optimizer.params)
+    elif "LazyNadam" == name:
+        opt = LazyNadamOptimizer(lr, **optimizer.params)
     elif "SGD" == name:
         opt = tf.train.GradientDescentOptimizer(lr)
     elif "Momentum" == name:

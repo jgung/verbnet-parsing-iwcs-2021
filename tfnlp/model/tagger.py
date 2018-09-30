@@ -23,19 +23,20 @@ def tagger_model_func(features, mode, params):
     target = params.extractor.targets[constants.LABEL_KEY]
     num_labels = target.vocab_size()
 
-    if params.config.zero_init:
-        initializer = tf.zeros_initializer
-    else:
-        initializer = tf.random_normal_initializer(stddev=0.01)
+    with tf.variable_scope("inference_layer"):
+        if params.config.zero_init:
+            initializer = tf.zeros_initializer
+        else:
+            initializer = tf.random_normal_initializer(stddev=0.01)
 
-    logits = tf.layers.dense(rnn_outputs, num_labels, kernel_initializer=initializer)
-    logits = tf.reshape(logits, [-1, time_steps, num_labels], name="unflatten_logits")
+        logits = tf.layers.dense(rnn_outputs, num_labels, kernel_initializer=initializer, name="softmax_projection")
+        logits = tf.reshape(logits, [-1, time_steps, num_labels], name="unflatten_logits")
 
-    if params.config.crf:
-        transition_matrix = tf.get_variable("transitions", [num_labels, num_labels])
-    else:
-        transition_matrix = tf.get_variable("transitions", [num_labels, num_labels],
-                                            trainable=False, initializer=_create_transition_matrix(target))
+        if params.config.crf:
+            transition_matrix = tf.get_variable("transitions", [num_labels, num_labels])
+        else:
+            transition_matrix = tf.get_variable("transitions", [num_labels, num_labels],
+                                                trainable=False, initializer=_create_transition_matrix(target))
 
     targets = None
     predictions = None
