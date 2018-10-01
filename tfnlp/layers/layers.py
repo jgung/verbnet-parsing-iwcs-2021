@@ -330,30 +330,28 @@ class HighwayLSTMCell(LayerRNNCell):
         hidden_matrix = math_ops.matmul(m_prev, self._hidden_kernel)
 
         if self._highway:
-            ih, jh, fh, oh, rh = array_ops.split(value=hidden_matrix, num_or_size_splits=5, axis=1)
-            ix, jx, fx, ox, rx, hx = array_ops.split(value=input_matrix, num_or_size_splits=6, axis=1)
-            # TODO: consider i, j, f, o, r = array_ops.split(hidden_matrix + input_matrix[:5], axis=1)
+            i, j, f, o, r = array_ops.split(hidden_matrix + input_matrix[:, :-self._num_units], num_or_size_splits=5, axis=1)
+            hx = input_matrix[:, -self._num_units:]
 
-            i = sigmoid(ih + ix)
-            o = sigmoid(oh + ox)
-            f = sigmoid(fh + fx + self._forget_bias)
-            j = self._activation(jh + jx)
+            i = sigmoid(i)
+            o = sigmoid(o)
+            f = sigmoid(f + self._forget_bias)
+            j = self._activation(j)
             c = f * c_prev + i * j
             if self._cell_clip is not None:
                 c = clip_ops.clip_by_value(c, -self._cell_clip, self._cell_clip)
 
-            t = sigmoid(rh + rx)
+            t = sigmoid(r)
             _m = o * self._activation(c)
             m = t * _m + (1 - t) * hx
 
         else:
-            ix, jx, fx, ox = array_ops.split(value=input_matrix, num_or_size_splits=4, axis=1)
-            ih, jh, fh, oh = array_ops.split(value=hidden_matrix, num_or_size_splits=4, axis=1)
+            i, j, f, o = array_ops.split(value=input_matrix + hidden_matrix, num_or_size_splits=4, axis=1)
 
-            i = sigmoid(ix + ih)
-            o = sigmoid(ox + oh)
-            f = sigmoid(fx + fh + self._forget_bias)
-            c = i * self._activation(jx + jh) + f * c_prev
+            i = sigmoid(i)
+            o = sigmoid(o)
+            f = sigmoid(f + self._forget_bias)
+            c = i * self._activation(j) + f * c_prev
 
             if self._cell_clip is not None:
                 c = clip_ops.clip_by_value(c, -self._cell_clip, self._cell_clip)
