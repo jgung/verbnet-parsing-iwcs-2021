@@ -20,11 +20,10 @@ from tfnlp.feature import get_feature_extractor, write_features
 from tfnlp.model.parser import parser_model_func
 from tfnlp.model.tagger import tagger_model_func
 from tfnlp.readers import get_reader
+from tfnlp.common.logging import set_up_logging
 
 VOCAB_PATH = 'vocab'
 CONFIG_PATH = 'config.json'
-
-tf.logging.set_verbosity(tf.logging.INFO)
 
 
 def default_args():
@@ -84,6 +83,7 @@ class Trainer(object):
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
         self._prediction_formatter_fn = default_formatter
+        set_up_logging(os.path.join(self._save_path, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
     def _validate_and_parse_args(self, args):
