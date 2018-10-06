@@ -8,11 +8,14 @@ def set_up_logging(log_path=None, level=tf.logging.INFO, formatter='%(asctime)s 
     tf_logging.set_verbosity(level)
     # create file handler which logs even debug messages
     if log_path:
-        fh = logging.FileHandler(log_path)
-        fh.setLevel(level)
-        fh.setFormatter(logging.Formatter(formatter))
+        try:
+            fh = logging.FileHandler(log_path)
+            fh.setLevel(level)
+            fh.setFormatter(logging.Formatter(formatter))
 
-        # noinspection PyProtectedMember
-        tf_logger = tf_logging._get_logger()
-        tf_logger.addHandler(fh)
-        tf_logger.info('Saving logs to "%s"' % log_path)
+            # noinspection PyProtectedMember
+            tf_logger = tf_logging._get_logger()
+            tf_logger.addHandler(fh)
+            tf_logger.info('Saving logs to "%s"' % log_path)
+        except FileNotFoundError:
+            tf.logging.info('Cannot save logs to file in Cloud ML Engine')
