@@ -396,20 +396,19 @@ class Feature(Extractor):
         :param path: vocabulary file
         :return: `True` if vocabulary successfully read
         """
-        indices = {}
-        try:
-            with file_io.FileIO(path, mode='r') as vocab:
-                for line in vocab:
-                    line = line.strip()
-                    if line:
-                        if line in indices:
-                            raise AssertionError('Duplicate entry in vocabulary given at {}: {}'.format(path, line))
-                        indices[line] = len(indices)
-            # re-initialize with vocabulary read from file
-            self.initialize(indices)
-            return True
-        except NotFoundError:
+        if not file_io.file_exists(path):
             return False
+        indices = {}
+        with file_io.FileIO(path, mode='r') as vocab:
+            for line in vocab:
+                line = line.strip()
+                if line:
+                    if line in indices:
+                        raise AssertionError('Duplicate entry in vocabulary given at {}: {}'.format(path, line))
+                    indices[line] = len(indices)
+        # re-initialize with vocabulary read from file
+        self.initialize(indices)
+        return True
 
     def vocab_size(self):
         """
