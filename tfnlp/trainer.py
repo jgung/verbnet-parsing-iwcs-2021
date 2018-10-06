@@ -166,6 +166,7 @@ class Trainer(object):
         self._feature_extractor = get_feature_extractor(self._feature_config)
         if self._mode == "train":
             if not self._overwrite:
+                tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
                 if self._feature_extractor.read_vocab(self._vocab_path):
                     tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
                 else:
@@ -174,6 +175,7 @@ class Trainer(object):
             else:
                 self._train_vocab()
         else:
+            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
         self._feature_extractor.test()
