@@ -145,8 +145,8 @@ def get_gradient_clip(network_config, default_val=5.0):
     :param default_val: default clip norm
     :return: clip norm
     """
-    try:
-        return network_config.optimizer.clip
-    except KeyError:
+    clip = network_config.optimizer.get('clip')
+    if clip is None:
         tf.logging.info("Using default global norm of gradient clipping threshold of %f", default_val)
-        return default_val
+        clip = default_val
+    return clip
