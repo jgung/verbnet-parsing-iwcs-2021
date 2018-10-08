@@ -2,12 +2,8 @@
   "reader": "tsv",
   "type": "classifier",
   "checkpoint_steps": 1024,
-  "state_size": 512,
-  "encoder_dropout": 0.5,
-  "encoder_output_dropout": 0.5,
+  "state_size": 100,
   "input_dropout": 0.5,
-  "encoder": "lstm",
-  "encoder_layers": 1,
   "batch_size": 32,
   "metric": "Accuracy",
   "optimizer": {

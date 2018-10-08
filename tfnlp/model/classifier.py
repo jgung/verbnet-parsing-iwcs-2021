@@ -6,20 +6,17 @@ import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
 from tfnlp.common.eval import log_trainable_variables
 from tfnlp.layers.layers import input_layer
+from tfnlp.layers.reduce import ConvNet
 
 
 def classifier_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
+    input_dim = tf.shape(inputs)[-1]
 
-    x = tf.reduce_mean(inputs, axis=1)
-    x = tf.layers.dropout(x, training=mode == tf.estimator.ModeKeys.TRAIN)
-    final_state = tf.layers.dense(x, 512, activation=tf.nn.leaky_relu)
-    # five = ConvNet.max_over_time_pooling_cnn(inputs, 100, 100, 100, 5)
-    # four = ConvNet.max_over_time_pooling_cnn(inputs, 100, 100, 100, 4)
-    # three = ConvNet.max_over_time_pooling_cnn(inputs, 100, 100, 100, 3)
-    # final_state = four + three + five
+    convs = [ConvNet.max_over_time_pooling_cnn(inputs, input_dim, params.config.state_size, width)
+             for width in range(3, 6)]
+    final_state = tf.concat(convs, axis=1)
     final_state = tf.layers.dropout(final_state, training=mode == tf.estimator.ModeKeys.TRAIN)
-    # outputs, output_size, final_state = encoder(features, inputs, mode, params.config)
 
     logits = final_state
 

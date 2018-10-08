@@ -25,6 +25,7 @@ from tfnlp.readers import get_reader
 
 VOCAB_PATH = 'vocab'
 CONFIG_PATH = 'config.json'
+MODEL_PATH = 'model'
 
 
 def default_args():
@@ -58,7 +59,7 @@ class Trainer(object):
         self._overwrite = args.overwrite
         self._output = args.output
 
-        self._save_path = args.save
+        self._save_path = os.path.join(args.save, MODEL_PATH)
         self._vocab_path = args.vocab or os.path.join(args.save, VOCAB_PATH)
         self._resources = args.resources
         self._eval_script_path = args.script

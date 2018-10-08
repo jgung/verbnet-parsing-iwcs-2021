@@ -382,5 +382,5 @@ def log_trainable_variables():
         total_size += variable_size
 
     weights.append("Total trainable variables size: %d" % total_size)
-    tf.logging.log_first_n(tf.logging.INFO, "Trainable variables:\n%s", 1, '\n'.join(weights))
+    tf.logging.log_first_n(tf.logging.INFO, "Trainable variables:\n%s\n", 1, '\n'.join(weights))
     return total_size
