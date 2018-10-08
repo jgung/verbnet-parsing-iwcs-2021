@@ -85,7 +85,7 @@ class Trainer(object):
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
         self._prediction_formatter_fn = default_formatter
-        set_up_logging(os.path.join(self._save_path, '{}.log'.format(self._mode)))
+        set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
     def _validate_and_parse_args(self, args):
