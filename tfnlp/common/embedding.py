@@ -26,7 +26,7 @@ def read_vectors(path, max_vecs=1000000):
         for line in lines:
             if len(vectors) >= max_vecs:
                 break
-            fields = line.strip().split()
+            fields = line.strip().split(' ')
             if len(fields) < 2:
                 continue
             vec = np.array([float(x) for x in fields[1:]], dtype=np.float32)
@@ -37,7 +37,7 @@ def read_vectors(path, max_vecs=1000000):
 
 def initialize_embedding_from_dict(vector_map, dim, vocabulary, zero_init=False, standardize=False):
     """
-    Initialize a numpy matrix from pre-existing vectors with indices corresponding to a given vocabulary. Words in vocabulary
+    Initialize a numpy matrix from pre-exi\sting vectors with indices corresponding to a given vocabulary. Words in vocabulary
     not in vectors are initialized using a given function.
     :param vector_map: dictionary from words to numpy arrays
     :param dim: dimensionality of vectors

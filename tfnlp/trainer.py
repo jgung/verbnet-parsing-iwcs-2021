@@ -12,15 +12,16 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, WORD_KEY
+from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, WORD_KEY, CLASSIFIER_KEY
 from tfnlp.common.eval import metric_compare_fn
+from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import get_feature_extractor, write_features
+from tfnlp.model.classifier import classifier_model_func
 from tfnlp.model.parser import parser_model_func
 from tfnlp.model.tagger import tagger_model_func
 from tfnlp.readers import get_reader
-from tfnlp.common.logging import set_up_logging
 
 VOCAB_PATH = 'vocab'
 CONFIG_PATH = 'config.json'
@@ -242,6 +243,7 @@ def default_input_fn(features):
 
 def get_model_func(model_type):
     model_funcs = {
+        CLASSIFIER_KEY: classifier_model_func,
         TAGGER_KEY: tagger_model_func,
         PARSER_KEY: parser_model_func,
         SRL_KEY: tagger_model_func,

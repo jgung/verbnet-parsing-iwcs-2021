@@ -374,12 +374,13 @@ def log_trainable_variables():
     """
     all_weights = {variable.name: variable for variable in tf.trainable_variables()}
     total_size = 0
+    weights = []
     for variable_name in sorted(list(all_weights)):
         variable = all_weights[variable_name]
-        tf.logging.log_first_n(tf.logging.INFO, "%s\tshape    %s", 1, variable.name[:-2].ljust(80),
-                               str(variable.shape).ljust(20))
+        weights.append("%s\tshape    %s" % (variable.name[:-2].ljust(80), str(variable.shape).ljust(20)))
         variable_size = int(np.prod(np.array(variable.shape.as_list())))
         total_size += variable_size
 
-    tf.logging.log_first_n(tf.logging.INFO, "Total trainable variables size: %d", 1, total_size)
+    weights.append("Total trainable variables size: %d" % total_size)
+    tf.logging.log_first_n(tf.logging.INFO, "Trainable variables:\n%s", 1, '\n'.join(weights))
     return total_size

@@ -34,8 +34,15 @@ class ConvNet(object):
         :return: 3D tensor [batch_size, time_steps, filters]
         """
         shape = tf.shape(tensor)
+        if tensor.shape.ndims == 4:
+            flatten = True
+        elif tensor.shape.ndims == 3:
+            flatten = False
+        else:
+            raise ValueError('Expecting 3 or 4-dimensional Tensor as input, got %s dims' % tensor.shape.ndims)
         # flatten sequences for input
-        tensor = tf.reshape(tensor, shape=[-1, sequence_length, input_size])
+        if flatten:
+            tensor = tf.reshape(tensor, shape=[-1, sequence_length, input_size])
 
         # initializer = None
         limit = math.sqrt(3.0 / num_filters)
@@ -43,5 +50,8 @@ class ConvNet(object):
         tensor = tf.layers.conv1d(tensor, filters=num_filters, kernel_size=kernel_size, activation=tf.nn.relu,
                                   kernel_initializer=initializer)
         tensor = tf.layers.max_pooling1d(tensor, pool_size=sequence_length - kernel_size + 1, strides=1)
-        tensor = tf.reshape(tensor, shape=[-1, shape[1], num_filters])
+        if flatten:
+            tensor = tf.reshape(tensor, shape=[-1, shape[1], num_filters])
+        else:
+            tensor = tf.reshape(tensor, shape=[-1, num_filters])
         return tensor

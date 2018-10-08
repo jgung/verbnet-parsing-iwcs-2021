@@ -12,13 +12,12 @@
   "batch_size": 10,
   "metric": "F-Measure",
   "optimizer": {
-    "name": "LazyAdam",
+    "name": "Momentum",
     "params": {
-      "beta1": 0.9,
-      "beta2": 0.9
+      "momentum": 0.9
     },
     "lr": {
-      "rate": 0.001,
+      "rate": 0.015,
       "name": "inverse_time_decay",
       "params": {
         "decay_steps": 2000,

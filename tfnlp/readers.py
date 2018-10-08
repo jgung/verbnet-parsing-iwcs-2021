@@ -11,6 +11,28 @@ from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID
     ROLESET_KEY, SENTENCE_INDEX, WORD_KEY, XPOS_KEY, MISC_KEY, ENHANCED_DEPS_KEY
 
 
+class TsvReader(object):
+
+    def __init__(self, line_filter=lambda line: False):
+        super(TsvReader, self).__init__()
+        self.line_filter = line_filter
+
+    def read_file(self, path):
+        """
+        Read instances from a file at a given path.
+        :param path: path to single TSV file with labels in the first column and sentences in the second
+        :return: labeled sentences
+        """
+        with file_io.FileIO(path, 'r') as lines:
+            for line in lines:
+                line = line.strip()
+                if line or not self.line_filter(line):
+                    line = line.split('\t')
+                    if len(line) != 2:
+                        raise AssertionError('Incorrect number of fields (was expecting 2) in line: %s' % line)
+                    yield {LABEL_KEY: line[0], WORD_KEY: line[1].split()}
+
+
 class ConllReader(object):
     def __init__(self, index_field_map, line_filter=lambda line: False, label_field=None, chunk_func=lambda x: x):
         """
@@ -400,6 +422,8 @@ def get_reader(reader_config):
             return conll_2012_reader(phrase=True)
         elif reader_config == 'ptb_pos':
             return ptb_pos_reader()
+        elif reader_config == 'tsv':
+            return TsvReader()
     else:
         if reader_config.get('field_index_map'):
             return ConllReader({val: key for key, val in reader_config.field_index_map.items()})

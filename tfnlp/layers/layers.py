@@ -151,6 +151,7 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
         return array_ops.reverse_sequence(input=_input, seq_lengths=sequence_lengths, seq_axis=1, batch_axis=0)
 
     outputs = None
+    final_state = None
     with tf.variable_scope("dblstm"):
         cells = [highway_lstm_cell(config.state_size) for _ in range(config.encoder_layers)]
 
@@ -159,15 +160,15 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
             with tf.variable_scope("%s-%s" % ('bw' if odd else 'fw', i // 2)) as layer_scope:
                 inputs = _reverse(inputs) if odd else inputs
 
-                outputs, _ = dynamic_rnn(cell=cell, inputs=inputs,
-                                         sequence_length=sequence_lengths,
-                                         dtype=tf.float32,
-                                         scope=layer_scope)
+                outputs, final_state = dynamic_rnn(cell=cell, inputs=inputs,
+                                                   sequence_length=sequence_lengths,
+                                                   dtype=tf.float32,
+                                                   scope=layer_scope)
 
                 outputs = _reverse(outputs) if odd else outputs
             inputs = outputs
 
-    return outputs, config.state_size
+    return outputs, config.state_size, final_state
 
 
 def stacked_bilstm(inputs, sequence_lengths, training, config):
@@ -185,13 +186,14 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
                               input_keep_prob=input_keep_prob)
 
     outputs = inputs
+    final_states = None
     for i in range(config.encoder_layers):
         with tf.variable_scope("biRNN_%d" % i):
             size = outputs.get_shape().as_list()[-1]
-            outputs, _ = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
-                                                   sequence_length=sequence_lengths, dtype=tf.float32)
+            outputs, final_states = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
+                                                              sequence_length=sequence_lengths, dtype=tf.float32)
             outputs = tf.concat(outputs, axis=-1, name="Concatenate_biRNN_outputs_%d" % i)
-    return outputs, config.state_size * 2
+    return outputs, config.state_size * 2, tf.concat([final_state[1] for final_state in final_states], axis=1)
 
 
 def embedding_initializer(embedding):
@@ -377,7 +379,7 @@ def transformer_encoder(inputs, sequence_lengths, training, config):
 
     inputs = layer_norm(inputs)
 
-    return inputs, config.head_dim
+    return inputs, config.head_dim, None
 
 
 def transformer(inputs, attention_bias, training, config):

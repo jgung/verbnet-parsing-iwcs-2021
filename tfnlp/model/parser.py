@@ -14,7 +14,7 @@ def parser_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
 
     # (2) transform inputs, producing a contextual vector for each input token
-    outputs, output_size = encoder(features, inputs, mode, params.config)
+    outputs, output_size, _ = encoder(features, inputs, mode, params.config)
 
     input_shape = get_shape(outputs)  # (b x n x d), d == output_size
     n_steps = input_shape[1]  # n
