@@ -15,6 +15,7 @@ LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"
 CHARACTERS = "chars"
 PADDING = "pad"
+CONV_PADDING = "conv"
 
 
 def _get_reduce_function(config, dim, length):
@@ -66,6 +67,15 @@ def _get_padding_function(func):
 
         def padding(value):
             return count * [val] + value
+
+        return padding
+    elif func_type == CONV_PADDING:
+        left = func.get('left', START_WORD)
+        right = func.get('right', END_WORD)
+        count = func.get('count', 1)
+
+        def padding(value):
+            return (count * [left]) + value + (count * [right])
 
         return padding
     raise AssertionError("Unexpected function type: {}".format(func_type))
@@ -230,14 +240,18 @@ class Extractor(object):
         self.default_val = default_val
         self.dtype = tf.int64
 
+    def _extract_raw(self, instance):
+        value = self.get_values(instance)
+        value = self.map(value)
+        return value
+
     def extract(self, instance):
         """
         Extracts a feature for a given instance.
         :param instance: feature extraction input
         :return: resulting extracted feature
         """
-        value = self.get_values(instance)
-        value = self.map(value)
+        value = self._extract_raw(instance)
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
     def map(self, value):
@@ -301,18 +315,10 @@ class Feature(Extractor):
                 raise AssertionError('Missing reserved word "{}" in vocabulary'.format(reserved_word))
         self.reversed = None
 
-    def _extract_raw(self, instance):
-        value = self.get_values(instance)
-        value = self.map(value)
-        return value
-
     def extract(self, instance):
         value = self._extract_raw(instance)
         index = self.feat_to_index(value)
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[index]))
-
-    def map(self, value):
-        return super(Feature, self).map(value)
 
     def feat_to_index(self, feat, count=True):
         """

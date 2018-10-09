@@ -45,7 +45,15 @@
         },
         "left_padding": 2,
         "right_padding": 2,
-        "threshold": 1
+        "threshold": 1,
+        "padding_funcs": [
+          {
+            "type": "conv",
+            "count": 2,
+            "left": "<BOS>",
+            "right": "<EOS>"
+          }
+        ]
       }
     ]
   }
