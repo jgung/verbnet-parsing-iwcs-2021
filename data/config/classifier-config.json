@@ -16,7 +16,7 @@
     "clip": 5.0
   },
   "features": {
-    "seq_feat": "gold",
+    "seq_feat": "word",
     "targets": [
       {
         "name": "gold",
@@ -43,6 +43,8 @@
             "restrict_vocab": false
           }
         },
+        "left_padding": 2,
+        "right_padding": 2,
         "threshold": 1
       }
     ]
