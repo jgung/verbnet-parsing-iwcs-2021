@@ -2,6 +2,7 @@ import gzip
 from collections import OrderedDict
 
 import numpy as np
+import tensorflow.logging as log
 from tensorflow.python.lib.io import file_io
 
 
@@ -26,12 +27,17 @@ def read_vectors(path, max_vecs=1000000):
         for line in lines:
             if len(vectors) >= max_vecs:
                 break
-            fields = line.strip().split(' ')
+            fields = line.strip().split()
             if len(fields) < 2:
+                continue
+            if dim == 0:
+                dim = len(fields) - 1
+            elif dim != len(fields) - 1:
+                log.warn('Skipping vector with unexpected number of dimensions in line %d: %s', len(vectors), line)
                 continue
             vec = np.array([float(x) for x in fields[1:]], dtype=np.float32)
             vectors[fields[0]] = vec
-            dim = vec.size
+
     return vectors, dim
 
 
