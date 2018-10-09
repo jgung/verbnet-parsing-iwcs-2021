@@ -136,7 +136,7 @@ def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
         gold.extend(gold_seq)
         test.extend(predicted_seq)
     cm = ConfusionMatrix(gold, test)
-    tf.logging.info(cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
+    tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
 
     if len(gold) != len(test):
         raise ValueError("Predictions and gold labels must have the same length.")
@@ -145,6 +145,47 @@ def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
     accuracy = correct / total
     tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
     return accuracy
+
+
+class ClassifierEvalHook(session_run_hook.SessionRunHook):
+    def __init__(self, tensors, vocab, output_file=None):
+        """
+        Initialize a `SessionRunHook` used to perform off-graph evaluation of classifications.
+        :param tensors: dictionary of batch-sized tensors necessary for computing evaluation
+        :param vocab: label feature vocab
+        :param output_file: optional output file name for predictions
+        """
+        self._fetches = tensors
+        self._vocab = vocab
+        self._output_file = output_file
+
+        self._predictions = None
+        self._gold = None
+        self._indices = None
+        self._best = -1
+
+    def begin(self):
+        self._predictions = []
+        self._gold = []
+        self._indices = []
+
+    def before_run(self, run_context):
+        return SessionRunArgs(fetches=self._fetches)
+
+    def after_run(self, run_context, run_values):
+        for gold, prediction, idx in zip(run_values.results[LABEL_KEY],
+                                         run_values.results[PREDICT_KEY],
+                                         run_values.results[SENTENCE_INDEX]):
+            self._gold.append([self._vocab.index_to_feat(gold)])
+            self._predictions.append([self._vocab.index_to_feat(prediction)])
+            self._indices.append(idx)
+
+    def end(self, session):
+        if self._best >= 0:
+            tf.logging.info("Current best score: %f", self._best)
+        score = accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
+        if score > self._best:
+            self._best = score
 
 
 class SequenceEvalHook(session_run_hook.SessionRunHook):

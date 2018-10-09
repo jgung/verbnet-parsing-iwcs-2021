@@ -43,7 +43,7 @@
             "restrict_vocab": false
           }
         },
-        "threshold": 2
+        "threshold": 1
       }
     ]
   }

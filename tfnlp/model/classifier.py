@@ -4,7 +4,7 @@ from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
-from tfnlp.common.eval import log_trainable_variables
+from tfnlp.common.eval import log_trainable_variables, ClassifierEvalHook
 from tfnlp.layers.layers import input_layer
 from tfnlp.layers.reduce import ConvNet
 
@@ -32,6 +32,7 @@ def classifier_model_func(features, mode, params):
     train_op = None
     eval_metric_ops = None
     export_outputs = None
+    evaluation_hooks = None
 
     if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
         log_trainable_variables()
@@ -51,7 +52,14 @@ def classifier_model_func(features, mode, params):
 
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = {constants.ACCURACY_METRIC_KEY: tf.metrics.accuracy(labels=targets, predictions=predictions)}
-
+        evaluation_hooks = [ClassifierEvalHook(tensors={
+            constants.LABEL_KEY: targets,
+            constants.PREDICT_KEY: predictions,
+            constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+            constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
+        },
+            vocab=target,
+            output_file=params.output)]
     if mode == tf.estimator.ModeKeys.PREDICT:
         index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
                                                          default_value=target.unknown_word)
@@ -63,4 +71,5 @@ def classifier_model_func(features, mode, params):
                                       loss=loss,
                                       train_op=train_op,
                                       eval_metric_ops=eval_metric_ops,
-                                      export_outputs=export_outputs)
+                                      export_outputs=export_outputs,
+                                      evaluation_hooks=evaluation_hooks)
