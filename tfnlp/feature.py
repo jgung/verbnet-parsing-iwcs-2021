@@ -454,9 +454,13 @@ class TextExtractor(Extractor):
 
 
 class SequenceFeature(Feature):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, key, left_pad_word=START_WORD, right_pad_word=END_WORD, left_padding=0, right_padding=0, **kwargs):
+        super().__init__(name, key, **kwargs)
         self.rank = 2
+
+        self.left_pad_word, self.right_pad_word = left_pad_word, right_pad_word
+        self.reserved_words = self.reserved_words | {left_pad_word, right_pad_word}
+        self.left_padding, self.right_padding = left_padding, right_padding
 
     def _extract_raw(self, sequence):
         return [self.map(result) for result in self.get_values(sequence)]
@@ -472,24 +476,13 @@ class SequenceFeature(Feature):
 
 class SequenceListFeature(SequenceFeature):
 
-    def __init__(self, name, key, config=None,
-                 max_len=20, train=False, indices=None, unknown_word=UNKNOWN_WORD, pad_word=PAD_WORD,
-                 threshold=0,
-                 left_padding=0,
-                 right_padding=0,
-                 left_pad_word=START_WORD,
-                 right_pad_word=END_WORD,
-                 mapping_funcs=None,
-                 **kwargs):
-        super().__init__(name, key, config=config, train=train, indices=indices,
-                         pad_word=pad_word, unknown_word=unknown_word, threshold=threshold, mapping_funcs=mapping_funcs, **kwargs)
+    def __init__(self, name, key, max_len=20, **kwargs):
+        super().__init__(name, key, **kwargs)
         self.rank = 3
+
         self.max_len = max_len
         if not max_len:
             raise AssertionError("Sequence list features require \"max_len\" to be specified")
-        self.left_pad_word, self.right_pad_word = left_pad_word, right_pad_word
-        self.reserved_words = self.reserved_words | {left_pad_word, right_pad_word}
-        self.left_padding, self.right_padding = left_padding, right_padding
 
     def extract(self, sequence):
         raw = self._extract_raw(sequence)
