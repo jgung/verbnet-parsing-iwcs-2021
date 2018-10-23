@@ -294,6 +294,7 @@ class Feature(Extractor):
         """
         super(Feature, self).__init__(name=name, key=key, **kwargs)
         self.train = train
+        self._fixed_indices = indices  # indices provided in configuration file, should be guaranteed
         self.indices = indices  # feat_to_index dict
         self.reversed = None  # index_to_feat dict
         self.counts = {}
@@ -381,12 +382,17 @@ class Feature(Extractor):
         """
         if not self.train:
             tf.logging.warn("Pruning vocabulary '%s' with `train==False` is a likely error", self.name)
-        vocab = {}
-        counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)]
+        # initial vocabulary with reserved words
+        vocab = {} if self._fixed_indices is None else self._fixed_indices
         for reserved_word in self.reserved_words:
-            vocab[reserved_word] = len(vocab)
+            if reserved_word not in vocab:
+                vocab[reserved_word] = len(vocab)
+
+        # after adding reserved words to vocab, sort vocab by counts and add to pruned vocab
+        counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)
+                  if feat not in vocab and feat not in self.reserved_words]
         for feat, count in counts:
-            if feat in self.reserved_words or feat not in self.indices:
+            if feat not in self.indices:
                 continue
             if count < self.threshold:
                 break
@@ -465,8 +471,12 @@ class SequenceFeature(Feature):
         self.rank = 2
 
         self.left_pad_word, self.right_pad_word = left_pad_word, right_pad_word
-        self.reserved_words = self.reserved_words | {left_pad_word, right_pad_word}
         self.left_padding, self.right_padding = left_padding, right_padding
+
+        if self.left_padding > 0:
+            self.reserved_words = self.reserved_words | {left_pad_word}
+        if self.right_padding > 0:
+            self.reserved_words = self.reserved_words | {right_pad_word}
 
     def _extract_raw(self, sequence):
         return [self.map(result) for result in self.get_values(sequence)]

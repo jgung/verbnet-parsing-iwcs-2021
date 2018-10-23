@@ -3,8 +3,9 @@ from collections import defaultdict
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
-from tensor2tensor.layers.common_attention import multihead_attention, attention_bias_ignore_padding, add_timing_signal_1d
+from tensor2tensor.layers.common_attention import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
 from tensorflow.contrib.layers import layer_norm
+from tensorflow.contrib.lookup import index_table_from_tensor
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clip_ops
@@ -57,6 +58,11 @@ def input_layer(features, params, training):
     # apply dropout across entire input layer
     results = tf.layers.dropout(results, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
     return results
+
+
+def _get_string_lookup(feature_strings, feature):
+    lookup = index_table_from_tensor(mapping=tf.constant(feature.ordered_feats()), default_value=feature.unk_index())
+    return lookup.lookup(feature_strings)
 
 
 def _get_embedding_input(feature_ids, feature, training):

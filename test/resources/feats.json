@@ -4,6 +4,7 @@
       {
         "name": "gold",
         "key": "gold",
+        "rank": 1,
         "indices": {
           "O": 0
         },

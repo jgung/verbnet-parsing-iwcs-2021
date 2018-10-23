@@ -12,7 +12,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, WORD_KEY, CLASSIFIER_KEY
+from tfnlp.common.constants import CLASSIFIER_KEY, LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
@@ -172,7 +172,8 @@ class Trainer(object):
                 if self._feature_extractor.read_vocab(self._vocab_path):
                     tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
                 else:
-                    tf.logging.info("No valid pre-existing vocabulary found at %s", self._vocab_path)
+                    tf.logging.info("No valid pre-existing vocabulary found at %s "
+                                    "(this is normal when not loading from an existing model)", self._vocab_path)
                     self._train_vocab()
             else:
                 self._train_vocab()

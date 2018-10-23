@@ -6,16 +6,13 @@ from tensorflow import Session
 
 from tfnlp.common.constants import CHAR_KEY, LABEL_KEY, LENGTH_KEY, WORD_KEY
 from tfnlp.common.utils import read_json
-from tfnlp.feature import Feature, FeatureExtractor, LengthFeature, SequenceFeature, SequenceListFeature, characters, \
-    get_feature_extractor
+from tfnlp.feature import get_feature_extractor
 
 
 def test_extractor():
-    num_feature = Feature(LABEL_KEY, LABEL_KEY)
-    word_feature = SequenceFeature(WORD_KEY, WORD_KEY)
-    len_feature = LengthFeature(word_feature)
-    char_feature = SequenceListFeature(CHAR_KEY, WORD_KEY, mapping_funcs=[characters])
-    extractor = FeatureExtractor([word_feature, char_feature, len_feature], [num_feature])
+    configpath = pkg_resources.resource_filename(__name__, "resources/feats.json")
+    config = read_json(configpath)
+    extractor = get_feature_extractor(config.features)
     extractor.initialize()
     extractor.train()
     return extractor
@@ -31,7 +28,7 @@ class TestFeature(unittest.TestCase):
 
     def test_scalar(self):
         feats = self.extractor.extract(self.sentence)
-        self.assertEqual(2, feats.context.feature[LABEL_KEY].int64_list.value[0])
+        self.assertEqual(1, feats.context.feature[LABEL_KEY].int64_list.value[0])
 
     def test_length(self):
         feats = self.extractor.extract(self.sentence)
@@ -45,11 +42,16 @@ class TestFeature(unittest.TestCase):
     def test_sequence_list(self):
         feats = self.extractor.extract(self.sentence)
         char_feature = self.extractor.feature(CHAR_KEY)
-        padding = (char_feature.max_len - 3) * [char_feature.indices.get(char_feature.pad_word)]
+        left_padding = char_feature.left_padding * [char_feature.indices[char_feature.left_pad_word]]
+        right_padding = char_feature.right_padding * [char_feature.indices[char_feature.right_pad_word]]
+        pad_index = char_feature.indices.get(char_feature.pad_word)
+        padding = (char_feature.max_len - 3 - len(left_padding) - len(right_padding)) * [pad_index]
 
         self.assertEqual(6, len(feats.feature_lists.feature_list[CHAR_KEY].feature))
-        self.assertEqual([4, 5, 6] + padding, feats.feature_lists.feature_list[CHAR_KEY].feature[0].int64_list.value)
-        self.assertEqual([12, 8, 4] + padding, feats.feature_lists.feature_list[CHAR_KEY].feature[5].int64_list.value)
+        self.assertEqual(left_padding + [4, 5, 6] + right_padding + padding,
+                         feats.feature_lists.feature_list[CHAR_KEY].feature[0].int64_list.value)
+        self.assertEqual(left_padding + [12, 8, 4] + right_padding + padding,
+                         feats.feature_lists.feature_list[CHAR_KEY].feature[5].int64_list.value)
 
     def test_not_train(self):
         self.extractor.extract(self.sentence)
@@ -64,7 +66,7 @@ class TestFeature(unittest.TestCase):
         result = self.extractor.parse(example.SerializeToString())
 
         char_feature = self.extractor.feature(CHAR_KEY)
-        self.assertEqual(4, len(result))
+        self.assertEqual(5, len(result))
         self.assertEqual(char_feature.max_len, result[CHAR_KEY].shape.dims[1].value)
         with Session():
             result[CHAR_KEY].eval()
@@ -86,19 +88,15 @@ class TestFeature(unittest.TestCase):
         self.extractor.extract(self.sentence)
         file = tempfile.NamedTemporaryFile()
         word_feature = self.extractor.feature(WORD_KEY)
-        word_feature.write_vocab(file.name, overwrite=True)
+        word_feature.write_vocab(file.name, overwrite=True, prune=True)
         word_feature.read_vocab(file.name)
         self.assertEqual(7, len(word_feature.indices))
         self.assertEqual("mat", word_feature.index_to_feat(6))
 
     def test_read_config(self):
-        configpath = pkg_resources.resource_filename(__name__, "resources/feats.json")
-        config = read_json(configpath)
-        extractor = get_feature_extractor(config.features)
-        extractor.initialize()
-        extractor.train()
+        extractor = test_extractor()
         feats = extractor.extract(self.sentence)
         self.assertEqual(6, len(feats.feature_lists.feature_list[CHAR_KEY].feature))
         self.assertEqual([[2], [3], [4], [5], [2], [6]],
                          [feat.int64_list.value for feat in feats.feature_lists.feature_list[WORD_KEY].feature])
-        self.assertEqual([[1]], [feat.int64_list.value for feat in feats.feature_lists.feature_list[LABEL_KEY].feature])
+        self.assertEqual([1], feats.context.feature[LABEL_KEY].int64_list.value)
