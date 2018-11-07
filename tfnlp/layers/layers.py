@@ -192,14 +192,14 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
                               input_keep_prob=input_keep_prob)
 
     outputs = inputs
-    final_states = None
+    fw_state, bw_state = None, None
     for i in range(config.encoder_layers):
         with tf.variable_scope("biRNN_%d" % i):
             size = outputs.get_shape().as_list()[-1]
-            outputs, final_states = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
-                                                              sequence_length=sequence_lengths, dtype=tf.float32)
+            outputs, (fw_state, bw_state) = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
+                                                                      sequence_length=sequence_lengths, dtype=tf.float32)
             outputs = tf.concat(outputs, axis=-1, name="Concatenate_biRNN_outputs_%d" % i)
-    return outputs, config.state_size * 2, tf.concat([final_state[1] for final_state in final_states], axis=1)
+    return outputs, config.state_size * 2, tf.concat([fw_state.h, bw_state.h], axis=1)
 
 
 def embedding_initializer(embedding):

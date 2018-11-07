@@ -2,9 +2,12 @@
   "reader": "tsv",
   "type": "classifier",
   "checkpoint_steps": 1024,
-  "state_size": 100,
-  "input_dropout": 0.5,
-  "batch_size": 32,
+  "state_size": 150,
+  "encoder_dropout": 0.5,
+  "encoder_input_dropout": 0.5,
+  "batch_size": 10,
+  "encoder": "lstm",
+  "encoder_layers": 1,
   "metric": "Accuracy",
   "optimizer": {
     "name": "LazyAdam",
@@ -15,6 +18,25 @@
     "lr": 0.001,
     "clip": 5.0
   },
+  "buckets": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    10,
+    12,
+    14,
+    16,
+    20,
+    24,
+    28,
+    32,
+    64,
+    128
+  ],
   "features": {
     "seq_feat": "word",
     "targets": [
@@ -22,17 +44,18 @@
         "name": "gold",
         "key": "gold",
         "rank": 1,
-        "indices": {
-          "<UNK>": 0
-        },
-        "unknown_word": "<UNK>",
-        "pad_word": "<UNK>"
+        "unknown_word": "2",
+        "pad_word": "2"
       }
     ],
     "inputs": [
       {
         "name": "word",
         "key": "word",
+        "mapping_funcs": [
+          "lower",
+          "digit_norm"
+        ],
         "config": {
           "dim": 300,
           "initializer": {
@@ -43,17 +66,7 @@
             "restrict_vocab": false
           }
         },
-        "left_padding": 2,
-        "right_padding": 2,
-        "threshold": 1,
-        "padding_funcs": [
-          {
-            "type": "conv",
-            "count": 2,
-            "left": "<BOS>",
-            "right": "<EOS>"
-          }
-        ]
+        "threshold": 1
       }
     ]
   }

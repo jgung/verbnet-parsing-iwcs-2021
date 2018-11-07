@@ -4,18 +4,15 @@ from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
-from tfnlp.common.eval import log_trainable_variables, ClassifierEvalHook
-from tfnlp.layers.layers import input_layer
-from tfnlp.layers.reduce import ConvNet
+from tfnlp.common.eval import ClassifierEvalHook, log_trainable_variables
+from tfnlp.layers.layers import encoder, input_layer
 
 
 def classifier_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
-    input_dim = tf.shape(inputs)[-1]
 
-    convs = [ConvNet.max_over_time_pooling_cnn(inputs, input_dim, params.config.state_size, width)
-             for width in range(3, 6)]
-    final_state = tf.concat(convs, axis=1)
+    _, _, final_state = encoder(features, inputs, mode=mode, config=params.config)
+
     final_state = tf.layers.dropout(final_state, training=mode == tf.estimator.ModeKeys.TRAIN)
 
     logits = final_state
