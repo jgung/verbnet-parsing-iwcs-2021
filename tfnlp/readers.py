@@ -6,9 +6,9 @@ from collections import defaultdict
 from tensorflow.python.lib.io import file_io
 
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
-from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, LABEL_KEY, LEMMA_KEY, \
-    MARKER_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, POS_KEY, PPOS_KEY, PREDICATE_KEY, \
-    ROLESET_KEY, SENTENCE_INDEX, WORD_KEY, XPOS_KEY, MISC_KEY, ENHANCED_DEPS_KEY
+from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, ENHANCED_DEPS_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, \
+    LABEL_KEY, LEMMA_KEY, MARKER_KEY, MISC_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, \
+    POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENTENCE_INDEX, WORD_KEY, XPOS_KEY
 
 
 class TsvReader(object):
@@ -28,9 +28,31 @@ class TsvReader(object):
                 line = line.strip()
                 if line or not self.line_filter(line):
                     line = line.split('\t')
-                    if len(line) != 2:
-                        raise AssertionError('Incorrect number of fields (was expecting 2) in line: %s' % line)
-                    yield {LABEL_KEY: line[0], WORD_KEY: line[1].split()}
+                    yield self._process_fields(line)
+
+    def _process_fields(self, fields):
+        if len(fields) != 2:
+            raise AssertionError('Incorrect number of fields (was expecting 2) in line: %s' % '\t'.join(fields))
+        return {LABEL_KEY: fields[0], WORD_KEY: fields[1].split()}
+
+
+class SemlinkReader(TsvReader):
+    """
+    Read SemLink instances from a file at a given path.
+
+    Should be of the following tab-separated format:
+
+    ```
+    nw/wsj/23/wsj_2303.parse 5 5 build 26.1	Hooker 's philosophy was to build and sell .
+    nw/wsj/23/wsj_2303.parse 5 7 sell 13.1	Hooker 's philosophy was to build and sell .
+    ```
+    file<TAB>sentence_idx<TAB>token_idx<TAB>lemma<TAB>label<TAB>Space-separated inline tokens.
+    """
+
+    def _process_fields(self, fields):
+        tokens = fields[1].split()
+        fields = fields[0].split()
+        return {LABEL_KEY: fields[4], MARKER_KEY: int(fields[2]), WORD_KEY: tokens}
 
 
 class ConllReader(object):
@@ -424,6 +446,9 @@ def get_reader(reader_config):
             return ptb_pos_reader()
         elif reader_config == 'tsv':
             return TsvReader()
+        elif reader_config == 'semlink':
+            return SemlinkReader()
+
     else:
         if reader_config.get('field_index_map'):
             return ConllReader({val: key for key, val in reader_config.field_index_map.items()})

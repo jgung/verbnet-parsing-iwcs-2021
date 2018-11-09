@@ -12,7 +12,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, WORD_KEY
+from tfnlp.common.constants import CLASSIFIER_KEY, LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
@@ -21,6 +21,7 @@ from tfnlp.feature import get_feature_extractor, write_features
 from tfnlp.model.classifier import classifier_model_func
 from tfnlp.model.parser import parser_model_func
 from tfnlp.model.tagger import tagger_model_func
+from tfnlp.model.token_classifier import token_classifier_model_func
 from tfnlp.readers import get_reader
 
 VOCAB_PATH = 'vocab'
@@ -249,6 +250,7 @@ def get_model_func(model_type):
         TAGGER_KEY: tagger_model_func,
         PARSER_KEY: parser_model_func,
         SRL_KEY: tagger_model_func,
+        TOKEN_CLASSIFIER_KEY: token_classifier_model_func,
     }
     if model_type not in model_funcs:
         raise ValueError("Unexpected model type: " + model_type)
