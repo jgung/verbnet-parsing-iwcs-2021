@@ -33,7 +33,7 @@ def default_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', type=str, help='File containing training data.')
     parser.add_argument('--valid', type=str, help='File containing validation data.')
-    parser.add_argument('--test', type=str, help='File containing test data.')
+    parser.add_argument('--test', type=str, help='Comma-separated list of files containing test data.')
     parser.add_argument('--job-dir', dest='save', type=str, required=True,
                         help='Directory where models/checkpoints/vocabularies are saved.')
     parser.add_argument('--vocab', type=str, help='(Optional) Directory where vocabulary files are saved.')
@@ -56,7 +56,7 @@ class Trainer(object):
         self._mode = args.mode
         self._raw_train = args.train
         self._raw_valid = args.valid
-        self._raw_test = args.test
+        self._raw_test = args.test.split(',') if args.test else None
         self._overwrite = args.overwrite
         self._output = args.output
 
@@ -146,9 +146,10 @@ class Trainer(object):
             self.run()
 
     def eval(self):
-        self._extract_and_write(self._raw_test)
-        eval_input_fn = self._input_fn(self._raw_test, False)
-        self._estimator.evaluate(eval_input_fn)
+        for test_set in self._raw_test:
+            self._extract_and_write(test_set)
+            eval_input_fn = self._input_fn(test_set, False)
+            self._estimator.evaluate(eval_input_fn)
 
     def predict(self):
         raise NotImplementedError

@@ -451,7 +451,10 @@ def get_reader(reader_config):
 
     else:
         if reader_config.get('field_index_map'):
-            return ConllReader({val: key for key, val in reader_config.field_index_map.items()})
+            index_field_map = {val: key for key, val in reader_config.field_index_map.items()}
+            if reader_config.get('pred_start'):
+                return ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'))
+            return ConllReader(index_field_map)
         elif reader_config.get('readers'):
             return MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
     raise ValueError("Unexpected reader type: " + reader_config)
