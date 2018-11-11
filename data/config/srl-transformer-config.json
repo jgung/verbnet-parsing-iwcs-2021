@@ -22,7 +22,7 @@
     50,
     80
   ],
-  "metric": "F-Measure",
+  "metric": "F1-SRL",
   "optimizer": {
     "name": "LazyNadam",
     "params": {

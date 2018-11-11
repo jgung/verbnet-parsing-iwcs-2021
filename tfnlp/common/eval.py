@@ -237,11 +237,14 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
 
 
 class SrlEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, tensors, vocab):
+    def __init__(self, tensors, vocab, eval_tensor=None, eval_update=None, eval_placeholder=None):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors
         :param vocab: label feature vocab
+        :param eval_tensor: scalar tensor used to store results of evaluation
+        :param eval_update: operation to update current best score
+        :param eval_placeholder: placeholder for update operation
         """
         self._fetches = tensors
         self._vocab = vocab
@@ -251,7 +254,9 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         self._gold = None
         self._markers = None
         self._ids = None
-        self._best = -1
+        self._eval_tensor = eval_tensor
+        self._eval_update = eval_update
+        self._eval_placeholder = eval_placeholder
 
     def begin(self):
         self._predictions = []
@@ -274,12 +279,17 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
             self._ids.append(idx)
 
     def end(self, session):
-        if self._best >= 0:
-            tf.logging.info("Current best score: %f", self._best)
+        best = 0
+        if self._eval_tensor:
+            best = session.run(self._eval_tensor)
+            if best >= 0:
+                tf.logging.info("Current best score: %f", best)
+
         score, result = conll_srl_eval(self._gold, self._predictions, self._markers, self._ids)
         tf.logging.info(result)
-        if score > self._best:
-            self._best = score
+
+        if score > best:
+            session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):

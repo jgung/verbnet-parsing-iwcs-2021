@@ -66,6 +66,7 @@ INITIALIZER = "initializer"
 INCLUDE_IN_VOCAB = "include_in_vocab"
 
 F1_METRIC_KEY = "F-Measure"
+SRL_METRIC_KEY = 'F1-SRL'
 RECALL_METRIC_KEY = "Recall"
 PRECISION_METRIC_KEY = "Precision"
 ACCURACY_METRIC_KEY = "Accuracy"

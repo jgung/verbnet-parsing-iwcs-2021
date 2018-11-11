@@ -89,9 +89,9 @@ gsutil cp ${valid_file} ${job_dir}/valid.txt
 cloud_test_files=""
 for local_test_file in ${comma_separated_test_files//,/ }
 do
-    cloud_test_file="${job_name}/${local_test_file##*/}"
-    cloud_test_files="${cloud_test_files},${cloud_test_file}"
+    cloud_test_file="${job_dir}/${local_test_file##*/}"
     gsutil cp ${local_test_file} ${cloud_test_file}
+    cloud_test_files="${cloud_test_files},${cloud_test_file}"
 done
 
 

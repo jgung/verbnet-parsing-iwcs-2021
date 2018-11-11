@@ -58,7 +58,7 @@
     61,
     99
   ],
-  "metric": "F-Measure",
+  "metric": "F1-SRL",
   "optimizer": {
     "name": "Adadelta",
     "params": {

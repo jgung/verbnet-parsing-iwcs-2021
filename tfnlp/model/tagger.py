@@ -45,6 +45,7 @@ def tagger_model_func(features, mode, params):
     eval_metric_ops = None
     export_outputs = None
     evaluation_hooks = None
+    f1_score = None
 
     if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
         log_trainable_variables()
@@ -60,6 +61,9 @@ def tagger_model_func(features, mode, params):
             mask = tf.sequence_mask(features[constants.LENGTH_KEY], name="padding_mask")
             losses = tf.boolean_mask(losses, mask, name="mask_padding_from_loss")
         loss = tf.reduce_mean(losses)
+
+        if params.config.type == constants.SRL_KEY:
+            f1_score = tf.Variable(0, name=constants.SRL_METRIC_KEY, dtype=tf.float32, trainable=False)
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         optimizer = get_optimizer(params.config)
@@ -77,6 +81,8 @@ def tagger_model_func(features, mode, params):
         eval_metric_ops[constants.ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets, predictions=predictions)
 
         if params.config.type == constants.SRL_KEY:
+            eval_metric_ops[constants.SRL_METRIC_KEY] = (tf.identity(f1_score), tf.identity(f1_score))
+            eval_placeholder = tf.placeholder(dtype=tf.float32)
             eval_hook = SrlEvalHook(
                 tensors={
                     constants.LABEL_KEY: targets,
@@ -85,7 +91,8 @@ def tagger_model_func(features, mode, params):
                     constants.MARKER_KEY: features[constants.MARKER_KEY],
                     constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
                 },
-                vocab=target)
+                vocab=target, eval_tensor=f1_score, eval_update=tf.assign(f1_score, eval_placeholder),
+                eval_placeholder=eval_placeholder)
             evaluation_hooks = [eval_hook]
         else:
             evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
