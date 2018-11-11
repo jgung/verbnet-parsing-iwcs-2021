@@ -1,11 +1,11 @@
 {
-  "reader": "tsv",
-  "type": "classifier",
+  "reader": "semlink",
+  "type": "token-classifier",
   "checkpoint_steps": 1024,
   "state_size": 150,
   "encoder_dropout": 0.5,
   "encoder_input_dropout": 0.5,
-  "batch_size": 10,
+  "batch_size": 64,
   "encoder": "lstm",
   "encoder_layers": 1,
   "metric": "Accuracy",
@@ -43,12 +43,15 @@
       {
         "name": "gold",
         "key": "gold",
-        "rank": 1,
-        "unknown_word": "2",
-        "pad_word": "2"
+        "rank": 1
       }
     ],
+
     "inputs": [
+      {
+        "name": "elmo",
+        "key": "word"
+      },
       {
         "name": "word",
         "key": "word",
@@ -67,6 +70,12 @@
           }
         },
         "threshold": 1
+      },
+      {
+        "name": "marker",
+        "key": "marker",
+        "rank": 1,
+        "numeric": true
       }
     ]
   }

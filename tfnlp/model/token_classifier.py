@@ -8,12 +8,17 @@ from tfnlp.common.eval import ClassifierEvalHook, log_trainable_variables
 from tfnlp.layers.layers import encoder, input_layer
 
 
-def classifier_model_func(features, mode, params):
+def select_by_token_index(states, indices):
+    row_indices = tf.range(tf.shape(indices, out_type=tf.int64)[0])
+    full_indices = tf.stack([row_indices, indices], axis=1)
+    return tf.gather_nd(states, indices=full_indices)
+
+
+def token_classifier_model_func(features, mode, params):
     inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
 
-    _, _, final_state = encoder(features, inputs, mode=mode, config=params.config)
-
-    final_state = tf.layers.dropout(final_state, training=mode == tf.estimator.ModeKeys.TRAIN)
+    states, _, _ = encoder(features, inputs, mode=mode, config=params.config)
+    final_state = select_by_token_index(states, features[constants.MARKER_KEY])
 
     logits = final_state
 
