@@ -279,17 +279,9 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
             self._ids.append(idx)
 
     def end(self, session):
-        best = 0
-        if self._eval_tensor:
-            best = session.run(self._eval_tensor)
-            if best >= 0:
-                tf.logging.info("Current best score: %f", best)
-
         score, result = conll_srl_eval(self._gold, self._predictions, self._markers, self._ids)
         tf.logging.info(result)
-
-        if score > best:
-            session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):
