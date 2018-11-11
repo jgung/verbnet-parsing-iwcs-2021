@@ -56,7 +56,7 @@ class Trainer(object):
         self._mode = args.mode
         self._raw_train = args.train
         self._raw_valid = args.valid
-        self._raw_test = args.test.split(',') if args.test else None
+        self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
         self._overwrite = args.overwrite
         self._output = args.output
 

@@ -1,17 +1,17 @@
 #!/bin/bash
 
-PROGRAM_NAME=$0
+program_name=$0
 
 function usage()
 {
     echo "Train and test model specified by a given configuration file in Google Cloud ML Engine."
     echo ""
-    echo "$PROGRAM_NAME --config path/to/config.json --train path/to/train.txt --valid path/to/valid.txt --test path/to/test.txt --bucket bucket_name"
+    echo "$program_name --config path/to/config.json --train path/to/train.txt --valid path/to/valid.txt --test path/to/test.txt --bucket bucket_name"
     echo -e "\t-h --help"
     echo -e "\t--config\tPath to .json file used to configure features and model hyper-parameters"
     echo -e "\t--train\t\tPath to training corpus file"
     echo -e "\t--valid\t\tPath to validation corpus file"
-    echo -e "\t--test\t\tPath to test corpus file path"
+    echo -e "\t--test\t\tComma-separated list of paths to test files"
     echo -e "\t--bucket\tGoogle Cloud Storage bucket name"
     echo -e "\t--job-name\tJob name (optional)"
 }
@@ -26,32 +26,32 @@ case ${key} in
     exit
     ;;
     -c|--config)
-    CONFIG=$2
+    config=$2
     shift
     shift
     ;;
     -t|--train)
-    TRAIN_FILE=$2
+    train_file=$2
     shift
     shift
     ;;
     -d|-v|--valid|--dev)
-    VALID_FILE=$2
+    valid_file=$2
     shift
     shift
     ;;
     --test)
-    TEST_FILE=$2
+    comma_separated_test_files=$2
     shift
     shift
     ;;
     --job-name|--name|--tag)
-    NAME=$2
+    base_job_name=$2
     shift
     shift
     ;;
     --bucket)
-    BUCKET_NAME=$2
+    bucket_name=$2
     shift
     shift
     ;;
@@ -63,47 +63,50 @@ case ${key} in
 esac
 done
 
-if [[ -z "CONFIG" ]] || [[ -z "$TRAIN_FILE" ]] || [[ -z "$VALID_FILE" ]] || [[ -z "$TEST_FILE" ]]; then
+if [[ -z "CONFIG" ]] || [[ -z "$train_file" ]] || [[ -z "$valid_file" ]] || [[ -z "$comma_separated_test_files" ]]; then
     usage
     exit
 fi
 
 now=$(date +"%Y%m%d_%H%M%S")
 
-echo $NAME
-
-if [[ -z "$NAME" ]]; then
-    NAME=$(basename $CONFIG .json)
-    echo "Using default job name ($NAME) since none was provided (use --job-name to specify one)"
+if [[ -z "$base_job_name" ]]; then
+    base_job_name=$(basename ${config} .json)
+    echo "Using default job name (${base_job_name}) since none was provided (use --job-name to specify one)"
 fi
 
-echo $NAME
+job_name="${base_job_name}_${now}"
+job_dir=gs://${bucket_name}/experiments/${job_name}
 
-JOB_NAME="${NAME}_${now}"
-echo $JOB_NAME
-JOB_DIR=gs://$BUCKET_NAME/experiments/$JOB_NAME
-
-echo "Setting output directory to $JOB_DIR"
+echo "Setting output directory to $job_dir"
 
 python setup.py sdist
-gsutil cp dist/tfnlp-1.0.tar.gz $JOB_DIR/app.tar.gz
-gsutil cp $CONFIG $JOB_DIR/config.json
-gsutil cp $TRAIN_FILE $JOB_DIR/train.txt
-gsutil cp $VALID_FILE $JOB_DIR/valid.txt
-gsutil cp $TEST_FILE $JOB_DIR/test.txt
+gsutil cp dist/tfnlp-1.0.tar.gz ${job_dir}/app.tar.gz
+gsutil cp ${config} ${job_dir}/config.json
+gsutil cp ${train_file} ${job_dir}/train.txt
+gsutil cp ${valid_file} ${job_dir}/valid.txt
 
-gcloud ml-engine jobs submit training $JOB_NAME \
---packages $JOB_DIR/app.tar.gz \
+cloud_test_files=""
+for local_test_file in ${comma_separated_test_files//,/ }
+do
+    cloud_test_file="${job_name}/${local_test_file##*/}"
+    cloud_test_files="${cloud_test_files},${cloud_test_file}"
+    gsutil cp ${local_test_file} ${cloud_test_file}
+done
+
+
+gcloud ml-engine jobs submit training ${job_name} \
+--packages ${job_dir}/app.tar.gz \
 --config config.yaml \
 --runtime-version 1.10 \
 --module-name tfnlp.trainer \
 --region us-east1 \
 --stream-logs \
 -- \
---job-dir $JOB_DIR \
---train $JOB_DIR/train.txt \
---valid $JOB_DIR/valid.txt  \
---test $JOB_DIR/test.txt \
+--job-dir ${job_dir} \
+--train ${job_dir}/train.txt \
+--valid ${job_dir}/valid.txt  \
+--test ${cloud_test_files} \
 --mode train \
---config $JOB_DIR/config.json \
---resources gs://$BUCKET_NAME/resources/
+--config ${job_dir}/config.json \
+--resources gs://${bucket_name}/resources/
