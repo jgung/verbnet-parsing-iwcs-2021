@@ -1,9 +1,12 @@
+import os
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import crf
 from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
+from tensorflow.python.saved_model import signature_constants
 
 import tfnlp.common.constants as constants
 from tfnlp.common.config import get_gradient_clip, get_optimizer
@@ -95,16 +98,9 @@ def tagger_model_func(features, mode, params):
         for target_key, target in all_targets.items():
             _predictions = predictions[target_key]
             _labels = targets[target_key]
-
-            eval_metric_ops.update(tagger_metrics(predictions=tf.cast(_predictions, dtype=tf.int64), labels=_labels,
-                                                  ns=target_key if target_key != constants.LABEL_KEY else None))
-            eval_metric_ops[_metric_key(constants.ACCURACY_METRIC_KEY, target_key)] = tf.metrics.accuracy(
-                labels=_labels, predictions=_predictions, name=_metric_key(constants.ACCURACY_METRIC_KEY, target_key))
-
             if params.config.type == constants.SRL_KEY:
                 f1_score = tf.identity(scores[target_key])
                 eval_metric_ops[_metric_key(constants.SRL_METRIC_KEY, target_key)] = f1_score, f1_score
-
                 eval_placeholder = tf.placeholder(dtype=tf.float32)
                 evaluation_hooks.append(SrlEvalHook(
                     tensors={
@@ -115,11 +111,17 @@ def tagger_model_func(features, mode, params):
                         constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
                     },
                     vocab=target,
-                    eval_tensor=f1_score, eval_update=tf.assign(f1_score, eval_placeholder), eval_placeholder=eval_placeholder,
+                    eval_tensor=f1_score, eval_update=tf.assign(scores[target_key], eval_placeholder),
+                    eval_placeholder=eval_placeholder,
                     label_key=_metric_key(constants.LABEL_KEY, target_key),
-                    predict_key=_metric_key(constants.PREDICT_KEY, target_key)
+                    predict_key=_metric_key(constants.PREDICT_KEY, target_key),
+                    output_confusions=params.verbose_eval,
                 ))
             else:
+                eval_metric_ops.update(tagger_metrics(predictions=tf.cast(_predictions, dtype=tf.int64), labels=_labels,
+                                                      ns=target_key if target_key != constants.LABEL_KEY else None))
+                eval_metric_ops[_metric_key(constants.ACCURACY_METRIC_KEY, target_key)] = tf.metrics.accuracy(
+                    labels=_labels, predictions=_predictions, name=_metric_key(constants.ACCURACY_METRIC_KEY, target_key))
                 evaluation_hooks.append(SequenceEvalHook(
                     script_path=params.script_path,
                     tensors={
@@ -137,10 +139,11 @@ def tagger_model_func(features, mode, params):
     export_outputs = {}
     if mode == tf.estimator.ModeKeys.PREDICT:
         for target_key, target in all_targets.items():
-            index_to_label = index_to_string_table_from_file(vocabulary_file=_metric_key(params.label_vocab_path, target_key),
+            index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(params.vocab_path, target_key),
                                                              default_value=target.unknown_word)
             _string_predictions = index_to_label.lookup(tf.cast(predictions[target_key], dtype=tf.int64))
-            export_outputs[_metric_key(constants.PREDICT_KEY, target_key)] = PredictOutput(_string_predictions)
+            export_key = _metric_key(constants.PREDICT_KEY, target_key, signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY)
+            export_outputs[export_key] = PredictOutput(_string_predictions)
             predictions[target_key] = _string_predictions
 
     return tf.estimator.EstimatorSpec(mode=mode,
@@ -167,7 +170,9 @@ def _create_transition_matrix(labels):
     return tf.initializers.constant(transition_params)
 
 
-def _metric_key(metric_key, target_key):
+def _metric_key(metric_key, target_key, default_val=None):
     if target_key == constants.LABEL_KEY:
+        if default_val:
+            return default_val
         return metric_key
     return '%s-%s' % (metric_key, target_key)

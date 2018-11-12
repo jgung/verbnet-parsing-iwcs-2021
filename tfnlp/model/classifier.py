@@ -1,3 +1,5 @@
+import os
+
 import tensorflow as tf
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
@@ -58,7 +60,7 @@ def classifier_model_func(features, mode, params):
             vocab=target,
             output_file=params.output)]
     if mode == tf.estimator.ModeKeys.PREDICT:
-        index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
+        index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(params.vocab_path, constants.LABEL_KEY),
                                                          default_value=target.unknown_word)
         predictions = index_to_label.lookup(tf.cast(predictions, dtype=tf.int64))
         export_outputs = {constants.PREDICT_KEY: PredictOutput(predictions)}

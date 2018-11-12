@@ -47,12 +47,11 @@ def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
     :param predicted_batches: list of predicted label sequences
     :param markers: list of predicate marker sequences
     :param ids: list of sentence indices
-    :return: tuple of (overall F-score, script_output)
+    :return: tuple of (overall F-score, script_output, confusion_matrix)
     """
     gold_props = _convert_to_sentences(ys=gold_batches, indices=markers, ids=ids)
     pred_props = _convert_to_sentences(ys=predicted_batches, indices=markers, ids=ids)
-    result = evaluate(gold_props, pred_props)
-    return result.evaluation.prec_rec_f1()[2], str(result)
+    return evaluate(gold_props, pred_props)
 
 
 def _convert_to_sentences(ys, indices, ids):
@@ -240,7 +239,7 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
 
 class SrlEvalHook(session_run_hook.SessionRunHook):
     def __init__(self, tensors, vocab, eval_tensor=None, eval_update=None, eval_placeholder=None,
-                 label_key=LABEL_KEY, predict_key=PREDICT_KEY):
+                 label_key=LABEL_KEY, predict_key=PREDICT_KEY, output_confusions=False):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors
@@ -262,6 +261,7 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         self._eval_placeholder = eval_placeholder
         self._label_key = label_key
         self._predict_key = predict_key
+        self._output_confusions = output_confusions
 
     def begin(self):
         self._predictions = []
@@ -284,9 +284,11 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
             self._ids.append(idx)
 
     def end(self, session):
-        score, result = conll_srl_eval(self._gold, self._predictions, self._markers, self._ids)
-        tf.logging.info(result)
-        session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
+        result = conll_srl_eval(self._gold, self._predictions, self._markers, self._ids)
+        tf.logging.info(str(result))
+        if self._output_confusions:
+            tf.logging.info('\n%s' % result.confusion_matrix())
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: result.evaluation.prec_rec_f1()[2]})
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):

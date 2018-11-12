@@ -12,7 +12,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, LABEL_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
+from tfnlp.common.constants import CLASSIFIER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
@@ -39,7 +39,7 @@ def default_args():
     parser.add_argument('--vocab', type=str, help='(Optional) Directory where vocabulary files are saved.')
     parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
     parser.add_argument('--mode', type=str, default="train", help='(Optional) Training command',
-                        choices=['train', 'eval', 'loop', 'predict'])
+                        choices=['train', 'eval', 'test', 'itl', 'loop', 'predict'])
     parser.add_argument('--config', type=str, help='JSON file for configuring training')
     parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
@@ -99,7 +99,7 @@ class Trainer(object):
 
     def run(self):
         self._init_feature_extractor()
-        self._init_estimator()
+        self._init_estimator(test=self._mode in ["eval", "test"])
         if self._mode == "train":
             self.train()
         elif self._mode in ["eval", "test"]:
@@ -209,10 +209,10 @@ class Trainer(object):
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
-    def _init_estimator(self):
+    def _init_estimator(self, test=False):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
                                                  config=RunConfig(save_checkpoints_steps=self._training_config.checkpoint_steps),
-                                                 params=self._params())
+                                                 params=self._params(test=test))
 
     def _serving_input_fn(self):
         serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, name='input_example_tensor')
@@ -220,12 +220,13 @@ class Trainer(object):
         features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
         return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
 
-    def _params(self):
+    def _params(self, test=False):
         return HParams(extractor=self._feature_extractor,
                        config=self._training_config,
                        script_path=self._eval_script_path,
-                       label_vocab_path=os.path.join(self._vocab_path, LABEL_KEY),
-                       output=self._output)
+                       vocab_path=self._vocab_path,
+                       output=self._output,
+                       verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
