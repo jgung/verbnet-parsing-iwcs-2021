@@ -123,13 +123,13 @@ def tagger_model_func(features, mode, params):
                 eval_metric_ops[_metric_key(constants.ACCURACY_METRIC_KEY, target_key)] = tf.metrics.accuracy(
                     labels=_labels, predictions=_predictions, name=_metric_key(constants.ACCURACY_METRIC_KEY, target_key))
                 evaluation_hooks.append(SequenceEvalHook(
-                    script_path=params.script_path,
                     tensors={
                         _metric_key(constants.LABEL_KEY, target_key): _labels,
                         _metric_key(constants.PREDICT_KEY, target_key): _predictions,
                         constants.LENGTH_KEY: features[constants.LENGTH_KEY],
                         constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
                     },
+                    script_path=params.script_path,
                     vocab=target,
                     output_file=params.output,
                     label_key=_metric_key(constants.LABEL_KEY, target_key),
