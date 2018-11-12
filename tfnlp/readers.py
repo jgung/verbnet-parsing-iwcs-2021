@@ -203,7 +203,8 @@ class ConllSrlReader(ConllReader):
                  pred_end=0,
                  pred_key="predicate",
                  chunk_func=lambda x: x,
-                 line_filter=lambda line: False):
+                 line_filter=lambda line: False,
+                 label_mappings=None):
         """
         Construct an CoNLL reader for SRL.
         :param index_field_map: map from indices to corresponding fields
@@ -222,14 +223,16 @@ class ConllSrlReader(ConllReader):
         self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
+        self._label_mappings = label_mappings if label_mappings else {LABEL_KEY: {}}
 
     def read_instances(self, rows):
         instances = []
         fields = self.read_fields(rows)
-        for key, labels in self.read_predicates(rows).items():
+        for key, all_labels in self.read_predicates(rows).items():
             instance = dict(fields)  # copy instance dictionary and add labels
-            instance[LABEL_KEY] = labels
-            instance[MARKER_KEY] = [index == key and '1' or '0' for index in range(0, len(labels))]
+            for label_key, labels in all_labels.items():
+                instance[label_key] = labels
+            instance[MARKER_KEY] = [index == key and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
             self.prop_count += 1
@@ -243,15 +246,18 @@ class ConllSrlReader(ConllReader):
                 pred_indices.append(token_idx)
             for index in range(self._pred_start, len(row_fields) - self._pred_end):
                 pred_cols[index - self._pred_start].append(row_fields[index])
+
+        index_to_labels = {}
         # convert from CoNLL05 labels to IOB labels
         for key, val in pred_cols.items():
-            pred_cols[key] = convert_conll_to_bio(val)
+            index_to_labels[key] = {label_key: convert_conll_to_bio(val, label_mappings=label_mapping)
+                                    for label_key, label_mapping in self._label_mappings.items()}
 
-        assert len(pred_indices) <= len(pred_cols), (
+        assert len(pred_indices) <= len(index_to_labels), (
                 'Unexpected number of predicate columns: %d instead of %d'
-                ', check that predicate start and end indices are correct: %s' % (len(pred_cols), len(pred_indices), rows))
+                ', check that predicate start and end indices are correct: %s' % (len(index_to_labels), len(pred_indices), rows))
         # create predicate dictionary with keys as predicate word indices and values as corr. lists of labels (1 for each token)
-        predicates = {i: pred_cols[index] for index, i in enumerate(pred_indices)}
+        predicates = {i: index_to_labels[index] for index, i in enumerate(pred_indices)}
         return predicates
 
 
@@ -314,7 +320,7 @@ class CoNLLSrlPhraseReader(ConllSrlReader):
             raise ValueError("Phrases not provided for instance: {}".format(rows))
         instances = []
         for index, labels in self.read_predicates(rows).items():
-            instance = self._read_phrases(rows, phrase_labels=phrases, predicate_index=index, labels=labels)
+            instance = self._read_phrases(rows, phrase_labels=phrases, predicate_index=index, labels=labels[LABEL_KEY])
             # noinspection PyTypeChecker
             instance[INSTANCE_INDEX] = self.prop_count
             # noinspection PyTypeChecker
@@ -453,7 +459,8 @@ def get_reader(reader_config):
         if reader_config.get('field_index_map'):
             index_field_map = {val: key for key, val in reader_config.field_index_map.items()}
             if reader_config.get('pred_start'):
-                return ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'))
+                return ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'),
+                                      label_mappings=reader_config.get('label_mappings'))
             return ConllReader(index_field_map)
         elif reader_config.get('readers'):
             return MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)

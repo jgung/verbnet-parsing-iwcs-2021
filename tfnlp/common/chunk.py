@@ -37,15 +37,19 @@ def chunk(labeling, besio=False, conll=False):
     return result
 
 
-def convert_conll_to_bio(labels):
+def convert_conll_to_bio(labels, label_mappings=None):
     """
     Convert CoNLL-style sequence labels to BIO labels. [`(X`, `*` `)`] => [`B-X`, `I-X`, `I-X`]
     :param labels: list of CoNLL labels
+    :param label_mappings: dict mapping labels
     :return: list of BIO labels
     """
 
     def _get_label(_label):
-        return _label.replace(CONLL_START, "").replace(CONLL_END, "").replace(CONLL_CONT, "")
+        result = _label.replace(CONLL_START, "").replace(CONLL_END, "").replace(CONLL_CONT, "")
+        if label_mappings is not None:
+            return label_mappings.get(result, result)
+        return result
 
     current = None
     results = []
