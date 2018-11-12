@@ -189,7 +189,7 @@ class ClassifierEvalHook(session_run_hook.SessionRunHook):
 
 
 class SequenceEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, script_path, tensors, vocab, output_file=None):
+    def __init__(self, script_path, tensors, vocab, output_file=None, label_key=LABEL_KEY, predict_key=PREDICT_KEY):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param script_path: path to eval script
@@ -201,6 +201,8 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
         self._fetches = tensors
         self._vocab = vocab
         self._output_file = output_file
+        self._label_key = label_key
+        self._predict_key = predict_key
 
         self._predictions = None
         self._gold = None
@@ -216,8 +218,8 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
         return SessionRunArgs(fetches=self._fetches)
 
     def after_run(self, run_context, run_values):
-        for gold, predictions, seq_len, idx in zip(run_values.results[LABEL_KEY],
-                                                   run_values.results[PREDICT_KEY],
+        for gold, predictions, seq_len, idx in zip(run_values.results[self._label_key],
+                                                   run_values.results[self._predict_key],
                                                    run_values.results[LENGTH_KEY],
                                                    run_values.results[SENTENCE_INDEX]):
             self._gold.append([self._vocab.index_to_feat(val) for val in gold][:seq_len])
@@ -237,7 +239,8 @@ class SequenceEvalHook(session_run_hook.SessionRunHook):
 
 
 class SrlEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, tensors, vocab, eval_tensor=None, eval_update=None, eval_placeholder=None):
+    def __init__(self, tensors, vocab, eval_tensor=None, eval_update=None, eval_placeholder=None,
+                 label_key=LABEL_KEY, predict_key=PREDICT_KEY):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors
@@ -257,6 +260,8 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         self._eval_tensor = eval_tensor
         self._eval_update = eval_update
         self._eval_placeholder = eval_placeholder
+        self._label_key = label_key
+        self._predict_key = predict_key
 
     def begin(self):
         self._predictions = []
@@ -268,8 +273,8 @@ class SrlEvalHook(session_run_hook.SessionRunHook):
         return SessionRunArgs(fetches=self._fetches)
 
     def after_run(self, run_context, run_values):
-        for gold, predictions, markers, seq_len, idx in zip(run_values.results[LABEL_KEY],
-                                                            run_values.results[PREDICT_KEY],
+        for gold, predictions, markers, seq_len, idx in zip(run_values.results[self._label_key],
+                                                            run_values.results[self._predict_key],
                                                             run_values.results[MARKER_KEY],
                                                             run_values.results[LENGTH_KEY],
                                                             run_values.results[SENTENCE_INDEX]):

@@ -43,13 +43,9 @@ def tagger_model_func(features, mode, params):
                                                           trainable=False, initializer=_create_transition_matrix(target))
 
     targets = {}
-    predictions = None
     loss = None
     train_op = None
-    eval_metric_ops = None
-    export_outputs = None
-    evaluation_hooks = None
-    f1_score = None
+    scores = {}
 
     if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
         log_trainable_variables()
@@ -71,11 +67,12 @@ def tagger_model_func(features, mode, params):
         if len(all_targets) == 1:
             loss = _loss(next(iter(all_targets.keys())))
         else:
-            losses = [_loss(target_key) for target_key in all_targets.keys()]
-            loss = tf.reduce_mean(tf.stack(losses))
+            loss = tf.reduce_mean(tf.stack([_loss(target_key) for target_key in all_targets.keys()]))
 
         if params.config.type == constants.SRL_KEY:
-            f1_score = tf.Variable(0, name=constants.SRL_METRIC_KEY, dtype=tf.float32, trainable=False)
+            for target_key in all_targets.keys():
+                scores[target_key] = tf.Variable(0, name=_metric_key(constants.SRL_METRIC_KEY, target_key), dtype=tf.float32,
+                                                 trainable=False)
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         optimizer = get_optimizer(params.config)
@@ -85,46 +82,66 @@ def tagger_model_func(features, mode, params):
         train_op = optimizer.apply_gradients(zip(gradients, parameters), global_step=tf.train.get_global_step())
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
+    predictions = {}
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
-        predictions, _ = crf.crf_decode(logits[constants.LABEL_KEY], transitions[constants.LABEL_KEY],
-                                        tf.cast(features[constants.LENGTH_KEY], tf.int32))
+        for target_key, target in all_targets.items():
+            _predictions, _ = crf.crf_decode(logits[target_key], transitions[target_key],
+                                             tf.cast(features[constants.LENGTH_KEY], tf.int32))
+            predictions[target_key] = _predictions
 
+    eval_metric_ops = {}
+    evaluation_hooks = []
     if mode == tf.estimator.ModeKeys.EVAL:
-        eval_metric_ops = tagger_metrics(predictions=tf.cast(predictions, dtype=tf.int64), labels=targets[constants.LABEL_KEY])
-        eval_metric_ops[constants.ACCURACY_METRIC_KEY] = tf.metrics.accuracy(labels=targets[constants.LABEL_KEY],
-                                                                             predictions=predictions)
+        for target_key, target in all_targets.items():
+            _predictions = predictions[target_key]
+            _labels = targets[target_key]
 
-        if params.config.type == constants.SRL_KEY:
-            eval_metric_ops[constants.SRL_METRIC_KEY] = (tf.identity(f1_score), tf.identity(f1_score))
-            eval_placeholder = tf.placeholder(dtype=tf.float32)
-            eval_hook = SrlEvalHook(
-                tensors={
-                    constants.LABEL_KEY: targets[constants.LABEL_KEY],
-                    constants.PREDICT_KEY: predictions,
-                    constants.LENGTH_KEY: features[constants.LENGTH_KEY],
-                    constants.MARKER_KEY: features[constants.MARKER_KEY],
-                    constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
-                },
-                vocab=all_targets[constants.LABEL_KEY],
-                eval_tensor=f1_score, eval_update=tf.assign(f1_score, eval_placeholder),
-                eval_placeholder=eval_placeholder)
-            evaluation_hooks = [eval_hook]
-        else:
-            evaluation_hooks = [SequenceEvalHook(script_path=params.script_path,
-                                                 tensors={
-                                                     constants.LABEL_KEY: targets[constants.LABEL_KEY],
-                                                     constants.PREDICT_KEY: predictions,
-                                                     constants.LENGTH_KEY: features[constants.LENGTH_KEY],
-                                                     constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
-                                                 },
-                                                 vocab=all_targets[constants.LABEL_KEY],
-                                                 output_file=params.output)]
+            eval_metric_ops.update(tagger_metrics(predictions=tf.cast(_predictions, dtype=tf.int64), labels=_labels,
+                                                  ns=target_key if target_key != constants.LABEL_KEY else None))
+            eval_metric_ops[_metric_key(constants.ACCURACY_METRIC_KEY, target_key)] = tf.metrics.accuracy(
+                labels=_labels, predictions=_predictions, name=_metric_key(constants.ACCURACY_METRIC_KEY, target_key))
 
+            if params.config.type == constants.SRL_KEY:
+                f1_score = tf.identity(scores[target_key])
+                eval_metric_ops[_metric_key(constants.SRL_METRIC_KEY, target_key)] = f1_score, f1_score
+
+                eval_placeholder = tf.placeholder(dtype=tf.float32)
+                evaluation_hooks.append(SrlEvalHook(
+                    tensors={
+                        _metric_key(constants.LABEL_KEY, target_key): _labels,
+                        _metric_key(constants.PREDICT_KEY, target_key): _predictions,
+                        constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+                        constants.MARKER_KEY: features[constants.MARKER_KEY],
+                        constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
+                    },
+                    vocab=target,
+                    eval_tensor=f1_score, eval_update=tf.assign(f1_score, eval_placeholder), eval_placeholder=eval_placeholder,
+                    label_key=_metric_key(constants.LABEL_KEY, target_key),
+                    predict_key=_metric_key(constants.PREDICT_KEY, target_key)
+                ))
+            else:
+                evaluation_hooks.append(SequenceEvalHook(
+                    script_path=params.script_path,
+                    tensors={
+                        _metric_key(constants.LABEL_KEY, target_key): _labels,
+                        _metric_key(constants.PREDICT_KEY, target_key): _predictions,
+                        constants.LENGTH_KEY: features[constants.LENGTH_KEY],
+                        constants.SENTENCE_INDEX: features[constants.SENTENCE_INDEX]
+                    },
+                    vocab=target,
+                    output_file=params.output,
+                    label_key=_metric_key(constants.LABEL_KEY, target_key),
+                    predict_key=_metric_key(constants.PREDICT_KEY, target_key)
+                ))
+
+    export_outputs = {}
     if mode == tf.estimator.ModeKeys.PREDICT:
-        index_to_label = index_to_string_table_from_file(vocabulary_file=params.label_vocab_path,
-                                                         default_value=all_targets[constants.LABEL_KEY].unknown_word)
-        predictions = index_to_label.lookup(tf.cast(predictions, dtype=tf.int64))
-        export_outputs = {constants.PREDICT_KEY: PredictOutput(predictions)}
+        for target_key, target in all_targets.items():
+            index_to_label = index_to_string_table_from_file(vocabulary_file=_metric_key(params.label_vocab_path, target_key),
+                                                             default_value=target.unknown_word)
+            _string_predictions = index_to_label.lookup(tf.cast(predictions[target_key], dtype=tf.int64))
+            export_outputs[_metric_key(constants.PREDICT_KEY, target_key)] = PredictOutput(_string_predictions)
+            predictions[target_key] = _string_predictions
 
     return tf.estimator.EstimatorSpec(mode=mode,
                                       predictions=predictions,
@@ -148,3 +165,9 @@ def _create_transition_matrix(labels):
             if i != j and curr_label[:2] == 'I-' and not prev_label == 'B' + curr_label[1:]:
                 transition_params[i, j] = np.NINF
     return tf.initializers.constant(transition_params)
+
+
+def _metric_key(metric_key, target_key):
+    if target_key == constants.LABEL_KEY:
+        return metric_key
+    return '%s-%s' % (metric_key, target_key)

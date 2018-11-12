@@ -34,7 +34,7 @@ def f_metric_fn(predictions, labels):
     return tf.metrics.mean(f1)
 
 
-def tagger_metrics(predictions, labels):
-    return {PRECISION_METRIC_KEY: precision_metric_fn(predictions, labels),
-            RECALL_METRIC_KEY: recall_metric_fn(predictions, labels),
-            F1_METRIC_KEY: f_metric_fn(predictions, labels)}
+def tagger_metrics(predictions, labels, ns=None):
+    return {PRECISION_METRIC_KEY if not ns else '%s-%s' % (PRECISION_METRIC_KEY, ns): precision_metric_fn(predictions, labels),
+            RECALL_METRIC_KEY if not ns else '%s-%s' % (RECALL_METRIC_KEY, ns): recall_metric_fn(predictions, labels),
+            F1_METRIC_KEY if not ns else '%s-%s' % (F1_METRIC_KEY, ns): f_metric_fn(predictions, labels)}
