@@ -9,7 +9,7 @@ from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 from tensorflow.python.saved_model import signature_constants
 
 import tfnlp.common.constants as constants
-from tfnlp.common.config import get_gradient_clip, get_optimizer
+from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import SequenceEvalHook, SrlEvalHook, log_trainable_variables
 from tfnlp.common.metrics import tagger_metrics
 from tfnlp.layers.layers import encoder, input_layer
@@ -78,12 +78,7 @@ def tagger_model_func(features, mode, params):
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         log_trainable_variables()
-
-        parameters = tf.trainable_variables()
-        gradients = tf.gradients(loss, parameters)
-        gradients = tf.clip_by_global_norm(gradients, clip_norm=get_gradient_clip(config))[0]
-        train_op = get_optimizer(config).apply_gradients(grads_and_vars=zip(gradients, parameters),
-                                                         global_step=tf.train.get_global_step())
+        train_op = train_op_from_config(config, loss)
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     # end of TRAIN configuration -----------------------------------------------------------------------------------------------

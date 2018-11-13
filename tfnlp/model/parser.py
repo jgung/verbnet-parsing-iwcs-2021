@@ -4,7 +4,7 @@ from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
 
 import tfnlp.common.constants as constants
-from tfnlp.common.config import get_gradient_clip, get_optimizer
+from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import ParserEvalHook, log_trainable_variables
 from tfnlp.layers.layers import encoder, input_layer, numpy_orthogonal_matrix
 
@@ -44,7 +44,6 @@ def parser_model_func(features, mode, params):
 
     # (6) compute combined arc and rel losses (both via softmax cross entropy)
     if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
-        log_trainable_variables()
 
         mask = tf.sequence_mask(features[constants.LENGTH_KEY], name="padding_mask")
 
@@ -65,11 +64,8 @@ def parser_model_func(features, mode, params):
 
     # (7) compute gradients w.r.t. trainable network parameters and apply update using optimization algorithm
     if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = get_optimizer(params.config)
-        parameters = tf.trainable_variables()
-        gradients = tf.gradients(loss, parameters)
-        gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=get_gradient_clip(params.config))
-        train_op = optimizer.apply_gradients(zip(gradients, parameters), global_step=tf.train.get_global_step())
+        log_trainable_variables()
+        train_op = train_op_from_config(params.config, loss)
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     arc_probs = None

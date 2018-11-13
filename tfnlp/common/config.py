@@ -150,3 +150,13 @@ def get_gradient_clip(network_config, default_val=5.0):
         tf.logging.info("Using default global norm of gradient clipping threshold of %f", default_val)
         clip = default_val
     return clip
+
+
+def train_op_from_config(config, loss):
+    optimizer = get_optimizer(config)
+    clip_norm = get_gradient_clip(config)
+
+    parameters = tf.trainable_variables()
+    gradients = tf.gradients(loss, parameters)
+    gradients = tf.clip_by_global_norm(gradients, clip_norm=clip_norm)[0]
+    return optimizer.apply_gradients(grads_and_vars=zip(gradients, parameters), global_step=tf.train.get_global_step())

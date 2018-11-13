@@ -5,7 +5,7 @@ from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 import tfnlp.common.constants as constants
-from tfnlp.common.config import get_gradient_clip, get_optimizer
+from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import ClassifierEvalHook, log_trainable_variables
 from tfnlp.layers.layers import encoder, input_layer
 
@@ -39,16 +39,12 @@ def token_classifier_model_func(features, mode, params):
     evaluation_hooks = None
 
     if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
-        log_trainable_variables()
         targets = tf.identity(features[constants.LABEL_KEY], name=constants.LABEL_KEY)  # batch-length 1D tensor
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=targets))
 
     if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = get_optimizer(params.config)
-        parameters = tf.trainable_variables()
-        gradients = tf.gradients(loss, parameters)
-        gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=get_gradient_clip(params.config))
-        train_op = optimizer.apply_gradients(zip(gradients, parameters), global_step=tf.train.get_global_step())
+        log_trainable_variables()
+        train_op = train_op_from_config(params.config, loss)
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
