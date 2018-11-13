@@ -1,3 +1,5 @@
+import re
+
 from tfnlp.common.constants import BEGIN, BEGIN_, CONLL_CONT, CONLL_END, CONLL_START, END, END_, IN, IN_, OUT, SINGLE, SINGLE_
 
 
@@ -37,17 +39,23 @@ def chunk(labeling, besio=False, conll=False):
     return result
 
 
-def convert_conll_to_bio(labels, label_mappings=None):
+def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False):
     """
     Convert CoNLL-style sequence labels to BIO labels. [`(X`, `*` `)`] => [`B-X`, `I-X`, `I-X`]
     :param labels: list of CoNLL labels
     :param label_mappings: dict mapping labels
+    :param map_with_regex: if `True`, treat mappings as regular expressions
     :return: list of BIO labels
     """
 
     def _get_label(_label):
         result = _label.replace(CONLL_START, "").replace(CONLL_END, "").replace(CONLL_CONT, "")
         if label_mappings is not None:
+            if map_with_regex:
+                for search, repl in label_mappings.items():
+                    match = re.search(search, result)
+                    if match is not None:
+                        return re.sub(search, repl, result)
             return label_mappings.get(result, result)
         return result
 

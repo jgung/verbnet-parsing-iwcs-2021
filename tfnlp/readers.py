@@ -204,7 +204,8 @@ class ConllSrlReader(ConllReader):
                  pred_key="predicate",
                  chunk_func=lambda x: x,
                  line_filter=lambda line: False,
-                 label_mappings=None):
+                 label_mappings=None,
+                 regex_mapping=False):
         """
         Construct an CoNLL reader for SRL.
         :param index_field_map: map from indices to corresponding fields
@@ -213,6 +214,8 @@ class ConllSrlReader(ConllReader):
         :param pred_key: prediction key
         :param chunk_func: function applied to IOB labeling to get final chunking
         :param line_filter: predicate used to identify lines in input which should not be processed
+        :param label_mappings: dict of label key onto a dictionary of mappings from input to output labels
+        :param regex_mapping: if `True`, treat mappings as regular expressions, e.g. {"^([RC]-)?(\\S+)\\$(\\S+)$": "\\1\\3"}
         """
         super(ConllSrlReader, self).__init__(index_field_map,
                                              line_filter=line_filter,
@@ -224,6 +227,14 @@ class ConllSrlReader(ConllReader):
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
         self._label_mappings = label_mappings if label_mappings else {LABEL_KEY: {}}
+        if not regex_mapping:
+            # add continuation/reference mappings if they aren't already there
+            for _target_mappings in label_mappings.values():
+                c_mappings = {'C-' + k: v for k, v in _target_mappings.items()}
+                r_mappings = {'R-' + k: v for k, v in _target_mappings.items()}
+                _target_mappings.update(c_mappings)
+                _target_mappings.update(r_mappings)
+        self._regex_mapping = regex_mapping
 
     def read_instances(self, rows):
         instances = []
@@ -250,7 +261,8 @@ class ConllSrlReader(ConllReader):
         index_to_labels = {}
         # convert from CoNLL05 labels to IOB labels
         for key, val in pred_cols.items():
-            index_to_labels[key] = {label_key: convert_conll_to_bio(val, label_mappings=label_mapping)
+            index_to_labels[key] = {label_key: convert_conll_to_bio(val, label_mappings=label_mapping,
+                                                                    map_with_regex=self._regex_mapping)
                                     for label_key, label_mapping in self._label_mappings.items()}
 
         assert len(pred_indices) <= len(index_to_labels), (
@@ -460,7 +472,8 @@ def get_reader(reader_config):
             index_field_map = {val: key for key, val in reader_config.field_index_map.items()}
             if reader_config.get('pred_start'):
                 return ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'),
-                                      label_mappings=reader_config.get('label_mappings'))
+                                      label_mappings=reader_config.get('label_mappings'),
+                                      regex_mapping=reader_config.get('map_with_regex', False))
             return ConllReader(index_field_map)
         elif reader_config.get('readers'):
             return MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
