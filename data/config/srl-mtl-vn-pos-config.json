@@ -9,15 +9,15 @@
     "pred_start": 6
   },
   "type": "srl",
-  "checkpoint_steps": 2000,
+  "checkpoint_steps": 500,
   "patience": 10000,
   "max_steps": 100000,
-  "state_size": 300,
+  "state_size": 100,
   "input_dropout": 0.0,
   "encoder_output_dropout": 0.1,
   "encoder": "dblstm",
-  "encoder_layers": 8,
-  "batch_size": 80,
+  "encoder_layers": 2,
+  "batch_size": 32,
   "buckets": [
     8,
     9,
@@ -100,10 +100,6 @@
     ],
     "inputs": [
       {
-        "name": "elmo",
-        "key": "word"
-      },
-      {
         "name": "word",
         "key": "word",
         "mapping_funcs": [
@@ -115,7 +111,7 @@
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
+            "include_in_vocab": 1000,
             "restrict_vocab": true
           }
         }
