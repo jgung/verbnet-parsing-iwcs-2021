@@ -226,8 +226,8 @@ class ConllSrlReader(ConllReader):
         self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
-        self._label_mappings = label_mappings if label_mappings else {LABEL_KEY: {}}
-        if not regex_mapping:
+        self._label_mappings = label_mappings if label_mappings is not None else {LABEL_KEY: {}}
+        if label_mappings is not None and not regex_mapping:
             # add continuation/reference mappings if they aren't already there
             for _target_mappings in label_mappings.values():
                 c_mappings = {'C-' + k: v for k, v in _target_mappings.items()}
