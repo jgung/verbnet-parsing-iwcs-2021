@@ -371,7 +371,7 @@ def metric_compare_fn(metric_key):
         new = current_eval_result[metric_key]
         prev = best_eval_result[metric_key]
         tf.logging.info("Comparing new score with previous best (%f vs. %f)", new, prev)
-        return prev < new
+        return prev <= new
 
     return _metric_compare_fn
 

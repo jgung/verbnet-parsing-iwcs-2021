@@ -9,6 +9,7 @@ from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, ENHANCED_DEPS_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, \
     LABEL_KEY, LEMMA_KEY, MARKER_KEY, MISC_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, \
     POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENSE_KEY, SENTENCE_INDEX, TOKEN_INDEX_KEY, WORD_KEY, XPOS_KEY
+from tfnlp.common.utils import Params
 
 
 class TsvReader(object):
@@ -504,3 +505,29 @@ def write_ptb_pos_files(wsj_path, out_dir):
     write_results(r'wsj/(0\d|1[0-8])/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-train.txt')
     write_results(r'wsj/(19|20|21)/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-dev.txt')
     write_results(r'wsj/(22|23|24)/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-test.txt')
+
+
+def conll2semlink(conll_path, out_file, reader=None):
+    if not reader:
+        reader = get_reader(Params(**{
+            "field_index_map": {
+                "word": 2,
+                "pos": 3,
+                "sense": 4,
+                "predicate": 5
+            },
+            "pred_start": 6
+        }))
+    with open(out_file, mode='wt') as out:
+        for instance in reader.read_file(conll_path):
+            text = ' '.join([word for word in instance[WORD_KEY]])
+            for word in instance[WORD_KEY]:
+                if ' ' in word:
+                    print('A space ' ' was found in a token in an instance w/ text: %s' % text)
+            sense = instance[SENSE_KEY]
+            token = instance[TOKEN_INDEX_KEY]
+            sentence = instance[INSTANCE_INDEX]
+            # noinspection PyTypeChecker
+            predicate = instance[PREDICATE_KEY][token]
+            # noinspection PyStringFormat
+            out.write('%s %d %d %s %s\t%s\n' % (conll_path, sentence, token, predicate, sense, text))
