@@ -1,0 +1,148 @@
+{
+  "reader": {
+    "field_index_map": {
+      "word": 2,
+      "pos": 3,
+      "sense": 4,
+      "predicate": 5
+    },
+    "pred_start": 6
+  },
+  "checkpoint_steps": 2000,
+  "patience": 10000,
+  "max_steps": 100000,
+  "state_size": 300,
+  "input_dropout": 0.0,
+  "encoder_output_dropout": 0.1,
+  "encoder": "dblstm",
+  "encoder_layers": 8,
+  "batch_size": 80,
+  "buckets": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    50,
+    52,
+    56,
+    61,
+    99
+  ],
+  "optimizer": {
+    "name": "Adadelta",
+    "params": {
+      "epsilon": 1e-6
+    },
+    "lr": 1.0,
+    "clip": 1.0
+  },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "srl",
+      "metric": "F1-SRL"
+    },
+    {
+      "name": "sense",
+      "type": "token-classifier",
+      "metric": "Accuracy"
+    }
+  ],
+  "features": {
+    "seq_feat": "gold",
+    "targets": [
+      {
+        "name": "gold",
+        "key": "gold",
+        "indices": {
+          "O": 0
+        },
+        "unknown_word": "O",
+        "pad_word": "O"
+      },
+      {
+        "name": "sense",
+        "key": "sense",
+        "rank": 1
+      }
+    ],
+    "inputs": [
+      {
+        "name": "elmo",
+        "key": "word"
+      },
+      {
+        "name": "word",
+        "key": "word",
+        "mapping_funcs": [
+          "lower",
+          "digit_norm"
+        ],
+        "config": {
+          "dim": 100,
+          "initializer": {
+            "embedding": "vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl",
+            "include_in_vocab": 400000,
+            "restrict_vocab": true
+          }
+        }
+      },
+      {
+        "name": "marker",
+        "key": "marker",
+        "config": {
+          "dim": 100
+        },
+        "indices": {
+          "0": 0
+        },
+        "unknown_word": "0",
+        "pad_word": "0"
+      },
+      {
+        "name": "token_index",
+        "key": "token_index",
+        "rank": 1,
+        "numeric": true
+      }
+    ]
+  }
+}

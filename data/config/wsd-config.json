@@ -77,8 +77,8 @@
         "threshold": 1
       },
       {
-        "name": "marker",
-        "key": "marker",
+        "name": "token_index",
+        "key": "token_index",
         "rank": 1,
         "numeric": true
       }

@@ -8,7 +8,7 @@ from tensorflow.python.lib.io import file_io
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, ENHANCED_DEPS_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, \
     LABEL_KEY, LEMMA_KEY, MARKER_KEY, MISC_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, \
-    POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENTENCE_INDEX, WORD_KEY, XPOS_KEY
+    POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENSE_KEY, SENTENCE_INDEX, TOKEN_INDEX_KEY, WORD_KEY, XPOS_KEY
 
 
 class TsvReader(object):
@@ -52,7 +52,7 @@ class SemlinkReader(TsvReader):
     def _process_fields(self, fields):
         tokens = fields[1].split()
         fields = fields[0].split()
-        return {LABEL_KEY: fields[4], MARKER_KEY: int(fields[2]), WORD_KEY: tokens}
+        return {LABEL_KEY: fields[4], TOKEN_INDEX_KEY: int(fields[2]), WORD_KEY: tokens}
 
 
 class ConllReader(object):
@@ -201,7 +201,7 @@ class ConllSrlReader(ConllReader):
                  index_field_map,
                  pred_start,
                  pred_end=0,
-                 pred_key="predicate",
+                 pred_key=PREDICATE_KEY,
                  chunk_func=lambda x: x,
                  line_filter=lambda line: False,
                  label_mappings=None,
@@ -223,6 +223,7 @@ class ConllSrlReader(ConllReader):
                                              chunk_func=chunk_func)
         self._pred_start = pred_start
         self._pred_end = pred_end
+        self._predicate_key = pred_key
         self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
@@ -239,11 +240,13 @@ class ConllSrlReader(ConllReader):
     def read_instances(self, rows):
         instances = []
         fields = self.read_fields(rows)
-        for key, all_labels in self.read_predicates(rows).items():
+        for predicate_index, all_labels in self.read_predicates(rows).items():
             instance = dict(fields)  # copy instance dictionary and add labels
             for label_key, labels in all_labels.items():
                 instance[label_key] = labels
-            instance[MARKER_KEY] = [index == key and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
+            instance[MARKER_KEY] = [index == predicate_index and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
+            instance[SENSE_KEY] = instance[SENSE_KEY][predicate_index]
+            instance[TOKEN_INDEX_KEY] = predicate_index
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
             self.prop_count += 1

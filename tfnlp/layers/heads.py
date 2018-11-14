@@ -123,6 +123,8 @@ class ClassifierHead(ModelHead):
         self.metric_ops = {acc_key: tf.metrics.accuracy(labels=self.targets, predictions=self.predictions, name=acc_key)}
         self.evaluation_hooks = [
             ClassifierEvalHook(
+                label_key=labels_key,
+                predict_key=predictions_key,
                 tensors={
                     labels_key: self.targets,
                     predictions_key: self.predictions,
@@ -147,7 +149,7 @@ class TokenClassifierHead(ClassifierHead):
 
     def _all(self):
         inputs = self.inputs[0]
-        inputs = select_by_token_index(inputs, self.features[constants.MARKER_KEY])
+        inputs = select_by_token_index(inputs, self.features[constants.TOKEN_INDEX_KEY])
 
         with tf.variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
