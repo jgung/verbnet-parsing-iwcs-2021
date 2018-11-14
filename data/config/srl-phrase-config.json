@@ -1,6 +1,5 @@
 {
   "reader": "conll_2005_phrase",
-  "type": "srl",
   "checkpoint_steps": 2000,
   "patience": 50000,
   "max_steps": 500000,
@@ -58,7 +57,6 @@
     61,
     99
   ],
-  "metric": "F1-SRL",
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -67,6 +65,13 @@
     "lr": 1.0,
     "clip": 1.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "srl",
+      "metric": "F1-SRL"
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [
@@ -86,7 +91,8 @@
         "key": "word",
         "rank": 3,
         "mapping_funcs": [
-          "lower"
+          "lower",
+          "digit_norm"
         ],
         "left_padding": 2,
         "right_padding": 2,

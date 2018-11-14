@@ -1,6 +1,5 @@
 {
   "reader": "semlink",
-  "type": "token-classifier",
   "checkpoint_steps": 1024,
   "state_size": 150,
   "encoder_dropout": 0.5,
@@ -8,7 +7,6 @@
   "batch_size": 64,
   "encoder": "lstm",
   "encoder_layers": 1,
-  "metric": "Accuracy",
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -36,6 +34,13 @@
     32,
     64,
     128
+  ],
+  "heads": [
+    {
+      "name": "gold",
+      "type": "token-classifier",
+      "metric": "Accuracy"
+    }
   ],
   "features": {
     "seq_feat": "word",

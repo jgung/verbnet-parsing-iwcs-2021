@@ -102,7 +102,6 @@
       }
     }
   },
-  "type": "srl",
   "checkpoint_steps": 2000,
   "patience": 10000,
   "max_steps": 100000,
@@ -160,7 +159,6 @@
     61,
     99
   ],
-  "metric": "F1-SRL",
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -169,6 +167,23 @@
     "lr": 1.0,
     "clip": 1.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "srl",
+      "metric": "F1-SRL"
+    },
+    {
+      "name": "vn5",
+      "type": "srl",
+      "metric": "F1-SRL"
+    },
+    {
+      "name": "vn9",
+      "type": "srl",
+      "metric": "F1-SRL"
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [

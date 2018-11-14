@@ -75,7 +75,7 @@ class Trainer(object):
         self._training_config = get_network_config(read_json(config_path))
         self._feature_config = self._training_config.features
 
-        self._model_fn = get_model_func(self._training_config.type)
+        self._model_fn = get_model_func(self._training_config)
 
         self._feature_extractor = None
         self._estimator = None
@@ -246,7 +246,8 @@ def default_input_fn(features):
     return {"examples": features}
 
 
-def get_model_func(model_type):
+def get_model_func(config):
+    model_type = [head.type for head in config.heads][0]
     model_funcs = {
         CLASSIFIER_KEY: classifier_model_func,
         TAGGER_KEY: tagger_model_func,

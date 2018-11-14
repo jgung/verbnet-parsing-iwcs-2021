@@ -1,6 +1,5 @@
 {
   "reader": "conllx",
-  "type": "parser",
   "checkpoint_steps": 1000,
   "patience": 5000,
   "state_size": 400,
@@ -60,7 +59,6 @@
     61,
     99
   ],
-  "metric": "LAS",
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -70,6 +68,18 @@
     "lr": 0.002,
     "clip": 5.0
   },
+  "heads": [
+    {
+      "name": "deprel",
+      "type": "parser",
+      "metric": "LAS"
+    },
+    {
+      "name": "head",
+      "type": "parser",
+      "metric": "UAS"
+    }
+  ],
   "features": {
     "seq_feat": "head",
     "targets": [

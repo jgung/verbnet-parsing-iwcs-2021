@@ -1,6 +1,5 @@
 {
   "reader": "conll_2005",
-  "type": "srl",
   "checkpoint_steps": 2000,
   "patience": 500000,
   "max_steps": 500000,
@@ -58,7 +57,6 @@
     61,
     99
   ],
-  "metric": "F1-SRL",
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -67,6 +65,13 @@
     "lr": 1.0,
     "clip": 1.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "srl",
+      "metric": "F1-SRL"
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [

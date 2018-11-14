@@ -5,7 +5,6 @@
       "gold": 3
     }
   },
-  "type": "tagger",
   "checkpoint_steps": 3822,
   "state_size": 200,
   "encoder_dropout": 0.5,
@@ -13,9 +12,7 @@
   "input_dropout": 0.5,
   "encoder": "lstm",
   "encoder_layers": 1,
-  "crf": true,
   "batch_size": 10,
-  "metric": "Accuracy",
   "buckets": [
     8,
     9,
@@ -79,6 +76,14 @@
     },
     "clip": 5.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "tagger",
+      "metric": "Accuracy",
+      "crf": true
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [

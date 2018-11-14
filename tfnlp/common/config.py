@@ -46,7 +46,6 @@ class BaseNetworkConfig(Params):
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
         self.mlp_dropout = config.get('mlp_dropout', 0)
-        self.type = config.get('type', constants.TAGGER_KEY)
 
         self.num_heads = config.get('num_heads', 8)
         self.head_dim = config.get('head_dim', 25) * self.num_heads

@@ -1,6 +1,5 @@
 {
   "reader": "conll_2003",
-  "type": "tagger",
   "checkpoint_steps": 1500,
   "state_size": 300,
   "encoder_dropout": 0.5,
@@ -8,9 +7,7 @@
   "input_dropout": 0.5,
   "encoder": "lstm",
   "encoder_layers": 1,
-  "crf": true,
   "batch_size": 10,
-  "metric": "F-Measure",
   "optimizer": {
     "name": "Momentum",
     "params": {
@@ -26,6 +23,14 @@
     },
     "clip": 5.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "ner",
+      "crf": true,
+      "metric": "F-Measure"
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [
