@@ -7,7 +7,7 @@ from tfnlp.layers.heads import model_head
 from tfnlp.layers.layers import encoder, input_layer
 
 
-def tagger_model_func(features, mode, params):
+def multi_head_model_func(features, mode, params):
     config = params.config
 
     # reduce all features to a single input vector (per token per batch)

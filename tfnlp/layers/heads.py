@@ -9,18 +9,19 @@ from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 from tfnlp.common import constants
 from tfnlp.common.config import append_label
-from tfnlp.common.eval import SequenceEvalHook, SrlEvalHook
+from tfnlp.common.eval import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
 
 
 class ModelHead(object):
-    def __init__(self, inputs, config, features, params):
+    def __init__(self, inputs, config, features, params, training):
         self.inputs = inputs
         self.config = config
         self.name = config.name
         self.extractor = params.extractor.targets[self.name]
         self.features = features
         self.params = params
+        self._training = training
 
         self.targets = None
         self.logits = None
@@ -32,12 +33,16 @@ class ModelHead(object):
         self.export_outputs = {}
 
     def training(self):
+        self.targets = self.features[self.name]
+
         with tf.variable_scope(self.name):
             self._all()
             self._train_eval()
             self._train()
 
     def evaluation(self):
+        self.targets = self.features[self.name]
+
         with tf.variable_scope(self.name):
             self._all()
             self._train_eval()
@@ -84,7 +89,69 @@ class ModelHead(object):
         """
         Called after `_eval_predict` for prediction.
         """
-        pass
+        self.export_outputs = {}
+        index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(self.params.vocab_path, self.name),
+                                                         default_value=self.extractor.unknown_word)
+        self.predictions = index_to_label.lookup(tf.cast(self.predictions, dtype=tf.int64))
+        self.export_outputs[self.name] = PredictOutput(self.predictions)
+
+
+class ClassifierHead(ModelHead):
+    def __init__(self, inputs, config, features, params, training):
+        super().__init__(inputs, config, features, params, training)
+        self._sequence_lengths = self.features[constants.LENGTH_KEY]
+
+    def _all(self):
+        inputs = self.inputs[2]
+        inputs = tf.layers.dropout(inputs, training=self._training)
+
+        with tf.variable_scope("logits"):
+            num_labels = self.extractor.vocab_size()
+            self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
+
+    def _train_eval(self):
+        self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))
+
+    def _eval_predict(self):
+        self.predictions = tf.argmax(self.logits, axis=1)
+
+    def _evaluation(self):
+        predictions_key = append_label(constants.PREDICT_KEY, self.name)
+        labels_key = append_label(constants.LABEL_KEY, self.name)
+        acc_key = append_label(constants.ACCURACY_METRIC_KEY, self.name)
+
+        self.metric_ops = {acc_key: tf.metrics.accuracy(labels=self.targets, predictions=self.predictions, name=acc_key)}
+        self.evaluation_hooks = [
+            ClassifierEvalHook(
+                tensors={
+                    labels_key: self.targets,
+                    predictions_key: self.predictions,
+                    constants.LENGTH_KEY: self._sequence_lengths,
+                    constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
+                },
+                vocab=self.extractor,
+                output_file=self.params.output
+            )
+        ]
+
+
+def select_by_token_index(states, indices):
+    row_indices = tf.range(tf.shape(indices, out_type=tf.int64)[0])
+    full_indices = tf.stack([row_indices, indices], axis=1)
+    return tf.gather_nd(states, indices=full_indices)
+
+
+class TokenClassifierHead(ClassifierHead):
+    def __init__(self, inputs, config, features, params, training):
+        super().__init__(inputs, config, features, params, training)
+
+    def _all(self):
+        inputs = self.inputs[0]
+        inputs = select_by_token_index(inputs, self.features[constants.MARKER_KEY])
+
+        with tf.variable_scope("logits"):
+            num_labels = self.extractor.vocab_size()
+            self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
 
 
 def create_transition_matrix(labels):
@@ -103,8 +170,9 @@ def create_transition_matrix(labels):
 
 
 class TaggerHead(ModelHead):
-    def __init__(self, inputs, config, features, params):
-        super().__init__(inputs, config, features, params)
+
+    def __init__(self, inputs, config, features, params, training=False):
+        super().__init__(inputs, config, features, params, training)
         self._sequence_lengths = self.features[constants.LENGTH_KEY]
         self._tag_transitions = None
 
@@ -131,7 +199,6 @@ class TaggerHead(ModelHead):
                                                     initializer=create_transition_matrix(self.extractor))
 
     def _train_eval(self):
-        self.targets = self.features[self.name]
         with tf.variable_scope("loss"):
             if self.config.crf:
                 losses = -crf_log_likelihood(self.logits, self.targets,
@@ -198,13 +265,6 @@ class TaggerHead(ModelHead):
                 )
             )
 
-    def _prediction(self):
-        self.export_outputs = {}
-        index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(self.params.vocab_path, self.name),
-                                                         default_value=self.extractor.unknown_word)
-        self.predictions = index_to_label.lookup(tf.cast(self.predictions, dtype=tf.int64))
-        self.export_outputs[self.name] = PredictOutput(self.predictions)
-
 
 def model_head(config, inputs, features, mode, params):
     """
@@ -216,7 +276,15 @@ def model_head(config, inputs, features, mode, params):
     :param params: HParams input to Estimator
     :return: initialized model head
     """
-    head = TaggerHead(inputs=inputs, config=config, features=features, params=params)
+    heads = {
+        constants.CLASSIFIER_KEY: ClassifierHead,
+        constants.TAGGER_KEY: TaggerHead,
+        constants.NER_KEY: TaggerHead,
+        constants.SRL_KEY: TaggerHead,
+        constants.TOKEN_CLASSIFIER_KEY: TokenClassifierHead,
+    }
+    head = heads[config.type](inputs=inputs, config=config, features=features, params=params,
+                              training=mode == tf.estimator.ModeKeys.TRAIN)
     if mode == tf.estimator.ModeKeys.TRAIN:
         head.training()
     elif mode == tf.estimator.ModeKeys.EVAL:

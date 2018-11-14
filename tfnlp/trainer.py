@@ -18,10 +18,8 @@ from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import get_feature_extractor, write_features
-from tfnlp.model.classifier import classifier_model_func
+from tfnlp.model.model import multi_head_model_func
 from tfnlp.model.parser import parser_model_func
-from tfnlp.model.tagger import tagger_model_func
-from tfnlp.model.token_classifier import token_classifier_model_func
 from tfnlp.readers import get_reader
 
 VOCAB_PATH = 'vocab'
@@ -247,18 +245,18 @@ def default_input_fn(features):
 
 
 def get_model_func(config):
-    model_type = [head.type for head in config.heads][0]
+    head_type = [head.type for head in config.heads][0]
     model_funcs = {
-        CLASSIFIER_KEY: classifier_model_func,
-        TAGGER_KEY: tagger_model_func,
-        NER_KEY: tagger_model_func,
+        CLASSIFIER_KEY: multi_head_model_func,
+        TAGGER_KEY: multi_head_model_func,
+        NER_KEY: multi_head_model_func,
         PARSER_KEY: parser_model_func,
-        SRL_KEY: tagger_model_func,
-        TOKEN_CLASSIFIER_KEY: token_classifier_model_func,
+        SRL_KEY: multi_head_model_func,
+        TOKEN_CLASSIFIER_KEY: multi_head_model_func,
     }
-    if model_type not in model_funcs:
-        raise ValueError("Unexpected model type: " + model_type)
-    return model_funcs[model_type]
+    if head_type not in model_funcs:
+        raise ValueError("Unexpected head type: " + head_type)
+    return model_funcs[head_type]
 
 
 if __name__ == '__main__':

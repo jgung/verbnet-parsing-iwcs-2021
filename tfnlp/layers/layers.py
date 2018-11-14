@@ -123,14 +123,15 @@ def encoder(features, inputs, mode, config):
     training = mode == tf.estimator.ModeKeys.TRAIN
     sequence_lengths = features[LENGTH_KEY]
 
-    if config.encoder == 'dblstm':
-        return highway_dblstm(inputs, sequence_lengths, training, config)
-    elif config.encoder == 'lstm':
-        return stacked_bilstm(inputs, sequence_lengths, training, config)
-    elif config.encoder == 'transformer':
-        return transformer_encoder(inputs, sequence_lengths, training, config)
-    else:
-        raise ValueError('No encoder of type "{}" available'.format(config.encoder))
+    with tf.variable_scope("encoder"):
+        if config.encoder == 'dblstm':
+            return highway_dblstm(inputs, sequence_lengths, training, config)
+        elif config.encoder == 'lstm':
+            return stacked_bilstm(inputs, sequence_lengths, training, config)
+        elif config.encoder == 'transformer':
+            return transformer_encoder(inputs, sequence_lengths, training, config)
+        else:
+            raise ValueError('No encoder of type "{}" available'.format(config.encoder))
 
 
 def highway_dblstm(inputs, sequence_lengths, training, config):
