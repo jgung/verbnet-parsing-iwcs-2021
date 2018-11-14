@@ -67,44 +67,46 @@ def _get_string_lookup(feature_strings, feature):
 
 def _get_embedding_input(feature_ids, feature, training):
     config = feature.config
+    with tf.variable_scope(feature.name):
 
-    initializer = None
-    if training:
-        if feature.embedding is not None:
-            initializer = embedding_initializer(feature.embedding)
-        elif config.initializer.zero_init:
-            tf.logging.info("Zero init for feature embedding: %s", feature.name)
-            initializer = tf.zeros_initializer
-        else:
-            tf.logging.info("Gaussian init for feature embedding: %s", feature.name)
-            initializer = tf.random_normal_initializer(0, 0.01)
+        with tf.variable_scope('embedding'):
+            initializer = None
+            if training:
+                if feature.embedding is not None:
+                    initializer = embedding_initializer(feature.embedding)
+                elif config.initializer.zero_init:
+                    tf.logging.info("Zero init for feature embedding: %s", feature.name)
+                    initializer = tf.zeros_initializer
+                else:
+                    tf.logging.info("Gaussian init for feature embedding: %s", feature.name)
+                    initializer = tf.random_normal_initializer(0, 0.01)
 
-    embedding_matrix = tf.get_variable(name='{}_embedding'.format(feature.name),
-                                       shape=[feature.vocab_size(), config.dim],
-                                       initializer=initializer,
-                                       trainable=config.trainable)
-    result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
-                                    name='{}_lookup'.format(feature.name))  # wrapper of gather
+            embedding_matrix = tf.get_variable(name='parameters',
+                                               shape=[feature.vocab_size(), config.dim],
+                                               initializer=initializer,
+                                               trainable=config.trainable)
+            result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
+                                            name='lookup')  # wrapper of gather
 
-    if config.dropout > 0:
-        result = tf.layers.dropout(result,
-                                   rate=config.dropout,
-                                   training=training,
-                                   name='{}_dropout'.format(feature.name))
+            if config.dropout > 0:
+                result = tf.layers.dropout(result,
+                                           rate=config.dropout,
+                                           training=training,
+                                           name='dropout')
 
-    if feature.rank == 3:  # reduce multiple vectors per token to a single vector
-        with tf.name_scope('{}_reduction_op'.format(feature.name)):
-            result = config.func.apply(result)
+        if feature.rank == 3:  # reduce multiple vectors per token to a single vector
+            with tf.name_scope('reduce_func'):
+                result = config.func.apply(result)
 
-    if config.word_dropout > 0 and training:
-        shape = tf.shape(result)
-        result = tf.layers.dropout(result,
-                                   rate=config.word_dropout,
-                                   training=training,
-                                   name='{}_dropout'.format(feature.name),
-                                   noise_shape=[shape[0], shape[1], 1])
+        if config.word_dropout > 0 and training:
+            shape = tf.shape(result)
+            result = tf.layers.dropout(result,
+                                       rate=config.word_dropout,
+                                       training=training,
+                                       name='word_dropout',
+                                       noise_shape=[shape[0], shape[1], 1])
 
-    return result
+        return result
 
 
 def _get_shape(tensor):

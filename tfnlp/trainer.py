@@ -12,7 +12,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
+from tfnlp.common.constants import CLASSIFIER_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
@@ -250,6 +250,7 @@ def get_model_func(model_type):
     model_funcs = {
         CLASSIFIER_KEY: classifier_model_func,
         TAGGER_KEY: tagger_model_func,
+        NER_KEY: tagger_model_func,
         PARSER_KEY: parser_model_func,
         SRL_KEY: tagger_model_func,
         TOKEN_CLASSIFIER_KEY: token_classifier_model_func,

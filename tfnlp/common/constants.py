@@ -65,6 +65,7 @@ CONFIG_FIELD = "config"
 INITIALIZER = "initializer"
 INCLUDE_IN_VOCAB = "include_in_vocab"
 
+OVERALL_KEY = 'Overall'
 F1_METRIC_KEY = "F-Measure"
 SRL_METRIC_KEY = 'F1-SRL'
 RECALL_METRIC_KEY = "Recall"
@@ -78,5 +79,6 @@ LABEL_SCORE = "LS"
 TOKEN_CLASSIFIER_KEY = "token-classifier"
 CLASSIFIER_KEY = "classifier"
 TAGGER_KEY = "tagger"
+NER_KEY = "ner"
 SRL_KEY = "srl"
 PARSER_KEY = "parser"

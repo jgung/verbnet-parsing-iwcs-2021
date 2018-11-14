@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.contrib.opt import LazyAdamOptimizer
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
-from tfnlp.common.constants import TAGGER_KEY
+from tfnlp.common import constants
 from tfnlp.common.utils import Params
 from tfnlp.optim.lazy_adam import LazyAdamOptimizer as LazyNadamOptimizer
 from tfnlp.optim.nadam import NadamOptimizerSparse
@@ -38,7 +38,6 @@ class BaseNetworkConfig(Params):
 
         self.input_dropout = config.get('input_dropout', 0)
         self.buckets = config.get('buckets', [10, 15, 25, 30, 75])
-        self.metric = config.get('metric', 'Accuracy')
         self.encoder = config.get('encoder', 'lstm')
         self.forget_bias = config.get('forget_bias', 1)
         self.encoder_dropout = config.get('encoder_dropout', 0)
@@ -46,10 +45,8 @@ class BaseNetworkConfig(Params):
         self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
-        self.crf = config.get('crf', False)
         self.mlp_dropout = config.get('mlp_dropout', 0)
-        self.zero_init = config.get('zero_init', True)
-        self.type = config.get('type', TAGGER_KEY)
+        self.type = config.get('type', constants.TAGGER_KEY)
 
         self.num_heads = config.get('num_heads', 8)
         self.head_dim = config.get('head_dim', 25) * self.num_heads
@@ -57,6 +54,33 @@ class BaseNetworkConfig(Params):
         self.relu_hidden_size = config.get('relu_hidden_size', 0.1)
         self.relu_dropout = config.get('relu_dropout', 0.1)
         self.prepost_dropout = config.get('prepost_dropout', 0.1)
+
+        # head configuration validation
+        self.heads = [HeadConfig(head) for head in config.get('heads', [])]
+        targets = {}
+        for target in self.features.targets:
+            if target.name not in {head.name for head in self.heads}:
+                tf.logging.warning("Missing head configuration for target '%s'" % target.name)
+                self.heads.append(HeadConfig({'name': target.name}))
+            targets[target.name] = target
+        for head in self.heads:
+            if head.name not in targets:
+                raise ValueError("Missing feature configuration for target '%s'" % head.name)
+        if len(self.heads) == 0:
+            raise ValueError("Must have at least one head/target in configuration")
+
+        metrics = [append_label(head.metric, head.name) for head in self.heads]
+        self.metric = metrics[0]
+
+
+class HeadConfig(Params):
+    def __init__(self, config, **kwargs):
+        super().__init__(**kwargs)
+        self.name = config.get('name', constants.LABEL_KEY)
+        self.crf = config.get('crf', False)
+        self.type = config.get('type', constants.TAGGER_KEY)
+        self.zero_init = config.get('zero_init', True)
+        self.metric = config.get('metric', constants.F1_METRIC_KEY if constants.TAGGER_KEY == self.type else 'Accuracy')
 
 
 def get_network_config(config):
@@ -160,3 +184,18 @@ def train_op_from_config(config, loss):
     gradients = tf.gradients(loss, parameters)
     gradients = tf.clip_by_global_norm(gradients, clip_norm=clip_norm)[0]
     return optimizer.apply_gradients(grads_and_vars=zip(gradients, parameters), global_step=tf.train.get_global_step())
+
+
+def append_label(metric_key, target_key, default_val=None):
+    """
+    Append a label to a pre-existing key. If the label is the default 'gold' label, don't modify the pre-existing key.
+    :param metric_key: pre-existing key
+    :param target_key: label
+    :param default_val: value to use conditionally if the label is a default value
+    :return:
+    """
+    if target_key == constants.LABEL_KEY:
+        if default_val:
+            return default_val
+        return metric_key
+    return '%s-%s' % (metric_key, target_key)

@@ -31,6 +31,12 @@
       "type": "ner",
       "crf": true,
       "metric": "F-Measure"
+    },
+    {
+      "name": "pos",
+      "type": "tagger",
+      "crf": true,
+      "metric": "F-Measure"
     }
   ],
   "features": {
@@ -44,6 +50,16 @@
         },
         "unknown_word": "O",
         "pad_word": "O"
+      },
+      {
+        "name": "pos",
+        "key": "pos",
+        "indices": {
+          "NN": 0,
+          "<PAD>": 1
+        },
+        "unknown_word": "NN",
+        "pad_word": "<PAD>"
       }
     ],
     "inputs": [
