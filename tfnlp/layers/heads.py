@@ -227,11 +227,11 @@ class TaggerHead(ModelHead):
             predictions_key: self.predictions,
         }
 
-        overall_score = tf.identity(self.metric)
-        overall_key = append_label(constants.OVERALL_KEY, self.name)
-        self.metric_ops[overall_key] = (overall_score, overall_score)
-
         if self.config.type == constants.SRL_KEY:
+            overall_score = tf.identity(self.metric)
+            overall_key = append_label(constants.OVERALL_KEY, self.name)
+            self.metric_ops[self.config.metric] = (overall_score, overall_score)
+
             eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
             # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
             eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
