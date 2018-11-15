@@ -44,7 +44,6 @@ MARKER_KEY = "marker"
 TOKEN_INDEX_KEY = "token_index"
 INSTANCE_INDEX = "instance_idx"
 SENTENCE_INDEX = "sentence_idx"
-ROLESET_KEY = "roleset"
 PREDICATE_KEY = "predicate"
 PARSE_KEY = "parse"
 

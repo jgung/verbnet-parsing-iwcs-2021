@@ -183,21 +183,22 @@ class Trainer(object):
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
-        self._feature_extractor.test()
+
+    def _extract_raw(self, path):
+        raw_instances = self._raw_instance_reader_fn(path)
+        if not raw_instances:
+            raise ValueError("No examples provided at path given by '{}'".format(path))
+        return raw_instances
 
     def _train_vocab(self):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
-        self._extract_features(self._raw_train)
+        self._feature_extractor.train(self._extract_raw(self._raw_train))
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
 
     def _extract_features(self, path):
         tf.logging.info("Extracting features from %s", path)
-        raw_instances = self._raw_instance_reader_fn(path)
-        if not raw_instances:
-            raise ValueError("No examples provided at path given by '{}'".format(path))
-
-        examples = self._feature_extractor.extract_all(raw_instances)
+        examples = self._feature_extractor.extract_all(self._extract_raw(path))
         return examples
 
     def _extract_and_write(self, path):

@@ -8,7 +8,7 @@ from tensorflow.python.lib.io import file_io
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, ENHANCED_DEPS_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, \
     LABEL_KEY, LEMMA_KEY, MARKER_KEY, MISC_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, \
-    POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENSE_KEY, SENTENCE_INDEX, TOKEN_INDEX_KEY, WORD_KEY, XPOS_KEY
+    POS_KEY, PPOS_KEY, PREDICATE_KEY, SENSE_KEY, SENTENCE_INDEX, TOKEN_INDEX_KEY, WORD_KEY, XPOS_KEY
 from tfnlp.common.utils import Params
 
 
@@ -427,14 +427,14 @@ def conllx_reader():
 
 
 def conll_2005_reader(phrase=False):
-    fields = {0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: ROLESET_KEY, 5: PREDICATE_KEY}
+    fields = {0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: SENSE_KEY, 5: PREDICATE_KEY}
     if phrase:
         return CoNLLSrlPhraseReader(fields, pred_start=6)
     return ConllSrlReader(fields, pred_start=6)
 
 
 def conll_2012_reader(phrase=False):
-    fields = {3: WORD_KEY, 4: POS_KEY, 5: PARSE_KEY, 6: PREDICATE_KEY, 7: ROLESET_KEY}
+    fields = {3: WORD_KEY, 4: POS_KEY, 5: PARSE_KEY, 6: PREDICATE_KEY, 7: SENSE_KEY}
 
     reader = CoNLLSrlPhraseReader(fields, pred_start=11, pred_end=1) if phrase else ConllSrlReader(
         fields, pred_start=11, pred_end=1)

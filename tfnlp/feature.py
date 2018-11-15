@@ -245,6 +245,12 @@ class Extractor(object):
         value = self.map(value)
         return value
 
+    def train(self, instance):
+        """
+        Update feature extractors for a given instance. Only applies to extractors with vocabularies.
+        """
+        pass
+
     def extract(self, instance):
         """
         Extracts a feature for a given instance.
@@ -279,21 +285,19 @@ class Extractor(object):
 
 
 class Feature(Extractor):
-    def __init__(self, name, key, train=False, indices=None, pad_word=PAD_WORD, unknown_word=UNKNOWN_WORD,
+    def __init__(self, name, key, indices=None, pad_word=PAD_WORD, unknown_word=UNKNOWN_WORD,
                  threshold=0, **kwargs):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
         :param name: unique identifier for this feature
         :param key: key used for extracting values from input instance dictionary. Distinct from `name`, as we
         may perform different transformations to the same input to create different features
-        :param train: if `True`, then update vocabulary upon encountering new words--otherwise, leave it unmodified
         :param indices: initial indices used to initialize the vocabulary
         :param pad_word: pad word form
         :param unknown_word: unknown word form
         :param threshold: minimum count of this feature to be saved in vocabulary
         """
         super(Feature, self).__init__(name=name, key=key, **kwargs)
-        self.train = train
         self._fixed_indices = indices  # indices provided in configuration file, should be guaranteed
         self.indices = indices  # feat_to_index dict
         self.reversed = None  # index_to_feat dict
@@ -304,27 +308,32 @@ class Feature(Extractor):
         self.threshold = threshold
         self.embedding = None
         self.frozen = False
+        self.dtype = tf.string
 
-    def initialize(self, indices=None):
+    def initialize(self, indices=None, train=True):
         self.indices = indices if indices is not None else {}
         for reserved_word in self.reserved_words:
             if reserved_word in self.indices:
                 continue
-            if self.train:
+            if train:
                 self.indices[reserved_word] = len(self.indices)
             else:
                 raise AssertionError('Missing reserved word "{}" in vocabulary'.format(reserved_word))
         self.reversed = None
 
+    def train(self, instance):
+        value = self._extract_raw(instance)
+        self.feat2index(value)
+
     def extract(self, instance):
         value = self._extract_raw(instance)
-        index = self.feat_to_index(value)
-        return tf.train.Feature(int64_list=tf.train.Int64List(value=[index]))
+        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[bytes(value, encoding='utf-8')]))
 
-    def feat_to_index(self, feat, count=True):
+    def feat2index(self, feat, train=True, count=True):
         """
         Extract the index of a single feature, updating the index dictionary if training.
         :param feat: feature value
+        :param train: if true, update vocabulary
         :param count: include in counts
         :return: feature index
         """
@@ -333,12 +342,12 @@ class Feature(Extractor):
             # when the vocabulary is frozen, we continue keeping track of counts, but do not add new entries
             # this facilitates achieving a vocabulary that is an intersection between a pre-trained vocabulary (such as from word
             # embeddings) and the training data
-            if self.train and not self.frozen:
+            if train and not self.frozen:
                 index = len(self.indices)
                 self.indices[feat] = index
             else:
                 index = self.indices[self.unknown_word]
-        if self.train:
+        if train:
             self.counts[feat] = self.counts.get(feat, 0) + (1 if count else 0)
         return index
 
@@ -380,8 +389,6 @@ class Feature(Extractor):
         reserved words. Reinitialize this feature with the pruned vocabulary. Note, this does not preserve original indices, and
         should be performed prior to feature extraction.
         """
-        if not self.train:
-            tf.logging.warn("Pruning vocabulary '%s' with `train==False` is a likely error", self.name)
         # initial vocabulary with reserved words
         vocab = {} if self._fixed_indices is None else self._fixed_indices
         for reserved_word in self.reserved_words:
@@ -419,7 +426,7 @@ class Feature(Extractor):
                         raise AssertionError('Duplicate entry in vocabulary given at {}: {}'.format(path, line))
                     indices[line] = len(indices)
         # re-initialize with vocabulary read from file
-        self.initialize(indices)
+        self.initialize(indices, train=False)
         return True
 
     def vocab_size(self):
@@ -481,9 +488,14 @@ class SequenceFeature(Feature):
     def _extract_raw(self, sequence):
         return [self.map(result) for result in self.get_values(sequence)]
 
+    def train(self, sequence):
+        for value in self._extract_raw(sequence):
+            self.feat2index(value)
+
     def extract(self, sequence):
-        raw = self._extract_raw(sequence)
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[self.feat_to_index(result)])) for result in raw]
+        values = self._extract_raw(sequence)
+        input_features = [tf.train.Feature(bytes_list=tf.train.BytesList(value=[bytes(result, encoding='utf-8')]))
+                          for result in values]
         return tf.train.FeatureList(feature=input_features)
 
     def map(self, value):
@@ -500,30 +512,35 @@ class SequenceListFeature(SequenceFeature):
         if not max_len:
             raise AssertionError("Sequence list features require \"max_len\" to be specified")
 
+    def _extract_raw(self, sequence):
+        values = super(SequenceListFeature, self)._extract_raw(sequence)
+
+        results = []
+        for vals in values:
+            left_padding = self.left_padding * [self.left_pad_word]
+            right_padding = self.right_padding * [self.right_pad_word]
+            result = left_padding + vals + right_padding
+
+            if len(result) < self.max_len:
+                result += (self.max_len - len(result)) * [self.pad_word]
+            else:
+                result = result[:self.max_len]
+
+            results.append(result)
+        return results
+
+    def train(self, sequence):
+        values = self._extract_raw(sequence)
+        for vals in values:
+            for val in vals:
+                self.feat2index(val)
+
     def extract(self, sequence):
-        raw = self._extract_raw(sequence)
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=self.feat_to_index(result))) for result in raw]
+        values = self._extract_raw(sequence)
+        input_features = [tf.train.Feature(bytes_list=tf.train.BytesList(
+            value=[bytes(val, encoding='utf-8') for val in vals])) for vals in values
+        ]
         return tf.train.FeatureList(feature=input_features)
-
-    def feat_to_index(self, features, count=True):
-        if isinstance(features, str):
-            return super(SequenceListFeature, self).feat_to_index(features)
-
-        result = [super(SequenceListFeature, self).feat_to_index(feat, count) for feat in features]
-
-        # add BOS and EOS padding to sequence
-        left_pad_index = self.indices[self.left_pad_word]
-        right_pad_index = self.indices[self.right_pad_word]
-        result = self.left_padding * [left_pad_index] + result + self.right_padding * [right_pad_index]
-
-        # add (zero) padding to the max sequence length
-        if len(result) < self.max_len:
-            pad_index = self.indices[self.pad_word]
-            result += (self.max_len - len(result)) * [pad_index]
-        else:
-            result = result[:self.max_len]
-
-        return result
 
     def map(self, value):
         mapped = super(SequenceListFeature, self).map(value)
@@ -588,6 +605,11 @@ class FeatureExtractor(object):
 
     def target(self, name):
         return self.targets[name]
+
+    def train(self, instances):
+        for instance in instances:
+            for feature in self.extractors(train=True):
+                feature.train(instance)
 
     def extract_all(self, instances, train=True):
         return [self.extract(instance, train) for instance in instances]
@@ -666,38 +688,19 @@ class FeatureExtractor(object):
         """
         padding = {}
         for feature in self.extractors(train):
-            index = 0
-            if feature.has_vocab():
-                if hasattr(feature, 'pad_word'):
-                    index = feature.indices[feature.pad_word]
-                elif PAD_WORD in feature.indices:
-                    index = feature.indices[PAD_WORD]
-                padding[feature.name] = tf.constant(index, dtype=tf.int64)
-            elif feature.dtype == tf.string:
-                padding[feature.name] = tf.constant(b"<S>", dtype=tf.string)
+            if feature.dtype == tf.string:
+                if feature.has_vocab():
+                    padding[feature.name] = tf.constant(feature.pad_word, dtype=tf.string)
+                else:
+                    padding[feature.name] = tf.constant(b"<S>", dtype=tf.string)
             else:
                 padding[feature.name] = tf.constant(0, dtype=tf.int64)
         return padding
-
-    def train(self, train=True):
-        """
-        When called, sets all features to the specified training mode.
-        :param train: `True` by default
-        """
-        for feature in self.extractors():
-            feature.train = train
-
-    def test(self):
-        """
-        Set all features to test mode (do not update feature dictionaries).
-        """
-        self.train(False)
 
     def initialize(self, resources=''):
         """
         Initialize feature vocabularies from pre-trained vectors if available.
         """
-        self.train()
         for feature in self.extractors():
             if not feature.has_vocab():
                 continue
@@ -713,7 +716,7 @@ class FeatureExtractor(object):
             vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
             for key in vectors:
-                feature.feat_to_index(feature.map(key), False)
+                feature.feat2index(feature.map(key), count=False)
             if initializer.restrict_vocab:
                 feature.frozen = True
 
