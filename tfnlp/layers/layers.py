@@ -60,14 +60,23 @@ def input_layer(features, params, training):
     return results
 
 
-def _get_string_lookup(feature_strings, feature):
-    lookup = index_table_from_tensor(mapping=tf.constant(feature.ordered_feats()), default_value=feature.unk_index())
-    return lookup.lookup(feature_strings)
+def string2index(feature_strings, feature):
+    """
+    Convert a `Tensor` of type `tf.string` to a corresponding Tensor of ids (`tf.int32`)
+    :param feature_strings: string `Tensor`
+    :param feature: feature extractor with string to index vocabulary
+    :return: feature id Tensor
+    """
+    with tf.variable_scope('lookup'):
+        lookup = index_table_from_tensor(mapping=tf.constant(list(feature.ordered_feats())), default_value=feature.unk_index())
+        return lookup.lookup(feature_strings)
 
 
-def _get_embedding_input(feature_ids, feature, training):
+def _get_embedding_input(inputs, feature, training):
     config = feature.config
+
     with tf.variable_scope(feature.name):
+        feature_ids = string2index(inputs, feature)
 
         with tf.variable_scope('embedding'):
             initializer = None
@@ -95,7 +104,7 @@ def _get_embedding_input(feature_ids, feature, training):
                                            name='dropout')
 
         if feature.rank == 3:  # reduce multiple vectors per token to a single vector
-            with tf.name_scope('reduce_func'):
+            with tf.name_scope('reduce'):
                 result = config.func.apply(result)
 
         if config.word_dropout > 0 and training:
