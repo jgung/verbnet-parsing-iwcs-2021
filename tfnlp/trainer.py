@@ -110,6 +110,7 @@ class Trainer(object):
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 
     def train(self):
+        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
         self._extract_and_write(self._raw_train)
         self._extract_and_write(self._raw_valid)
 
@@ -145,6 +146,7 @@ class Trainer(object):
 
     def eval(self):
         for test_set in self._raw_test:
+            tf.logging.info('Evaluating on %s' % test_set)
             self._extract_and_write(test_set)
             eval_input_fn = self._input_fn(test_set, False)
             self._estimator.evaluate(eval_input_fn)
@@ -209,12 +211,17 @@ class Trainer(object):
 
     def _init_estimator(self, test=False):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                                 config=RunConfig(save_checkpoints_steps=self._training_config.checkpoint_steps),
+                                                 config=RunConfig(
+                                                     keep_checkpoint_max=self._training_config.keep_checkpoints,
+                                                     save_checkpoints_steps=self._training_config.checkpoint_steps),
                                                  params=self._params(test=test))
 
     def _serving_input_fn(self):
+        # input has been serialized to a TFRecord string
         serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, name='input_example_tensor')
+        # parse serialized TFRecord string
         features = self._feature_extractor.parse(serialized_tf_example, train=False)
+        # add batch dimension
         features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
         return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
 

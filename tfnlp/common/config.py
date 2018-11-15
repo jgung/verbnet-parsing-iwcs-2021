@@ -35,6 +35,7 @@ class BaseNetworkConfig(Params):
             self.max_steps = self.checkpoint_steps * 100
             tf.logging.warn("No 'max_steps' parameter provided. Using default value of %d", self.max_steps)
         self.exports_to_keep = config.get('exports_to_keep', 5)
+        self.keep_checkpoints = config.get('checkpoints_to_keep', 1)
 
         self.input_dropout = config.get('input_dropout', 0)
         self.buckets = config.get('buckets', [10, 15, 25, 30, 75])
@@ -79,7 +80,7 @@ class HeadConfig(Params):
         self.crf = config.get('crf', False)
         self.type = config.get('type', constants.TAGGER_KEY)
         self.zero_init = config.get('zero_init', True)
-        self.metric = config.get('metric', constants.F1_METRIC_KEY if constants.TAGGER_KEY == self.type else 'Accuracy')
+        self.metric = config.get('metric', constants.OVERALL_KEY if constants.TAGGER_KEY == self.type else 'Accuracy')
 
 
 def get_network_config(config):

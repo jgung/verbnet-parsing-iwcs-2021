@@ -92,8 +92,8 @@ class ModelHead(object):
         self.export_outputs = {}
         index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(self.params.vocab_path, self.name),
                                                          default_value=self.extractor.unknown_word)
-        self.predictions = index_to_label.lookup(tf.cast(self.predictions, dtype=tf.int64))
-        self.export_outputs[self.name] = PredictOutput(self.predictions)
+        self.predictions = tf.identity(index_to_label.lookup(tf.cast(self.predictions, dtype=tf.int64)), name="labels")
+        self.export_outputs[self.name] = PredictOutput({self.name: self.predictions})
 
 
 class ClassifierHead(ModelHead):
@@ -229,21 +229,21 @@ class TaggerHead(ModelHead):
             predictions_key: self.predictions,
         }
 
-        if self.config.type == constants.SRL_KEY:
-            overall_score = tf.identity(self.metric)
-            overall_key = append_label(constants.OVERALL_KEY, self.name)
-            self.metric_ops[self.config.metric] = (overall_score, overall_score)
+        overall_score = tf.identity(self.metric)
+        self.metric_ops[append_label(constants.OVERALL_KEY, self.name)] = (overall_score, overall_score)
+        overall_key = append_label(constants.OVERALL_KEY, self.name)
+        # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
+        eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 
+        if self.config.type == constants.SRL_KEY:
             eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
-            # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
-            eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
+
             self.evaluation_hooks.append(
                 SrlEvalHook(
                     tensors=eval_tensors,
                     vocab=self.extractor,
                     label_key=labels_key,
                     predict_key=predictions_key,
-                    eval_tensor=overall_score,
                     eval_update=tf.assign(self.metric, eval_placeholder),
                     eval_placeholder=eval_placeholder,
                     output_confusions=self.params.verbose_eval
@@ -262,6 +262,8 @@ class TaggerHead(ModelHead):
                     vocab=self.extractor,
                     label_key=labels_key,
                     predict_key=predictions_key,
+                    eval_update=tf.assign(self.metric, eval_placeholder),
+                    eval_placeholder=eval_placeholder,
                     script_path=self.params.script_path if self.config.type == constants.NER_KEY else None,
                     output_file=self.params.output
                 )
