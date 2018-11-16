@@ -75,7 +75,7 @@ def _convert_to_sentences(ys, indices, ids):
                 args = []
         if not predicates:
             predicates = ["-"] * markers.size
-        index = markers.tolist().index(1)
+        index = markers.tolist().index(b'1')
         predicates[index] = 'x'
         args.append(chunk(labels, conll=True))
 

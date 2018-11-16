@@ -80,7 +80,7 @@ class HeadConfig(Params):
         self.crf = config.get('crf', False)
         self.type = config.get('type', constants.TAGGER_KEY)
         self.zero_init = config.get('zero_init', True)
-        self.metric = config.get('metric', constants.OVERALL_KEY if constants.TAGGER_KEY == self.type else 'Accuracy')
+        self.metric = config.get('metric', constants.OVERALL_KEY)
 
 
 def get_network_config(config):
