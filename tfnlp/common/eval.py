@@ -184,8 +184,8 @@ class ClassifierEvalHook(EvalHook):
 
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
-        self._gold.extend((self._vocab.index_to_feat(gold) for gold in run_values.results[self._label_key]))
-        self._predictions.extend((self._vocab.index_to_feat(prediction) for prediction in run_values.results[self._predict_key]))
+        self._gold.append((self._vocab.index_to_feat(gold) for gold in run_values.results[self._label_key]))
+        self._predictions.append((self._vocab.index_to_feat(prediction) for prediction in run_values.results[self._predict_key]))
 
     def end(self, session):
         accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
@@ -193,13 +193,17 @@ class ClassifierEvalHook(EvalHook):
 
 class SequenceEvalHook(EvalHook):
 
-    def __init__(self, *args, script_path=None, **kwargs):
+    def __init__(self, *args, script_path=None, eval_update=None, eval_placeholder=None, **kwargs):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param script_path: path to eval script
+        :param eval_update: operation to update current best score
+        :param eval_placeholder: placeholder for update operation
         """
         super().__init__(*args, **kwargs)
         self._script_path = script_path
+        self._eval_update = eval_update
+        self._eval_placeholder = eval_placeholder
 
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
@@ -214,22 +218,17 @@ class SequenceEvalHook(EvalHook):
             score, result = conll_eval(self._gold, self._predictions, self._indices, self._script_path, self._output_file)
             tf.logging.info(result)
         else:
-            accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
+            score = accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
 
 
 class SrlEvalHook(SequenceEvalHook):
-    def __init__(self, *args, eval_tensor=None, eval_update=None, eval_placeholder=None, output_confusions=False, **kwargs):
+    def __init__(self, *args, output_confusions=False, **kwargs):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
-        :param eval_tensor: scalar tensor used to store results of evaluation
-        :param eval_update: operation to update current best score
-        :param eval_placeholder: placeholder for update operation
         :param output_confusions: display a confusion matrix along with normal outputs
         """
         super().__init__(*args, **kwargs)
-        self._eval_tensor = eval_tensor
-        self._eval_update = eval_update
-        self._eval_placeholder = eval_placeholder
         self._output_confusions = output_confusions
 
         self._markers = None
@@ -280,9 +279,9 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
     def after_run(self, run_context, run_values):
         self._rel_probs.extend(run_values.results[REL_PROBS])
         for arc_probs, rels, heads, seq_len in zip(run_values.results[ARC_PROBS],
-                                                              run_values.results[DEPREL_KEY],
-                                                              run_values.results[HEAD_KEY],
-                                                              run_values.results[LENGTH_KEY]):
+                                                   run_values.results[DEPREL_KEY],
+                                                   run_values.results[HEAD_KEY],
+                                                   run_values.results[LENGTH_KEY]):
             self._arc_probs.append(arc_probs[:seq_len, :seq_len])
             self._rels.append(rels[:seq_len])
             self._arcs.append(heads[:seq_len])
@@ -371,7 +370,7 @@ def metric_compare_fn(metric_key):
         new = current_eval_result[metric_key]
         prev = best_eval_result[metric_key]
         tf.logging.info("Comparing new score with previous best (%f vs. %f)", new, prev)
-        return prev < new
+        return prev <= new
 
     return _metric_compare_fn
 

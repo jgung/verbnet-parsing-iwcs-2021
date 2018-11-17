@@ -26,22 +26,39 @@
   },
   "heads": [
     {
-      "name": "NE",
+      "name": "gold",
       "type": "ner",
-      "crf": true
+      "crf": true,
+      "metric": "F-Measure"
+    },
+    {
+      "name": "pos",
+      "type": "tagger",
+      "crf": true,
+      "metric": "F-Measure"
     }
   ],
   "features": {
-    "seq_feat": "word",
+    "seq_feat": "gold",
     "targets": [
       {
-        "name": "NE",
+        "name": "gold",
         "key": "gold",
         "indices": {
           "O": 0
         },
         "unknown_word": "O",
         "pad_word": "O"
+      },
+      {
+        "name": "pos",
+        "key": "pos",
+        "indices": {
+          "NN": 0,
+          "<PAD>": 1
+        },
+        "unknown_word": "NN",
+        "pad_word": "<PAD>"
       }
     ],
     "inputs": [

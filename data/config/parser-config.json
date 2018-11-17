@@ -1,6 +1,5 @@
 {
   "reader": "conll_2009",
-  "type": "parser",
   "checkpoint_steps": 1000,
   "patience": 5000,
   "state_size": 400,
@@ -24,7 +23,6 @@
     75,
     100
   ],
-  "metric": "LAS",
   "optimizer": {
     "name": "Adam",
     "params": {
@@ -34,6 +32,18 @@
     "lr": 0.002,
     "clip": 5.0
   },
+  "heads": [
+    {
+      "name": "deprel",
+      "type": "parser",
+      "metric": "LAS"
+    },
+    {
+      "name": "head",
+      "type": "parser",
+      "metric": "UAS"
+    }
+  ],
   "features": {
     "seq_feat": "head",
     "targets": [

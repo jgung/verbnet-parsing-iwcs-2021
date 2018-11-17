@@ -1,9 +1,8 @@
 {
   "reader": "conll_2005",
-  "type": "srl",
   "checkpoint_steps": 2000,
-  "patience": 500000,
-  "max_steps": 500000,
+  "patience": 10000,
+  "max_steps": 100000,
   "state_size": 300,
   "input_dropout": 0.2,
   "encoder_output_dropout": 0.1,
@@ -15,14 +14,55 @@
   "relu_hidden_size": 800,
   "relu_dropout": 0.1,
   "prepost_dropout": 0.1,
-  "batch_size": 128,
+  "batch_size": 64,
   "buckets": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
     20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
     30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
     50,
-    80
+    52,
+    56,
+    61,
+    99
   ],
-  "metric": "F1-SRL",
   "optimizer": {
     "name": "LazyNadam",
     "params": {
@@ -38,8 +78,15 @@
       "decay_rate": 1.5,
       "decay_steps": 5000
     },
-    "clip": 5.0
+    "clip": 1.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "srl",
+      "metric": "F1-SRL"
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [
@@ -54,6 +101,10 @@
       }
     ],
     "inputs": [
+      {
+        "name": "elmo",
+        "key": "word"
+      },
       {
         "name": "word",
         "key": "word",

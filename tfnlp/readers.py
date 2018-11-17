@@ -8,7 +8,8 @@ from tensorflow.python.lib.io import file_io
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, ENHANCED_DEPS_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, \
     LABEL_KEY, LEMMA_KEY, MARKER_KEY, MISC_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, \
-    POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENTENCE_INDEX, WORD_KEY, XPOS_KEY
+    POS_KEY, PPOS_KEY, PREDICATE_KEY, ROLESET_KEY, SENSE_KEY, SENTENCE_INDEX, TOKEN_INDEX_KEY, WORD_KEY, XPOS_KEY
+from tfnlp.common.utils import Params
 
 
 class TsvReader(object):
@@ -52,7 +53,7 @@ class SemlinkReader(TsvReader):
     def _process_fields(self, fields):
         tokens = fields[1].split()
         fields = fields[0].split()
-        return {LABEL_KEY: fields[4], MARKER_KEY: int(fields[2]), WORD_KEY: tokens}
+        return {LABEL_KEY: fields[4], TOKEN_INDEX_KEY: int(fields[2]), WORD_KEY: tokens}
 
 
 class ConllReader(object):
@@ -201,7 +202,7 @@ class ConllSrlReader(ConllReader):
                  index_field_map,
                  pred_start,
                  pred_end=0,
-                 pred_key="predicate",
+                 pred_key=PREDICATE_KEY,
                  chunk_func=lambda x: x,
                  line_filter=lambda line: False,
                  label_mappings=None,
@@ -223,11 +224,12 @@ class ConllSrlReader(ConllReader):
                                              chunk_func=chunk_func)
         self._pred_start = pred_start
         self._pred_end = pred_end
+        self._predicate_key = pred_key
         self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
-        self._label_mappings = label_mappings if label_mappings else {LABEL_KEY: {}}
-        if not regex_mapping:
+        self._label_mappings = label_mappings if label_mappings is not None else {LABEL_KEY: {}}
+        if label_mappings is not None and not regex_mapping:
             # add continuation/reference mappings if they aren't already there
             for _target_mappings in label_mappings.values():
                 c_mappings = {'C-' + k: v for k, v in _target_mappings.items()}
@@ -239,11 +241,13 @@ class ConllSrlReader(ConllReader):
     def read_instances(self, rows):
         instances = []
         fields = self.read_fields(rows)
-        for key, all_labels in self.read_predicates(rows).items():
+        for predicate_index, all_labels in self.read_predicates(rows).items():
             instance = dict(fields)  # copy instance dictionary and add labels
             for label_key, labels in all_labels.items():
                 instance[label_key] = labels
-            instance[MARKER_KEY] = [index == key and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
+            instance[MARKER_KEY] = [index == predicate_index and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
+            instance[SENSE_KEY] = instance[SENSE_KEY][predicate_index]
+            instance[TOKEN_INDEX_KEY] = predicate_index
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
             self.prop_count += 1
@@ -501,3 +505,29 @@ def write_ptb_pos_files(wsj_path, out_dir):
     write_results(r'wsj/(0\d|1[0-8])/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-train.txt')
     write_results(r'wsj/(19|20|21)/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-dev.txt')
     write_results(r'wsj/(22|23|24)/wsj_\d+\.mrg', out_dir + '/wsj-ptb-pos-test.txt')
+
+
+def conll2semlink(conll_path, out_file, reader=None):
+    if not reader:
+        reader = get_reader(Params(**{
+            "field_index_map": {
+                "word": 2,
+                "pos": 3,
+                "sense": 4,
+                "predicate": 5
+            },
+            "pred_start": 6
+        }))
+    with open(out_file, mode='wt') as out:
+        for instance in reader.read_file(conll_path):
+            text = ' '.join([word for word in instance[WORD_KEY]])
+            for word in instance[WORD_KEY]:
+                if ' ' in word:
+                    print('A space ' ' was found in a token in an instance w/ text: %s' % text)
+            sense = instance[SENSE_KEY]
+            token = instance[TOKEN_INDEX_KEY]
+            sentence = instance[INSTANCE_INDEX]
+            # noinspection PyTypeChecker
+            predicate = instance[PREDICATE_KEY][token]
+            # noinspection PyStringFormat
+            out.write('%s %d %d %s %s\t%s\n' % (conll_path, sentence, token, predicate, sense, text))

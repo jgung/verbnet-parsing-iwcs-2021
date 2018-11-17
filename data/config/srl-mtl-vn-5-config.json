@@ -53,56 +53,9 @@
         "Final_Time": "Time",
         "Frequency": "Time",
         "Duration": "Time"
-      },
-      "vn9": {
-        "Actor1": "Affector",
-        "Actor2": "Affector",
-        "Affector": "Affector",
-        "Agent": "Affector",
-        "Agent1": "Affector",
-        "Cause": "Affector",
-        "Causer": "Affector",
-        "Stimulus": "Affector",
-        "Precondition": "Affector",
-        "Pivot": "Undergoer",
-        "Instrument": "Undergoer",
-        "Topic": "Undergoer",
-        "Experiencer": "Undergoer",
-        "Patient": "Undergoer",
-        "Patient1": "Undergoer",
-        "Patient2": "Undergoer",
-        "Theme": "Undergoer",
-        "Theme1": "Undergoer",
-        "Theme2": "Undergoer",
-        "Beneficiary": "Undergoer",
-        "Initial_Location": "Source",
-        "Recipient": "Goal",
-        "Destination": "Goal",
-        "Location": "Locus",
-        "Locus": "Locus",
-        "Material": "Source",
-        "Source": "Source",
-        "Product": "Goal",
-        "Result": "Goal",
-        "Goal": "Goal",
-        "Trajectory": "Path",
-        "Extent": "Path",
-        "Path": "Path",
-        "Asset": "Value",
-        "Value": "Value",
-        "Circumstance": "Circumstance",
-        "Predicate": "Circumstance",
-        "Attribute": "Circumstance",
-        "Manner": "Circumstance",
-        "Proposition": "Circumstance",
-        "Init_Time": "Time",
-        "Final_Time": "Time",
-        "Frequency": "Time",
-        "Duration": "Time"
       }
     }
   },
-  "type": "srl",
   "checkpoint_steps": 2000,
   "patience": 10000,
   "max_steps": 100000,
@@ -160,7 +113,6 @@
     61,
     99
   ],
-  "metric": "F1-SRL",
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -169,6 +121,18 @@
     "lr": 1.0,
     "clip": 1.0
   },
+  "heads": [
+    {
+      "name": "gold",
+      "type": "srl",
+      "metric": "F1-SRL"
+    },
+    {
+      "name": "vn5",
+      "type": "srl",
+      "metric": "F1-SRL"
+    }
+  ],
   "features": {
     "seq_feat": "gold",
     "targets": [
@@ -184,15 +148,6 @@
       {
         "name": "vn5",
         "key": "vn5",
-        "indices": {
-          "O": 0
-        },
-        "unknown_word": "O",
-        "pad_word": "O"
-      },
-      {
-        "name": "vn9",
-        "key": "vn9",
         "indices": {
           "O": 0
         },

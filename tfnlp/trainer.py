@@ -12,16 +12,14 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
+from tfnlp.common.constants import CLASSIFIER_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import get_feature_extractor, write_features
-from tfnlp.model.classifier import classifier_model_func
+from tfnlp.model.model import multi_head_model_func
 from tfnlp.model.parser import parser_model_func
-from tfnlp.model.tagger import tagger_model_func
-from tfnlp.model.token_classifier import token_classifier_model_func
 from tfnlp.readers import get_reader
 
 VOCAB_PATH = 'vocab'
@@ -75,7 +73,7 @@ class Trainer(object):
         self._training_config = get_network_config(read_json(config_path))
         self._feature_config = self._training_config.features
 
-        self._model_fn = get_model_func(self._training_config.type)
+        self._model_fn = get_model_func(self._training_config)
 
         self._feature_extractor = None
         self._estimator = None
@@ -112,6 +110,7 @@ class Trainer(object):
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 
     def train(self):
+        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
         self._extract_and_write(self._raw_train)
         self._extract_and_write(self._raw_valid)
 
@@ -147,6 +146,7 @@ class Trainer(object):
 
     def eval(self):
         for test_set in self._raw_test:
+            tf.logging.info('Evaluating on %s' % test_set)
             self._extract_and_write(test_set)
             eval_input_fn = self._input_fn(test_set, False)
             self._estimator.evaluate(eval_input_fn)
@@ -211,12 +211,17 @@ class Trainer(object):
 
     def _init_estimator(self, test=False):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                                 config=RunConfig(save_checkpoints_steps=self._training_config.checkpoint_steps),
+                                                 config=RunConfig(
+                                                     keep_checkpoint_max=self._training_config.keep_checkpoints,
+                                                     save_checkpoints_steps=self._training_config.checkpoint_steps),
                                                  params=self._params(test=test))
 
     def _serving_input_fn(self):
+        # input has been serialized to a TFRecord string
         serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, name='input_example_tensor')
+        # parse serialized TFRecord string
         features = self._feature_extractor.parse(serialized_tf_example, train=False)
+        # add batch dimension
         features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
         return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
 
@@ -246,17 +251,19 @@ def default_input_fn(features):
     return {"examples": features}
 
 
-def get_model_func(model_type):
+def get_model_func(config):
+    head_type = [head.type for head in config.heads][0]
     model_funcs = {
-        CLASSIFIER_KEY: classifier_model_func,
-        TAGGER_KEY: tagger_model_func,
+        CLASSIFIER_KEY: multi_head_model_func,
+        TAGGER_KEY: multi_head_model_func,
+        NER_KEY: multi_head_model_func,
         PARSER_KEY: parser_model_func,
-        SRL_KEY: tagger_model_func,
-        TOKEN_CLASSIFIER_KEY: token_classifier_model_func,
+        SRL_KEY: multi_head_model_func,
+        TOKEN_CLASSIFIER_KEY: multi_head_model_func,
     }
-    if model_type not in model_funcs:
-        raise ValueError("Unexpected model type: " + model_type)
-    return model_funcs[model_type]
+    if head_type not in model_funcs:
+        raise ValueError("Unexpected head type: " + head_type)
+    return model_funcs[head_type]
 
 
 if __name__ == '__main__':

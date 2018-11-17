@@ -1,8 +1,15 @@
 {
-  "reader": "conll_2005_phrase",
+  "reader": {
+    "field_index_map": {
+      "word": 2,
+      "sense": 4,
+      "predicate": 5
+    },
+    "pred_start": 6
+  },
   "checkpoint_steps": 2000,
-  "patience": 50000,
-  "max_steps": 500000,
+  "patience": 10000,
+  "max_steps": 100000,
   "state_size": 300,
   "input_dropout": 0.0,
   "encoder_output_dropout": 0.1,
@@ -87,16 +94,16 @@
     ],
     "inputs": [
       {
+        "name": "elmo",
+        "key": "word"
+      },
+      {
         "name": "word",
         "key": "word",
-        "rank": 3,
         "mapping_funcs": [
           "lower",
           "digit_norm"
         ],
-        "left_padding": 2,
-        "right_padding": 2,
-        "max_len": 15,
         "config": {
           "dim": 100,
           "initializer": {
@@ -104,11 +111,6 @@
             "pkl_path": "word-vectors.pkl",
             "include_in_vocab": 400000,
             "restrict_vocab": true
-          },
-          "function": {
-            "name": "ConvNet",
-            "kernel_size": 3,
-            "num_filters": 100
           }
         }
       },
@@ -116,13 +118,20 @@
         "name": "marker",
         "key": "marker",
         "config": {
-          "dim": 100
+          "dim": 50
         },
         "indices": {
           "0": 0
         },
         "unknown_word": "0",
         "pad_word": "0"
+      },
+      {
+        "name": "sense",
+        "key": "sense",
+        "config": {
+          "dim": 50
+        }
       }
     ]
   }
