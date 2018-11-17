@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
@@ -29,20 +30,19 @@ MODEL_PATH = 'model'
 
 def default_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train', type=str, help='File containing training data.')
-    parser.add_argument('--valid', type=str, help='File containing validation data.')
-    parser.add_argument('--test', type=str, help='Comma-separated list of files containing test data.')
     parser.add_argument('--job-dir', dest='save', type=str, required=True,
-                        help='Directory where models/checkpoints/vocabularies are saved.')
-    parser.add_argument('--vocab', type=str, help='(Optional) Directory where vocabulary files are saved.')
-    parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
-    parser.add_argument('--mode', type=str, default="train", help='(Optional) Training command',
-                        choices=['train', 'eval', 'test', 'itl', 'loop', 'predict'])
-    parser.add_argument('--config', type=str, help='JSON file for configuring training')
-    parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
+                        help='models/checkpoints/vocabularies save path')
+    parser.add_argument('--config', type=str, help='training configuration JSON')
+    parser.add_argument('--resources', type=str, help='shared resources directory (such as for word embeddings)')
+    parser.add_argument('--train', type=str, help='training data path')
+    parser.add_argument('--valid', type=str, help='validation/development data path')
+    parser.add_argument('--test', type=str, help='test data paths, comma-separated')
+    parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
+                        choices=['train', 'test', 'predict', 'itl'])
+    parser.add_argument('--script', type=str, help='(optional) evaluation script path')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='Overwrite previous trained models and vocabularies')
-    parser.add_argument('--output', type=str, help='Path to output predictions (during evaluation and application)')
+                        help='overwrite previously saved vocabularies and training files')
+    parser.add_argument('--output', type=str, help='output path for predictions (during evaluation and application)')
     parser.set_defaults(overwrite=False)
     return parser
 
@@ -59,7 +59,7 @@ class Trainer(object):
         self._output = args.output
 
         self._save_path = os.path.join(args.save, MODEL_PATH)
-        self._vocab_path = args.vocab or os.path.join(args.save, VOCAB_PATH)
+        self._vocab_path = os.path.join(args.save, VOCAB_PATH)
         self._resources = args.resources
         self._eval_script_path = args.script
 
@@ -93,18 +93,22 @@ class Trainer(object):
         :param args: command-line arguments
         :return: parsed arguments
         """
-        return default_args().parse_args(args)
+        parser = default_args()
+        if len(sys.argv) == 1:
+            parser.print_help(sys.stderr)
+            sys.exit(1)
+        return parser.parse_args(args)
 
     def run(self):
         self._init_feature_extractor()
-        self._init_estimator(test=self._mode in ["eval", "test"])
+        self._init_estimator(test=self._mode == "test")
         if self._mode == "train":
             self.train()
-        elif self._mode in ["eval", "test"]:
+        elif self._mode == "test":
             self.eval()
         elif self._mode == "predict":
             self.predict()
-        elif self._mode in ["loop", "itl"]:
+        elif self._mode == "itl":
             self.itl()
         else:
             raise ValueError("Unexpected mode type: {}".format(self._mode))
@@ -141,7 +145,7 @@ class Trainer(object):
                                                            exporters=[exporter],
                                                            throttle_secs=0))
         if self._raw_test:
-            self._mode = "eval"
+            self._mode = "test"
             self.run()
 
     def eval(self):
