@@ -713,8 +713,9 @@ class FeatureExtractor(object):
             if num_vectors_to_read <= 0:
                 continue
 
-            vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
-            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
+            vectors_path = os.path.join(resources, initializer.embedding)
+            vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
+            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
             for key in vectors:
                 feature.feat2index(feature.map(key), count=False)
             if initializer.restrict_vocab:
@@ -749,14 +750,15 @@ class FeatureExtractor(object):
             if num_vectors_to_read <= 0:
                 continue
 
-            _vectors, dim = read_vectors(resources + initializer.embedding, max_vecs=num_vectors_to_read)
+            vectors_path = os.path.join(resources, initializer.embedding)
+            _vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
             vectors = {}
             for key, vector in _vectors.items():
                 key = feature.map(key)
                 if key not in vectors:
                     vectors[key] = vector
 
-            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, resources + initializer.embedding)
+            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
             feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
             tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
             serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
