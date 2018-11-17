@@ -83,7 +83,7 @@ class Trainer(object):
 
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
-        self._prediction_formatter_fn = default_formatter
+        self._prediction_formatter_fn = self._default_formatter
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
@@ -159,16 +159,22 @@ class Trainer(object):
         raise NotImplementedError
 
     def itl(self):
-        predictor = from_saved_model(self._save_path)
+        export_dir = os.path.join(self._save_path, 'export/best_exporter')
+        predictor = from_saved_model(os.path.join(export_dir, max(os.listdir(export_dir))))
         while True:
             sentence = input(">>> ")
             if not sentence:
                 return
             example = self._parse_fn(sentence)
-            features = self._feature_extractor.extract(example, train=False).SerializeToString()
-            serialized_feats = self._predict_input_fn(features)
+            features = self._feature_extractor.extract(example, train=False)
+            serialized_feats = self._predict_input_fn(features.SerializeToString())
             result = predictor(serialized_feats)
             print(self._prediction_formatter_fn(result))
+
+    def _default_formatter(self, result):
+        target = self._training_config.features.targets[0].name
+        unicode_result = [bstr.decode('utf-8') for bstr in result[target][0].tolist()]
+        return ' '.join(unicode_result)
 
     def _init_feature_extractor(self):
         self._feature_extractor = get_feature_extractor(self._feature_config)
@@ -246,10 +252,6 @@ class Trainer(object):
 
 def default_parser(sentence):
     return {WORD_KEY: sentence.split()}
-
-
-def default_formatter(result):
-    return ' '.join([bstr.decode('utf-8') for bstr in result['output'][0].tolist()])
 
 
 def default_input_fn(features):
