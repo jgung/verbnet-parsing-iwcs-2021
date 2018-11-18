@@ -83,7 +83,7 @@ class Trainer(object):
 
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
-        self._prediction_formatter_fn = self._default_formatter
+        self._prediction_formatter_fn = get_formatter(self._training_config)
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
@@ -171,11 +171,6 @@ class Trainer(object):
             result = predictor(serialized_feats)
             print(self._prediction_formatter_fn(result))
 
-    def _default_formatter(self, result):
-        target = self._training_config.features.targets[0].name
-        unicode_result = [bstr.decode('utf-8') for bstr in result[target][0].tolist()]
-        return ' '.join(unicode_result)
-
     def _init_feature_extractor(self):
         self._feature_extractor = get_feature_extractor(self._feature_config)
         if self._mode == "train":
@@ -256,6 +251,28 @@ def default_parser(sentence):
 
 def default_input_fn(features):
     return {"examples": features}
+
+
+def get_formatter(config):
+    def _tagger_formatter(result):
+        target = config.features.targets[0].name
+        unicode_result = [bstr.decode('utf-8') for bstr in result[target][0].tolist()]
+        return ' '.join(unicode_result)
+
+    def _classifier_formatter(result):
+        target = config.features.targets[0].name
+        return result[target][0].decode('utf-8')
+
+    head_type = [head.type for head in config.heads][0]
+    formatters = {
+        CLASSIFIER_KEY: _classifier_formatter,
+        TAGGER_KEY: _tagger_formatter,
+        NER_KEY: _tagger_formatter,
+        PARSER_KEY: parser_model_func
+    }
+    if head_type not in formatters:
+        raise ValueError("Unsupported head type: " + head_type)
+    return formatters[head_type]
 
 
 def get_model_func(config):
