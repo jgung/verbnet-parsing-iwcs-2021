@@ -38,7 +38,8 @@ class BaseNetworkConfig(Params):
         self.keep_checkpoints = config.get('checkpoints_to_keep', 1)
 
         self.input_dropout = config.get('input_dropout', 0)
-        self.buckets = config.get('buckets', [10, 15, 25, 30, 75])
+        self.buckets = config.get('buckets')
+        self.max_length = config.get('max_length', 100)
         self.encoder = config.get('encoder', 'lstm')
         self.forget_bias = config.get('forget_bias', 1)
         self.encoder_dropout = config.get('encoder_dropout', 0)

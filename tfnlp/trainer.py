@@ -13,12 +13,13 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
+from tfnlp.common.constants import CLASSIFIER_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY, \
+    LENGTH_KEY
 from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
-from tfnlp.feature import get_feature_extractor, write_features
+from tfnlp.feature import get_feature_extractor, write_features, get_default_buckets
 from tfnlp.model.model import multi_head_model_func
 from tfnlp.model.parser import parser_model_func
 from tfnlp.readers import get_reader
@@ -241,9 +242,16 @@ class Trainer(object):
                        verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):
+        bucket_sizes = self._training_config.buckets
+        if not bucket_sizes and LENGTH_KEY in self._feature_extractor.features:
+            length_feat = self._feature_extractor.feature(LENGTH_KEY)
+            # TODO: persist dynamically computed bucket sizes for training restarts
+            bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
+                                               max_length=self._training_config.max_length)
+
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
                                     batch_size=self._training_config.batch_size, evaluate=not train,
-                                    bucket_sizes=self._training_config.buckets)
+                                    bucket_sizes=bucket_sizes)
 
 
 def default_parser(sentence):

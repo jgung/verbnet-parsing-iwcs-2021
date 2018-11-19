@@ -795,3 +795,26 @@ def write_features(examples, out_path):
         writer = tf.python_io.TFRecordWriter(file.name)
         for example in examples:
             writer.write(example.SerializeToString())
+
+
+def get_default_buckets(lengths, min_count, max_length=None):
+    """
+    Apply simple heuristic to generate reasonable bucket sizes, given a dict of counts of each sequence length.
+    :param lengths: sequence length count dict
+    :param min_count: minimum count needed to create a bucket for a length (e.g. batch size, or some multiple of this)
+    :param max_length: max-sized bucket to consider
+    :return: list of bucket sizes
+    """
+    total = 0
+    buckets = []
+    for length, count in lengths.items():
+        if max_length and length > max_length:
+            continue
+        if count + total >= min_count:  # if there are enough seqs w/ this length, create a bucket
+            buckets.append(length)
+            total = 0
+        else:
+            total += count
+    if total > 0:
+        buckets.append(max_length if max_length else max(lengths.keys()))
+    return buckets
