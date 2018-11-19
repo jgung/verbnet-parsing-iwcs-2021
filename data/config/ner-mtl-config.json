@@ -26,23 +26,21 @@
   },
   "heads": [
     {
-      "name": "gold",
+      "name": "NE",
       "type": "ner",
-      "crf": true,
-      "metric": "F-Measure"
+      "crf": true
     },
     {
       "name": "pos",
       "type": "tagger",
-      "crf": true,
-      "metric": "F-Measure"
+      "crf": true
     }
   ],
   "features": {
     "seq_feat": "gold",
     "targets": [
       {
-        "name": "gold",
+        "name": "NE",
         "key": "gold",
         "indices": {
           "O": 0
