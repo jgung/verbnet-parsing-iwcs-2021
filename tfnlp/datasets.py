@@ -27,8 +27,3 @@ def make_dataset(extractor, paths, batch_size=16, bucket_sizes=None, evaluate=Fa
     dataset = dataset.prefetch(prefetch_batches)
 
     return dataset
-
-
-def prepare_dataset_iterator(extractor, paths, batch_size=16):
-    train_ds = make_dataset(extractor, paths, batch_size=batch_size)
-    return tf.data.Iterator.from_structure(train_ds.output_types, train_ds.output_shapes)
