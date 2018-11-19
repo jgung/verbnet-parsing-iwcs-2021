@@ -83,7 +83,8 @@ class Trainer(object):
 
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
-        self._prediction_formatter_fn = get_formatter(self._training_config)
+        if self._mode == 'itl':
+            self._prediction_formatter_fn = get_formatter(self._training_config)
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
@@ -267,8 +268,7 @@ def get_formatter(config):
     formatters = {
         CLASSIFIER_KEY: _classifier_formatter,
         TAGGER_KEY: _tagger_formatter,
-        NER_KEY: _tagger_formatter,
-        PARSER_KEY: parser_model_func
+        NER_KEY: _tagger_formatter
     }
     if head_type not in formatters:
         raise ValueError("Unsupported head type: " + head_type)

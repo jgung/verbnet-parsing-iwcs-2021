@@ -2,6 +2,8 @@
   "reader": {
     "field_index_map": {
       "word": 2,
+      "pos": 3,
+      "sense": 4,
       "predicate": 5
     },
     "pred_start": 6
@@ -108,7 +110,7 @@
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
+            "include_in_vocab": 1000,
             "restrict_vocab": true
           }
         }

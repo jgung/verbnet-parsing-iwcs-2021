@@ -39,22 +39,22 @@ def input_layer(features, params, training):
                                                  'sequence_len': tf.cast(features[LENGTH_KEY], dtype=tf.int32)},
                                          signature="tokens",
                                          as_dict=True)['elmo']
-            inputs.append((feature_config, elmo_embedding))
+            inputs.append(elmo_embedding)
         elif feature_config.has_vocab():
             feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
             if feature_config.config.add_group:
-                add_group_feats[feature_config.config.add_group].append((feature_config, feature_embedding))
+                add_group_feats[feature_config.config.add_group].append(feature_embedding)
                 continue
-            inputs.append((feature_config, feature_embedding))
+            inputs.append(feature_embedding)
 
     # add together any reduce sum feats (such as adding different encodings of the same word)
     for feature_list in add_group_feats.values():
-        feature_config, feature_embedding = feature_list[0]
+        feature_embedding = feature_list[0]
         for _, emb in feature_list[1:]:
             feature_embedding += emb
-        inputs.append((feature_config, feature_embedding))
+        inputs.append(feature_embedding)
 
-    results = tf.concat([feat for feat_config, feat in inputs], -1, name="inputs")
+    results = tf.concat(inputs, -1, name="inputs")
     # apply dropout across entire input layer
     results = tf.layers.dropout(results, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
     return results
