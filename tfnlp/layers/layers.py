@@ -118,16 +118,6 @@ def _get_embedding_input(inputs, feature, training):
         return result
 
 
-def _get_shape(tensor):
-    shape = []
-    dynamic_shape = tf.shape(tensor)
-    static_shape = tensor.get_shape().as_list()
-    for i in range(len(static_shape) - 1):
-        shape.append(dynamic_shape[i])
-    shape.append(static_shape[-1])
-    return shape
-
-
 def encoder(features, inputs, mode, config):
     training = mode == tf.estimator.ModeKeys.TRAIN
     sequence_lengths = features[LENGTH_KEY]
