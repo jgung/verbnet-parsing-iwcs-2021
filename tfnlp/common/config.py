@@ -14,10 +14,10 @@ class BaseNetworkConfig(Params):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
 
-        self.features = config.get('features')
-        self.optimizer = config.get('optimizer')
         self.reader = config.get('reader')
 
+        # training hyperparameters
+        self.optimizer = config.get('optimizer')
         self.batch_size = config.get('batch_size')
         if not self.batch_size:
             self.batch_size = 10
@@ -37,9 +37,13 @@ class BaseNetworkConfig(Params):
         self.exports_to_keep = config.get('exports_to_keep', 5)
         self.keep_checkpoints = config.get('checkpoints_to_keep', 1)
 
+        # feature/input settings
+        self.features = config.get('features')
         self.input_dropout = config.get('input_dropout', 0)
         self.buckets = config.get('buckets')
         self.max_length = config.get('max_length', 100)
+
+        # encoder settings
         self.encoder = config.get('encoder', 'lstm')
         self.forget_bias = config.get('forget_bias', 1)
         self.encoder_dropout = config.get('encoder_dropout', 0)
@@ -47,14 +51,16 @@ class BaseNetworkConfig(Params):
         self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
-        self.mlp_dropout = config.get('mlp_dropout', 0)
-
+        # transformer encoder settings
         self.num_heads = config.get('num_heads', 8)
         self.head_dim = config.get('head_dim', 25) * self.num_heads
         self.attention_dropout = config.get('attention_dropout', 0.1)
         self.relu_hidden_size = config.get('relu_hidden_size', 0.1)
         self.relu_dropout = config.get('relu_dropout', 0.1)
         self.prepost_dropout = config.get('prepost_dropout', 0.1)
+
+        # parser-specific settings
+        self.mlp_dropout = config.get('mlp_dropout', 0)
 
         # head configuration validation
         self.heads = [HeadConfig(head) for head in config.get('heads', [])]
