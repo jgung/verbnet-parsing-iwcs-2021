@@ -13,13 +13,13 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY, \
-    LENGTH_KEY
-from tfnlp.common.eval import metric_compare_fn
+from tfnlp.common.constants import CLASSIFIER_KEY, LENGTH_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, \
+    WORD_KEY
+from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
-from tfnlp.feature import get_feature_extractor, write_features, get_default_buckets
+from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
 from tfnlp.model.parser import parser_model_func
 from tfnlp.readers import get_reader
@@ -153,9 +153,14 @@ class Trainer(object):
     def eval(self):
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
+
+            ckpt = get_earliest_checkpoint(self._save_path)
+            if not ckpt:
+                raise ValueError('No checkpoints found at save path: %s', self._save_path)
+
             self._extract_and_write(test_set)
             eval_input_fn = self._input_fn(test_set, False)
-            self._estimator.evaluate(eval_input_fn)
+            self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
     def predict(self):
         raise NotImplementedError
