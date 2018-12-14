@@ -1,3 +1,5 @@
+import glob
+import os
 import re
 import subprocess
 import tempfile
@@ -75,7 +77,7 @@ def _convert_to_sentences(ys, indices, ids):
                 args = []
         if not predicates:
             predicates = ["-"] * markers.size
-        index = markers.tolist().index(1)
+        index = markers.tolist().index(b'1')
         predicates[index] = 'x'
         args.append(chunk(labels, conll=True))
 
@@ -392,3 +394,22 @@ def log_trainable_variables():
     weights.append("Total trainable variables size: %d" % total_size)
     tf.logging.log_first_n(tf.logging.INFO, "Trainable variables:\n%s\n", 1, '\n'.join(weights))
     return total_size
+
+
+CKPT_PATTERN = re.compile('(\S+\.ckpt-(\d+))\.index')
+
+
+def get_earliest_checkpoint(model_dir):
+    """
+    Returns the path to the earliest checkpoint in a particular model directory.
+    :param model_dir: base model directory containing checkpoints
+    :return: path to earliest checkpoint
+    """
+    ckpts = glob.glob(os.path.join(model_dir, '*.index'))
+    path_step_ckpts = []
+    for ckpt in ckpts:
+        match = CKPT_PATTERN.search(ckpt)
+        if match:
+            path_step_ckpts.append((match.group(1), int(match.group(2))))
+    # noinspection PyTypeChecker
+    return min(path_step_ckpts, key=lambda x: x[1], default=(None, None))[0]

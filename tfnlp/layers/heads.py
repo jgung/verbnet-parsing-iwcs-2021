@@ -11,6 +11,7 @@ from tfnlp.common import constants
 from tfnlp.common.config import append_label
 from tfnlp.common.eval import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
+from tfnlp.layers.layers import string2index
 
 
 class ModelHead(object):
@@ -33,7 +34,7 @@ class ModelHead(object):
         self.export_outputs = {}
 
     def training(self):
-        self.targets = self.features[self.name]
+        self.targets = string2index(self.features[self.name], self.extractor)
 
         with tf.variable_scope(self.name):
             self._all()
@@ -41,7 +42,7 @@ class ModelHead(object):
             self._train()
 
     def evaluation(self):
-        self.targets = self.features[self.name]
+        self.targets = string2index(self.features[self.name], self.extractor)
 
         with tf.variable_scope(self.name):
             self._all()

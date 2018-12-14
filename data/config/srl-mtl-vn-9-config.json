@@ -125,13 +125,11 @@
   "heads": [
     {
       "name": "gold",
-      "type": "srl",
-      "metric": "F1-SRL"
+      "type": "srl"
     },
     {
       "name": "vn9",
-      "type": "srl",
-      "metric": "F1-SRL"
+      "type": "srl"
     }
   ],
   "features": {

@@ -39,35 +39,44 @@ def input_layer(features, params, training):
                                                  'sequence_len': tf.cast(features[LENGTH_KEY], dtype=tf.int32)},
                                          signature="tokens",
                                          as_dict=True)['elmo']
-            inputs.append((feature_config, elmo_embedding))
+            inputs.append(elmo_embedding)
         elif feature_config.has_vocab():
             feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
             if feature_config.config.add_group:
-                add_group_feats[feature_config.config.add_group].append((feature_config, feature_embedding))
+                add_group_feats[feature_config.config.add_group].append(feature_embedding)
                 continue
-            inputs.append((feature_config, feature_embedding))
+            inputs.append(feature_embedding)
 
     # add together any reduce sum feats (such as adding different encodings of the same word)
     for feature_list in add_group_feats.values():
-        feature_config, feature_embedding = feature_list[0]
+        feature_embedding = feature_list[0]
         for _, emb in feature_list[1:]:
             feature_embedding += emb
-        inputs.append((feature_config, feature_embedding))
+        inputs.append(feature_embedding)
 
-    results = tf.concat([feat for feat_config, feat in inputs], -1, name="inputs")
+    results = tf.concat(inputs, -1, name="inputs")
     # apply dropout across entire input layer
     results = tf.layers.dropout(results, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
     return results
 
 
-def _get_string_lookup(feature_strings, feature):
-    lookup = index_table_from_tensor(mapping=tf.constant(feature.ordered_feats()), default_value=feature.unk_index())
-    return lookup.lookup(feature_strings)
+def string2index(feature_strings, feature):
+    """
+    Convert a `Tensor` of type `tf.string` to a corresponding Tensor of ids (`tf.int32`)
+    :param feature_strings: string `Tensor`
+    :param feature: feature extractor with string to index vocabulary
+    :return: feature id Tensor
+    """
+    with tf.variable_scope('lookup'):
+        lookup = index_table_from_tensor(mapping=tf.constant(list(feature.ordered_feats())), default_value=feature.unk_index())
+        return lookup.lookup(feature_strings)
 
 
-def _get_embedding_input(feature_ids, feature, training):
+def _get_embedding_input(inputs, feature, training):
     config = feature.config
+
     with tf.variable_scope(feature.name):
+        feature_ids = string2index(inputs, feature)
 
         with tf.variable_scope('embedding'):
             initializer = None
@@ -95,7 +104,7 @@ def _get_embedding_input(feature_ids, feature, training):
                                            name='dropout')
 
         if feature.rank == 3:  # reduce multiple vectors per token to a single vector
-            with tf.name_scope('reduce_func'):
+            with tf.name_scope('reduce'):
                 result = config.func.apply(result)
 
         if config.word_dropout > 0 and training:
@@ -107,16 +116,6 @@ def _get_embedding_input(feature_ids, feature, training):
                                        noise_shape=[shape[0], shape[1], 1])
 
         return result
-
-
-def _get_shape(tensor):
-    shape = []
-    dynamic_shape = tf.shape(tensor)
-    static_shape = tensor.get_shape().as_list()
-    for i in range(len(static_shape) - 1):
-        shape.append(dynamic_shape[i])
-    shape.append(static_shape[-1])
-    return shape
 
 
 def encoder(features, inputs, mode, config):

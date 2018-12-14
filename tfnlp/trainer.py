@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
@@ -12,12 +13,13 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, WORD_KEY
-from tfnlp.common.eval import metric_compare_fn
+from tfnlp.common.constants import CLASSIFIER_KEY, LENGTH_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, \
+    WORD_KEY
+from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json
 from tfnlp.datasets import make_dataset
-from tfnlp.feature import get_feature_extractor, write_features
+from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
 from tfnlp.model.parser import parser_model_func
 from tfnlp.readers import get_reader
@@ -29,20 +31,19 @@ MODEL_PATH = 'model'
 
 def default_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train', type=str, help='File containing training data.')
-    parser.add_argument('--valid', type=str, help='File containing validation data.')
-    parser.add_argument('--test', type=str, help='Comma-separated list of files containing test data.')
     parser.add_argument('--job-dir', dest='save', type=str, required=True,
-                        help='Directory where models/checkpoints/vocabularies are saved.')
-    parser.add_argument('--vocab', type=str, help='(Optional) Directory where vocabulary files are saved.')
-    parser.add_argument('--resources', type=str, help='Base path to shared resources, such as word embeddings')
-    parser.add_argument('--mode', type=str, default="train", help='(Optional) Training command',
-                        choices=['train', 'eval', 'test', 'itl', 'loop', 'predict'])
-    parser.add_argument('--config', type=str, help='JSON file for configuring training')
-    parser.add_argument('--script', type=str, help='(Optional) Path to evaluation script')
+                        help='models/checkpoints/vocabularies save path')
+    parser.add_argument('--config', type=str, help='training configuration JSON')
+    parser.add_argument('--resources', type=str, help='shared resources directory (such as for word embeddings)')
+    parser.add_argument('--train', type=str, help='training data path')
+    parser.add_argument('--valid', type=str, help='validation/development data path')
+    parser.add_argument('--test', type=str, help='test data paths, comma-separated')
+    parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
+                        choices=['train', 'test', 'predict', 'itl'])
+    parser.add_argument('--script', type=str, help='(optional) evaluation script path')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='Overwrite previous trained models and vocabularies')
-    parser.add_argument('--output', type=str, help='Path to output predictions (during evaluation and application)')
+                        help='overwrite previously saved vocabularies and training files')
+    parser.add_argument('--output', type=str, help='output path for predictions (during evaluation and application)')
     parser.set_defaults(overwrite=False)
     return parser
 
@@ -59,7 +60,7 @@ class Trainer(object):
         self._output = args.output
 
         self._save_path = os.path.join(args.save, MODEL_PATH)
-        self._vocab_path = args.vocab or os.path.join(args.save, VOCAB_PATH)
+        self._vocab_path = os.path.join(args.save, VOCAB_PATH)
         self._resources = args.resources
         self._eval_script_path = args.script
 
@@ -83,7 +84,8 @@ class Trainer(object):
 
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
-        self._prediction_formatter_fn = default_formatter
+        if self._mode == 'itl':
+            self._prediction_formatter_fn = get_formatter(self._training_config)
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
@@ -93,18 +95,22 @@ class Trainer(object):
         :param args: command-line arguments
         :return: parsed arguments
         """
-        return default_args().parse_args(args)
+        parser = default_args()
+        if len(sys.argv) == 1:
+            parser.print_help(sys.stderr)
+            sys.exit(1)
+        return parser.parse_args(args)
 
     def run(self):
         self._init_feature_extractor()
-        self._init_estimator(test=self._mode in ["eval", "test"])
+        self._init_estimator(test=self._mode == "test")
         if self._mode == "train":
             self.train()
-        elif self._mode in ["eval", "test"]:
+        elif self._mode == "test":
             self.eval()
         elif self._mode == "predict":
             self.predict()
-        elif self._mode in ["loop", "itl"]:
+        elif self._mode == "itl":
             self.itl()
         else:
             raise ValueError("Unexpected mode type: {}".format(self._mode))
@@ -141,28 +147,34 @@ class Trainer(object):
                                                            exporters=[exporter],
                                                            throttle_secs=0))
         if self._raw_test:
-            self._mode = "eval"
+            self._mode = "test"
             self.run()
 
     def eval(self):
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
+
+            ckpt = get_earliest_checkpoint(self._save_path)
+            if not ckpt:
+                raise ValueError('No checkpoints found at save path: %s', self._save_path)
+
             self._extract_and_write(test_set)
             eval_input_fn = self._input_fn(test_set, False)
-            self._estimator.evaluate(eval_input_fn)
+            self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
     def predict(self):
         raise NotImplementedError
 
     def itl(self):
-        predictor = from_saved_model(self._save_path)
+        export_dir = os.path.join(self._save_path, 'export/best_exporter')
+        predictor = from_saved_model(os.path.join(export_dir, max(os.listdir(export_dir))))
         while True:
             sentence = input(">>> ")
             if not sentence:
                 return
             example = self._parse_fn(sentence)
-            features = self._feature_extractor.extract(example, train=False).SerializeToString()
-            serialized_feats = self._predict_input_fn(features)
+            features = self._feature_extractor.extract(example, train=False)
+            serialized_feats = self._predict_input_fn(features.SerializeToString())
             result = predictor(serialized_feats)
             print(self._prediction_formatter_fn(result))
 
@@ -183,21 +195,22 @@ class Trainer(object):
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
-        self._feature_extractor.test()
+
+    def _extract_raw(self, path):
+        raw_instances = self._raw_instance_reader_fn(path)
+        if not raw_instances:
+            raise ValueError("No examples provided at path given by '{}'".format(path))
+        return raw_instances
 
     def _train_vocab(self):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
-        self._extract_features(self._raw_train)
+        self._feature_extractor.train(self._extract_raw(self._raw_train))
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
 
     def _extract_features(self, path):
         tf.logging.info("Extracting features from %s", path)
-        raw_instances = self._raw_instance_reader_fn(path)
-        if not raw_instances:
-            raise ValueError("No examples provided at path given by '{}'".format(path))
-
-        examples = self._feature_extractor.extract_all(raw_instances)
+        examples = self._feature_extractor.extract_all(self._extract_raw(path))
         return examples
 
     def _extract_and_write(self, path):
@@ -234,21 +247,45 @@ class Trainer(object):
                        verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):
+        bucket_sizes = self._training_config.buckets
+        if not bucket_sizes and LENGTH_KEY in self._feature_extractor.features:
+            length_feat = self._feature_extractor.feature(LENGTH_KEY)
+            # TODO: persist dynamically computed bucket sizes for training restarts
+            bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
+                                               max_length=self._training_config.max_length)
+
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
                                     batch_size=self._training_config.batch_size, evaluate=not train,
-                                    bucket_sizes=self._training_config.buckets)
+                                    bucket_sizes=bucket_sizes)
 
 
 def default_parser(sentence):
     return {WORD_KEY: sentence.split()}
 
 
-def default_formatter(result):
-    return ' '.join([bstr.decode('utf-8') for bstr in result['output'][0].tolist()])
-
-
 def default_input_fn(features):
     return {"examples": features}
+
+
+def get_formatter(config):
+    def _tagger_formatter(result):
+        target = config.features.targets[0].name
+        unicode_result = [bstr.decode('utf-8') for bstr in result[target][0].tolist()]
+        return ' '.join(unicode_result)
+
+    def _classifier_formatter(result):
+        target = config.features.targets[0].name
+        return result[target][0].decode('utf-8')
+
+    head_type = [head.type for head in config.heads][0]
+    formatters = {
+        CLASSIFIER_KEY: _classifier_formatter,
+        TAGGER_KEY: _tagger_formatter,
+        NER_KEY: _tagger_formatter
+    }
+    if head_type not in formatters:
+        raise ValueError("Unsupported head type: " + head_type)
+    return formatters[head_type]
 
 
 def get_model_func(config):
