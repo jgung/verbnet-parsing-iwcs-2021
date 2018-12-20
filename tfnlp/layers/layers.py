@@ -127,11 +127,11 @@ def encoder(features, inputs, mode, config):
         elif config.encoder_type == 'sum':
             return reduce_sum(inputs)
         elif config.encoder_type == 'dblstm':
-            return highway_dblstm(next(inputs), sequence_lengths, training, config)
+            return highway_dblstm(inputs[0], sequence_lengths, training, config)
         elif config.encoder_type == 'lstm':
-            return stacked_bilstm(next(inputs), sequence_lengths, training, config)
+            return stacked_bilstm(inputs[0], sequence_lengths, training, config)
         elif config.encoder_type == 'transformer':
-            return transformer_encoder(next(inputs), sequence_lengths, training, config)
+            return transformer_encoder(inputs[0], sequence_lengths, training, config)
         else:
             raise ValueError('No encoder of type "{}" available'.format(config.encoder_type))
 
@@ -221,10 +221,10 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
     return outputs, config.state_size * 2, tf.concat([fw_state.h, bw_state.h], axis=1)
 
 
-def embedding_initializer(embedding):
+def embedding_initializer(np_embedding):
     # noinspection PyUnusedLocal
     def _initializer(name, dtype=None, partition_info=None):
-        return embedding
+        return np_embedding
 
     return _initializer
 

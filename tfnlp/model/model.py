@@ -12,29 +12,47 @@ def build(features, mode, params):
     training = mode == tf.estimator.ModeKeys.TRAIN
 
     encoder_configs = {enc.name: enc for enc in config.encoders}
+    head_configs = {head.name: head for head in config.heads}
+
     inputs = {feat: embedding(features, feat_conf, training) for feat, feat_conf in params.extractor.features.items()}
     heads = {}
     encoders = {}
 
-    def build_head(_head):
-        head_encoder = encoders.get(_head.encoder)
-        if not head_encoder:
-            head_encoder = build_encoder(encoder_configs[_head.encoder])
-            encoders[_head.encoder] = head_encoder
-        return model_head(_head, head_encoder, features, mode, params)
+    def get_head(_head_config):
+        if _head_config.name in heads:
+            return heads[_head_config.name]
 
-    def build_encoder(_encoder):
+        head_encoder = get_encoder(encoder_configs[_head_config.encoder])
+        head = model_head(_head_config, head_encoder, features, mode, params)
+
+        heads[_head_config.name] = head
+        return head
+
+    def get_encoder(_encoder_config):
+        if _encoder_config.name in encoders:
+            return encoders[_encoder_config.name]
+
+        # build encoder recursively
         encoder_features = {}
-        for encoder_input in _encoder.inputs:
+        for encoder_input in _encoder_config.inputs:
             if encoder_input in inputs:
+                # input from embedding/feature input
                 encoder_features[encoder_input] = inputs[encoder_input]
-            if encoder_input in encoders:
-                encoder_features[encoder_input] = encoders[encoder_input]
-            elif encoder_input in heads:
-                encoder_features[encoder_input] = heads[encoder_input].predictions
-        return encoder(features, encoder_features.values(), mode, _encoder)
+            elif encoder_input in encoder_configs:
+                # input from another encoder
+                encoder_config = encoder_configs[encoder_input]
+                encoder_features[encoder_input] = get_encoder(encoder_config)
+            elif encoder_input in head_configs:
+                # input from a model head
+                head_config = head_configs[encoder_input]
+                encoder_features[encoder_input] = get_head(head_config).predictions
 
-    return [build_head(head) for head in config.heads]
+        result = encoder(features, list(encoder_features.values()), mode, _encoder_config)
+
+        encoders[_encoder_config.name] = result
+        return result
+
+    return [get_head(head) for head in config.heads]
 
 
 def multi_head_model_func(features, mode, params):
