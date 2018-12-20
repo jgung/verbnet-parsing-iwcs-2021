@@ -4,18 +4,43 @@ from tensorflow.python.saved_model import signature_constants
 from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables
 from tfnlp.layers.heads import model_head
-from tfnlp.layers.layers import encoder, input_layer
+from tfnlp.layers.layers import encoder, embedding
+
+
+def build(features, mode, params):
+    config = params.config
+    training = mode == tf.estimator.ModeKeys.TRAIN
+
+    encoder_configs = {enc.name: enc for enc in config.encoders}
+    inputs = {feat: embedding(features, feat_conf, training) for feat, feat_conf in params.extractor.features.items()}
+    heads = {}
+    encoders = {}
+
+    def build_head(_head):
+        head_encoder = encoders.get(_head.encoder)
+        if not head_encoder:
+            head_encoder = build_encoder(encoder_configs[_head.encoder])
+            encoders[_head.encoder] = head_encoder
+        return model_head(_head, head_encoder, features, mode, params)
+
+    def build_encoder(_encoder):
+        encoder_features = {}
+        for encoder_input in _encoder.inputs:
+            if encoder_input in inputs:
+                encoder_features[encoder_input] = inputs[encoder_input]
+            if encoder_input in encoders:
+                encoder_features[encoder_input] = encoders[encoder_input]
+            elif encoder_input in heads:
+                encoder_features[encoder_input] = heads[encoder_input].predictions
+        return encoder(features, encoder_features.values(), mode, _encoder)
+
+    return [build_head(head) for head in config.heads]
 
 
 def multi_head_model_func(features, mode, params):
     config = params.config
 
-    # reduce all features to a single input vector (per token per batch)
-    inputs = input_layer(features, params, mode == tf.estimator.ModeKeys.TRAIN)
-    # produce a context-dependent vector representation of token (such as from hidden states of a biLSTM)
-    encoder_output = encoder(features, inputs, mode, config)
-
-    heads = [model_head(head, encoder_output, features, mode, params) for head in config.heads]
+    heads = build(features, mode, params)
 
     # combine losses
     loss = None

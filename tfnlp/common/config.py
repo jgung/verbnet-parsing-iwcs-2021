@@ -9,6 +9,13 @@ from tfnlp.common.utils import Params
 from tfnlp.optim.lazy_adam import LazyAdamOptimizer as LazyNadamOptimizer
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
+ENCODER_LSTM = 'lstm'
+ENCODER_BLSTM = 'blstm'
+ENCODER_TRANSFORMER = 'transformer'
+CONCAT = 'concat'
+SUM = 'sum'
+ENCODERS = [ENCODER_LSTM, ENCODER_BLSTM, ENCODER_TRANSFORMER, CONCAT, SUM]
+
 
 class BaseNetworkConfig(Params):
     def __init__(self, config, **kwargs):
@@ -44,20 +51,9 @@ class BaseNetworkConfig(Params):
         self.max_length = config.get('max_length', 100)
 
         # encoder settings
-        self.encoder = config.get('encoder', 'lstm')
-        self.forget_bias = config.get('forget_bias', 1)
-        self.encoder_dropout = config.get('encoder_dropout', 0)
-        self.encoder_input_dropout = config.get('encoder_input_dropout', 0)
-        self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
-        self.encoder_layers = config.get('encoder_layers', 1)
-        self.state_size = config.get('state_size', 100)
-        # transformer encoder settings
-        self.num_heads = config.get('num_heads', 8)
-        self.head_dim = config.get('head_dim', 25) * self.num_heads
-        self.attention_dropout = config.get('attention_dropout', 0.1)
-        self.relu_hidden_size = config.get('relu_hidden_size', 0.1)
-        self.relu_dropout = config.get('relu_dropout', 0.1)
-        self.prepost_dropout = config.get('prepost_dropout', 0.1)
+        self.encoders = [EncoderConfig(val) for val in config.get('encoders', [])]
+        if not self.encoders:
+            raise ValueError('Must have at least one encoder')
 
         # parser-specific settings
         self.mlp_dropout = config.get('mlp_dropout', 0)
@@ -80,10 +76,43 @@ class BaseNetworkConfig(Params):
         self.metric = metrics[0]
 
 
+class EncoderConfig(Params):
+    def __init__(self, config, **kwargs):
+        super().__init__(**kwargs)
+        self.name = config.get('name')
+        self.inputs = config.get('inputs', [])
+        if not self.inputs:
+            raise ValueError("Encoders must have at least one input")
+        self.options = config.get('options', {})
+        self.encoder_type = config.get('type', 'lstm')
+        if self.encoder_type not in ENCODERS:
+            raise ValueError("Invalid encoder type: %s" % self.encoder_type)
+
+        self.input_dropout = config.get('input_dropout', 0)
+
+        self.forget_bias = config.get('forget_bias', 1)
+        self.encoder_dropout = config.get('encoder_dropout', 0)
+        self.encoder_input_dropout = config.get('encoder_input_dropout', 0)
+        self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
+        self.encoder_layers = config.get('encoder_layers', 1)
+        self.state_size = config.get('state_size', 100)
+
+        # transformer encoder settings
+        self.num_heads = config.get('num_heads', 8)
+        self.head_dim = config.get('head_dim', 25) * self.num_heads
+        self.attention_dropout = config.get('attention_dropout', 0.1)
+        self.relu_hidden_size = config.get('relu_hidden_size', 0.1)
+        self.relu_dropout = config.get('relu_dropout', 0.1)
+        self.prepost_dropout = config.get('prepost_dropout', 0.1)
+
+
 class HeadConfig(Params):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         self.name = config.get('name', constants.LABEL_KEY)
+        self.encoder = config.get('encoder')
+        if not self.encoder:
+            raise ValueError('Must specify an input "encoder" for this head')
         self.crf = config.get('crf', False)
         self.type = config.get('type', constants.TAGGER_KEY)
         self.zero_init = config.get('zero_init', True)
