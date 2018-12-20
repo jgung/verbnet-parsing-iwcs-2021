@@ -145,7 +145,7 @@ def concat(inputs, training, config):
 
 def reduce_sum(inputs):
     result = inputs[0]
-    for _, _input in inputs[1:]:
+    for _input in inputs[1:]:
         result += _input
     return result
 
