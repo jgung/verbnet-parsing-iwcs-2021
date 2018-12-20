@@ -1,9 +1,10 @@
 import tensorflow as tf
 from tensorflow.python.saved_model import signature_constants
 
+from tfnlp.common import constants
 from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables
-from tfnlp.layers.heads import model_head
+from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead
 from tfnlp.layers.layers import encoder, embedding
 
 
@@ -103,3 +104,31 @@ def multi_head_model_func(features, mode, params):
                                       eval_metric_ops=eval_metric_ops,
                                       export_outputs=export_outputs,
                                       evaluation_hooks=evaluation_hooks)
+
+
+def model_head(config, inputs, features, mode, params):
+    """
+    Initialize a model head from a given configuration.
+    :param config: head configuration
+    :param inputs: output from encoder (e.g. biLSTM), input to head
+    :param features: all model inputs
+    :param mode: Estimator mode type (TRAIN, EVAL, or PREDICT)
+    :param params: HParams input to Estimator
+    :return: initialized model head
+    """
+    heads = {
+        constants.CLASSIFIER_KEY: ClassifierHead,
+        constants.TAGGER_KEY: TaggerHead,
+        constants.NER_KEY: TaggerHead,
+        constants.SRL_KEY: TaggerHead,
+        constants.TOKEN_CLASSIFIER_KEY: TokenClassifierHead,
+    }
+    head = heads[config.type](inputs=inputs, config=config, features=features, params=params,
+                              training=mode == tf.estimator.ModeKeys.TRAIN)
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        head.training()
+    elif mode == tf.estimator.ModeKeys.EVAL:
+        head.evaluation()
+    elif mode == tf.estimator.ModeKeys.PREDICT:
+        head.prediction()
+    return head
