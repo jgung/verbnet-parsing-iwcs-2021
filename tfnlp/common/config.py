@@ -46,7 +46,6 @@ class BaseNetworkConfig(Params):
 
         # feature/input settings
         self.features = config.get('features')
-        self.input_dropout = config.get('input_dropout', 0)
         self.buckets = config.get('buckets')
         self.max_length = config.get('max_length', 100)
 
@@ -55,16 +54,12 @@ class BaseNetworkConfig(Params):
         if not self.encoders:
             raise ValueError('Must have at least one encoder')
 
-        # parser-specific settings
-        self.mlp_dropout = config.get('mlp_dropout', 0)
-
         # head configuration validation
         self.heads = [HeadConfig(head) for head in config.get('heads', [])]
         targets = {}
         for target in self.features.targets:
             if target.name not in {head.name for head in self.heads}:
                 tf.logging.warning("Missing head configuration for target '%s'" % target.name)
-                self.heads.append(HeadConfig({'name': target.name}))
             targets[target.name] = target
         for head in self.heads:
             if head.name not in targets:
@@ -72,13 +67,15 @@ class BaseNetworkConfig(Params):
         if len(self.heads) == 0:
             raise ValueError("Must have at least one head/target in configuration")
 
-        metrics = [append_label(head.metric, head.name) for head in self.heads]
-        self.metric = metrics[0]
+        self.metric = config.get('metric')
+        if not self.metric:
+            metrics = [append_label(head.metric, head.name) for head in self.heads]
+            self.metric = metrics[0]
 
 
 class EncoderConfig(Params):
-    def __init__(self, config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, config):
+        super().__init__(**config)
         self.name = config.get('name')
         self.inputs = config.get('inputs', [])
         if not self.inputs:
@@ -107,8 +104,8 @@ class EncoderConfig(Params):
 
 
 class HeadConfig(Params):
-    def __init__(self, config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, config):
+        super().__init__(**config)
         self.name = config.get('name', constants.LABEL_KEY)
         self.encoder = config.get('encoder')
         if not self.encoder:

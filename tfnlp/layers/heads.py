@@ -34,7 +34,9 @@ class ModelHead(object):
         self.export_outputs = {}
 
     def training(self):
-        self.targets = string2index(self.features[self.name], self.extractor)
+        self.targets = self.features[self.name]
+        if self.extractor.has_vocab():
+            self.targets = string2index(self.features[self.name], self.extractor)
 
         with tf.variable_scope(self.name):
             self._all()
@@ -42,7 +44,9 @@ class ModelHead(object):
             self._train()
 
     def evaluation(self):
-        self.targets = string2index(self.features[self.name], self.extractor)
+        self.targets = self.features[self.name]
+        if self.extractor.has_vocab():
+            self.targets = string2index(self.features[self.name], self.extractor)
 
         with tf.variable_scope(self.name):
             self._all()

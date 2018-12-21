@@ -307,8 +307,8 @@ def parser_write_and_eval(arc_probs, rel_probs, heads, rels, features, script_pa
     write_func = write_parse_results_to_conllx_file if 'conllx' in script_path else write_parse_results_to_file
 
     with _out_file as system_file, _gold_file as gold_file:
-        write_func(sys_heads, sys_rels, features, system_file)
-        write_func(heads, rels, features, gold_file)
+        write_func(sys_heads, sys_rels, system_file, features)
+        write_func(heads, rels, gold_file)
         result = subprocess.check_output(['perl', script_path, '-g', gold_file.name, '-s', system_file.name, '-q'],
                                          universal_newlines=True)
         tf.logging.info('\n%s', result)
@@ -327,7 +327,7 @@ def get_parse_predictions(arc_probs, rel_probs):
     return heads, rels
 
 
-def write_parse_results_to_file(heads, rels, features, file):
+def write_parse_results_to_file(heads, rels, file, features=None):
     for sentence_heads, sentence_rels in zip(heads, rels):
         for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
             # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
@@ -336,15 +336,19 @@ def write_parse_results_to_file(heads, rels, features, file):
             token[1] = '_'
             token[8] = str(arc_pred)
             token[9] = str(arc_pred)
-            token[10] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
-            token[11] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
+            if features:
+                rel = features.index_to_feat(rel_pred)
+            else:
+                rel = rel_pred.decode('utf-8')
+            token[10] = rel
+            token[11] = rel
             file.write('\t'.join(token) + '\n')
         file.write('\n')
     file.flush()
     file.seek(0)
 
 
-def write_parse_results_to_conllx_file(heads, rels, features, file):
+def write_parse_results_to_conllx_file(heads, rels, file, features=None):
     for sentence_heads, sentence_rels in zip(heads, rels):
         for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
             # ID FORM LEMMA CPOS POS FEAT HEAD DEPREL PHEAD PDEPREL
@@ -352,7 +356,11 @@ def write_parse_results_to_conllx_file(heads, rels, features, file):
             token[0] = str(index + 1)
             token[1] = 'x'
             token[6] = str(arc_pred)
-            token[7] = features.target(DEPREL_KEY).index_to_feat(rel_pred)
+            if features:
+                rel = features.index_to_feat(rel_pred)
+            else:
+                rel = rel_pred.decode('utf-8')
+            token[7] = rel
             file.write('\t'.join(token) + '\n')
         file.write('\n')
     file.flush()
@@ -363,11 +371,11 @@ def metric_compare_fn(metric_key):
     def _metric_compare_fn(best_eval_result, current_eval_result):
         if not best_eval_result or metric_key not in best_eval_result:
             raise ValueError(
-                'best_eval_result cannot be empty or no loss is found in it.')
+                'best_eval_result cannot be empty or no loss %s is found in it.' % metric_key)
 
         if not current_eval_result or metric_key not in current_eval_result:
             raise ValueError(
-                'current_eval_result cannot be empty or no loss is found in it.')
+                'current_eval_result cannot be empty or no loss %s is found in it.', metric_key)
 
         new = current_eval_result[metric_key]
         prev = best_eval_result[metric_key]

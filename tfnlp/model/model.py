@@ -6,6 +6,7 @@ from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables
 from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead
 from tfnlp.layers.layers import encoder, embedding
+from tfnlp.model.parser import ParserHead
 
 
 def build(features, mode, params):
@@ -122,6 +123,7 @@ def model_head(config, inputs, features, mode, params):
         constants.NER_KEY: TaggerHead,
         constants.SRL_KEY: TaggerHead,
         constants.TOKEN_CLASSIFIER_KEY: TokenClassifierHead,
+        constants.PARSER_KEY: ParserHead
     }
     head = heads[config.type](inputs=inputs, config=config, features=features, params=params,
                               training=mode == tf.estimator.ModeKeys.TRAIN)

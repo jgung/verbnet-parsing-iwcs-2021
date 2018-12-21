@@ -1,7 +1,6 @@
 {
   "reader": "conll_2003",
   "checkpoint_steps": 1500,
-  "input_dropout": 0.5,
   "batch_size": 10,
   "optimizer": {
     "name": "LazyAdam",
@@ -77,7 +76,8 @@
     {
       "name": "words_and_chars",
       "type": "concat",
-      "inputs": ["word", "char"]
+      "inputs": ["word", "char"],
+      "input_dropout": 0.5
     },
     {
       "name": "blstm",
