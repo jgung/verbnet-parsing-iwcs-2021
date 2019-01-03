@@ -16,17 +16,17 @@ from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
 from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
 
-from tfnlp.common.constants import ELMO_KEY, LENGTH_KEY
+from tfnlp.common import constants
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
 
 def embedding(features, feature_config, training):
-    if feature_config.name == ELMO_KEY:
+    if feature_config.name == constants.ELMO_KEY:
         tf.logging.info("Using ELMo module at %s", ELMO_URL)
         elmo_module = hub.Module(ELMO_URL, trainable=True)
-        elmo_embedding = elmo_module(inputs={'tokens': features[ELMO_KEY],
-                                             'sequence_len': tf.cast(features[LENGTH_KEY], dtype=tf.int32)},
+        elmo_embedding = elmo_module(inputs={'tokens': features[constants.ELMO_KEY],
+                                             'sequence_len': tf.cast(features[constants.LENGTH_KEY], dtype=tf.int32)},
                                      signature="tokens",
                                      as_dict=True)['elmo']
         return elmo_embedding
@@ -119,18 +119,18 @@ def _get_embedding_input(inputs, feature, training):
 
 def encoder(features, inputs, mode, config):
     training = mode == tf.estimator.ModeKeys.TRAIN
-    sequence_lengths = features[LENGTH_KEY]
+    sequence_lengths = features[constants.LENGTH_KEY]
 
     with tf.variable_scope("encoder"):
-        if config.encoder_type == 'concat':
+        if constants.ENCODER_CONCAT == config.encoder_type:
             return concat(inputs, training, config)
-        elif config.encoder_type == 'sum':
+        elif constants.ENCODER_SUM == config.encoder_type:
             return reduce_sum(inputs)
-        elif config.encoder_type == 'dblstm':
+        elif constants.ENCODER_DBLSTM == config.encoder_type:
             return highway_dblstm(inputs[0], sequence_lengths, training, config)
-        elif config.encoder_type == 'lstm':
+        elif constants.ENCODER_BLSTM == config.encoder_type:
             return stacked_bilstm(inputs[0], sequence_lengths, training, config)
-        elif config.encoder_type == 'transformer':
+        elif constants.ENCODER_TRANSFORMER == config.encoder_type:
             return transformer_encoder(inputs[0], sequence_lengths, training, config)
         else:
             raise ValueError('No encoder of type "{}" available'.format(config.encoder_type))

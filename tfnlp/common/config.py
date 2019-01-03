@@ -9,13 +9,6 @@ from tfnlp.common.utils import Params
 from tfnlp.optim.lazy_adam import LazyAdamOptimizer as LazyNadamOptimizer
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
-ENCODER_LSTM = 'lstm'
-ENCODER_BLSTM = 'blstm'
-ENCODER_TRANSFORMER = 'transformer'
-CONCAT = 'concat'
-SUM = 'sum'
-ENCODERS = [ENCODER_LSTM, ENCODER_BLSTM, ENCODER_TRANSFORMER, CONCAT, SUM]
-
 
 class BaseNetworkConfig(Params):
     def __init__(self, config, **kwargs):
@@ -81,8 +74,8 @@ class EncoderConfig(Params):
         if not self.inputs:
             raise ValueError("Encoders must have at least one input")
         self.options = config.get('options', {})
-        self.encoder_type = config.get('type', 'lstm')
-        if self.encoder_type not in ENCODERS:
+        self.encoder_type = config.get('type', constants.ENCODER_BLSTM)
+        if self.encoder_type not in constants.ENCODERS:
             raise ValueError("Invalid encoder type: %s" % self.encoder_type)
 
         self.input_dropout = config.get('input_dropout', 0)
