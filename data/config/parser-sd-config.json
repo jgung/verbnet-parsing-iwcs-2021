@@ -2,63 +2,8 @@
   "reader": "conllx",
   "checkpoint_steps": 1000,
   "patience": 5000,
-  "state_size": 400,
-  "encoder_dropout": 0.33,
-  "encoder_input_dropout": 0.33,
-  "input_dropout": 0.0,
-  "mlp_dropout": 0.33,
-  "encoder": "lstm",
-  "forget_bias": 1,
-  "encoder_layers": 3,
   "batch_size": 100,
-  "buckets": [
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
-    33,
-    34,
-    35,
-    36,
-    37,
-    38,
-    39,
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    50,
-    52,
-    56,
-    61,
-    99
-  ],
+  "metric": "LAS",
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -68,18 +13,6 @@
     "lr": 0.002,
     "clip": 5.0
   },
-  "heads": [
-    {
-      "name": "deprel",
-      "type": "parser",
-      "metric": "LAS"
-    },
-    {
-      "name": "head",
-      "type": "parser",
-      "metric": "UAS"
-    }
-  ],
   "features": {
     "seq_feat": "head",
     "targets": [
@@ -129,7 +62,6 @@
           "dim": 100,
           "trainable": false,
           "word_dropout": 0.33,
-          "add_group": "words",
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
@@ -156,7 +88,6 @@
         "config": {
           "dim": 100,
           "word_dropout": 0.33,
-          "add_group": "words",
           "initializer": {
             "zero_init": true
           }
@@ -182,5 +113,45 @@
         ]
       }
     ]
-  }
+  },
+  "encoders": [
+    {
+      "name": "words_sum",
+      "type": "sum",
+      "inputs": [
+        "train_word",
+        "fix_word"
+      ]
+    },
+    {
+      "name": "words_and_pos",
+      "type": "concat",
+      "inputs": [
+        "words_sum",
+        "pos"
+      ],
+      "input_dropout": 0.0
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_pos"
+      ],
+      "encoder": "lstm",
+      "state_size": 400,
+      "encoder_dropout": 0.33,
+      "encoder_input_dropout": 0.33,
+      "forget_bias": 1,
+      "encoder_layers": 3
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "deprel",
+      "type": "parser",
+      "metric": "LAS",
+      "mlp_dropout": 0.33
+    }
+  ]
 }

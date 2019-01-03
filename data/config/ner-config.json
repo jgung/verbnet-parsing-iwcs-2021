@@ -76,7 +76,10 @@
     {
       "name": "words_and_chars",
       "type": "concat",
-      "inputs": ["word", "char"],
+      "inputs": [
+        "word",
+        "char"
+      ],
       "input_dropout": 0.5
     },
     {

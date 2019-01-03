@@ -1,12 +1,7 @@
 {
   "reader": "tsv",
   "checkpoint_steps": 1024,
-  "state_size": 150,
-  "encoder_dropout": 0.5,
-  "encoder_input_dropout": 0.5,
   "batch_size": 10,
-  "encoder": "lstm",
-  "encoder_layers": 1,
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -16,32 +11,6 @@
     "lr": 0.001,
     "clip": 5.0
   },
-  "buckets": [
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    10,
-    12,
-    14,
-    16,
-    20,
-    24,
-    28,
-    32,
-    64,
-    128
-  ],
-  "heads": [
-    {
-      "name": "gold",
-      "type": "classifier",
-      "metric": "Accuracy"
-    }
-  ],
   "features": {
     "seq_feat": "word",
     "targets": [
@@ -74,5 +43,27 @@
         "threshold": 1
       }
     ]
-  }
+  },
+  "encoders": [
+    {
+      "name": "blstm",
+      "inputs": [
+        "words"
+      ],
+      "type": "lstm",
+      "state_size": 150,
+      "encoder_dropout": 0.5,
+      "encoder_input_dropout": 0.5,
+      "encoder_output_dropout": 0.5,
+      "encoder_layers": 1
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "gold",
+      "type": "classifier",
+      "metric": "Accuracy"
+    }
+  ]
 }
