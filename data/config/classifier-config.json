@@ -48,7 +48,7 @@
     {
       "name": "blstm",
       "inputs": [
-        "words"
+        "word"
       ],
       "type": "lstm",
       "state_size": 150,

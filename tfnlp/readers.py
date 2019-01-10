@@ -246,7 +246,8 @@ class ConllSrlReader(ConllReader):
             for label_key, labels in all_labels.items():
                 instance[label_key] = labels
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
-            instance[SENSE_KEY] = instance[SENSE_KEY][predicate_index]
+            instance[SENSE_KEY] = [instance[SENSE_KEY][predicate_index] if index == predicate_index else '-'
+                                   for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[TOKEN_INDEX_KEY] = predicate_index
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)

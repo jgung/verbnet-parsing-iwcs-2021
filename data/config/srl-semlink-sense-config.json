@@ -69,6 +69,7 @@
       {
         "name": "sense",
         "key": "sense",
+        "threshold": 10,
         "config": {
           "dim": 50
         }
