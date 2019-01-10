@@ -1,0 +1,79 @@
+{
+  "reader": "conll_2005",
+  "checkpoint_steps": 2000,
+  "patience": 10000,
+  "max_steps": 500000,
+  "batch_size": 80,
+  "optimizer": {
+    "name": "Adadelta",
+    "params": {
+      "epsilon": 1e-6
+    },
+    "lr": 1.0,
+    "clip": 1.0
+  },
+  "features": {
+    "seq_feat": "word",
+    "targets": [
+      {
+        "name": "gold",
+        "key": "sense",
+        "mapping_funcs": [
+          "predicate"
+        ],
+        "indices": {
+          "0": 0,
+          "1": 1
+        },
+        "unknown_word": "0",
+        "pad_word": "0"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "word",
+        "key": "word",
+        "mapping_funcs": [
+          "lower",
+          "digit_norm"
+        ],
+        "config": {
+          "dim": 100,
+          "initializer": {
+            "embedding": "vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl",
+            "include_in_vocab": 400000,
+            "restrict_vocab": true
+          }
+        }
+      }
+    ]
+  },
+  "encoders": [
+    {
+      "name": "words_and_chars",
+      "type": "concat",
+      "inputs": [
+        "word"
+      ],
+      "input_dropout": 0.0
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_chars"
+      ],
+      "type": "dblstm",
+      "state_size": 300,
+      "encoder_output_dropout": 0.1,
+      "encoder_layers": 2
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "gold",
+      "type": "tagger"
+    }
+  ]
+}

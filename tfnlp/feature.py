@@ -14,6 +14,7 @@ from tfnlp.layers.reduce import ConvNet
 LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"
 CHARACTERS = "chars"
+PREDICATE = "predicate"
 PADDING = "pad"
 CONV_PADDING = "conv"
 
@@ -48,6 +49,10 @@ def characters(value):
     return list(value)
 
 
+def is_predicate(value):
+    return '0' if value == '-' else '1'
+
+
 def _get_mapping_function(func):
     if func == LOWER:
         return lower
@@ -55,6 +60,8 @@ def _get_mapping_function(func):
         return normalize_digits
     elif func == CHARACTERS:
         return characters
+    elif func == PREDICATE:
+        return is_predicate
     else:
         raise AssertionError("Unexpected function name: {}".format(func))
 
