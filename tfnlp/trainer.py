@@ -17,11 +17,10 @@ from tfnlp.common.constants import CLASSIFIER_KEY, LENGTH_KEY, NER_KEY, PARSER_K
     WORD_KEY
 from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
 from tfnlp.common.logging import set_up_logging
-from tfnlp.common.utils import read_json
+from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
-from tfnlp.model.parser import parser_model_func
 from tfnlp.readers import get_reader
 
 VOCAB_PATH = 'vocab'
@@ -65,13 +64,13 @@ class Trainer(object):
         self._eval_script_path = args.script
 
         # read configuration file
-        config_path = os.path.join(args.save, CONFIG_PATH)
-        if not tf.gfile.Exists(config_path) or self._overwrite:
+        self.config_path = os.path.join(args.save, CONFIG_PATH)
+        if not tf.gfile.Exists(self.config_path) or self._overwrite:
             if not args.config:
                 raise AssertionError('"--config" option is required when training for the first time')
             tf.gfile.MakeDirs(args.save)
-            tf.gfile.Copy(args.config, config_path, overwrite=True)
-        self._training_config = get_network_config(read_json(config_path))
+            tf.gfile.Copy(args.config, self.config_path, overwrite=True)
+        self._training_config = get_network_config(read_json(self.config_path))
         self._feature_config = self._training_config.features
 
         self._model_fn = get_model_func(self._training_config)
@@ -250,9 +249,14 @@ class Trainer(object):
         bucket_sizes = self._training_config.buckets
         if not bucket_sizes and LENGTH_KEY in self._feature_extractor.features:
             length_feat = self._feature_extractor.feature(LENGTH_KEY)
-            # TODO: persist dynamically computed bucket sizes for training restarts
             bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
                                                max_length=self._training_config.max_length)
+            if not bucket_sizes:
+                bucket_sizes = None
+            else:
+                # persist dynamically computed bucket sizes
+                self._training_config['bucket_sizes'] = bucket_sizes
+                write_json(self._training_config, self.config_path)
 
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
                                     batch_size=self._training_config.batch_size, evaluate=not train,
@@ -294,7 +298,7 @@ def get_model_func(config):
         CLASSIFIER_KEY: multi_head_model_func,
         TAGGER_KEY: multi_head_model_func,
         NER_KEY: multi_head_model_func,
-        PARSER_KEY: parser_model_func,
+        PARSER_KEY: multi_head_model_func,
         SRL_KEY: multi_head_model_func,
         TOKEN_CLASSIFIER_KEY: multi_head_model_func,
     }

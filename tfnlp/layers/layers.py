@@ -16,9 +16,23 @@ from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
 from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
 
-from tfnlp.common.constants import ELMO_KEY, LENGTH_KEY
+from tfnlp.common import constants
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
+
+
+def embedding(features, feature_config, training):
+    if feature_config.name == constants.ELMO_KEY:
+        tf.logging.info("Using ELMo module at %s", ELMO_URL)
+        elmo_module = hub.Module(ELMO_URL, trainable=True)
+        elmo_embedding = elmo_module(inputs={'tokens': features[constants.ELMO_KEY],
+                                             'sequence_len': tf.cast(features[constants.LENGTH_KEY], dtype=tf.int32)},
+                                     signature="tokens",
+                                     as_dict=True)['elmo']
+        return elmo_embedding
+    elif feature_config.has_vocab():
+        feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
+        return feature_embedding
 
 
 def input_layer(features, params, training):
@@ -32,32 +46,17 @@ def input_layer(features, params, training):
     add_group_feats = defaultdict(list)
     inputs = []
     for feature_config in params.extractor.features.values():
-        if feature_config.name == ELMO_KEY:
-            tf.logging.info("Using ELMo module at %s", ELMO_URL)
-            elmo_module = hub.Module(ELMO_URL, trainable=True)
-            elmo_embedding = elmo_module(inputs={'tokens': features[ELMO_KEY],
-                                                 'sequence_len': tf.cast(features[LENGTH_KEY], dtype=tf.int32)},
-                                         signature="tokens",
-                                         as_dict=True)['elmo']
-            inputs.append(elmo_embedding)
-        elif feature_config.has_vocab():
-            feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
-            if feature_config.config.add_group:
-                add_group_feats[feature_config.config.add_group].append(feature_embedding)
-                continue
-            inputs.append(feature_embedding)
+        feature_embedding = embedding(features, feature_config, training)
+        if feature_config.config.add_group:
+            add_group_feats[feature_config.config.add_group].append(feature_embedding)
+            continue
+        inputs.append(feature_embedding)
 
     # add together any reduce sum feats (such as adding different encodings of the same word)
     for feature_list in add_group_feats.values():
-        feature_embedding = feature_list[0]
-        for _, emb in feature_list[1:]:
-            feature_embedding += emb
-        inputs.append(feature_embedding)
+        inputs.append(reduce_sum(feature_list))
 
-    results = tf.concat(inputs, -1, name="inputs")
-    # apply dropout across entire input layer
-    results = tf.layers.dropout(results, rate=params.config.input_dropout, training=training, name='input_layer_dropout')
-    return results
+    return concat(inputs, training, params.config)
 
 
 def string2index(feature_strings, feature):
@@ -120,17 +119,35 @@ def _get_embedding_input(inputs, feature, training):
 
 def encoder(features, inputs, mode, config):
     training = mode == tf.estimator.ModeKeys.TRAIN
-    sequence_lengths = features[LENGTH_KEY]
+    sequence_lengths = features[constants.LENGTH_KEY]
 
     with tf.variable_scope("encoder"):
-        if config.encoder == 'dblstm':
-            return highway_dblstm(inputs, sequence_lengths, training, config)
-        elif config.encoder == 'lstm':
-            return stacked_bilstm(inputs, sequence_lengths, training, config)
-        elif config.encoder == 'transformer':
-            return transformer_encoder(inputs, sequence_lengths, training, config)
+        if constants.ENCODER_CONCAT == config.encoder_type:
+            return concat(inputs, training, config)
+        elif constants.ENCODER_SUM == config.encoder_type:
+            return reduce_sum(inputs)
+        elif constants.ENCODER_DBLSTM == config.encoder_type:
+            return highway_dblstm(inputs[0], sequence_lengths, training, config)
+        elif constants.ENCODER_BLSTM == config.encoder_type:
+            return stacked_bilstm(inputs[0], sequence_lengths, training, config)
+        elif constants.ENCODER_TRANSFORMER == config.encoder_type:
+            return transformer_encoder(inputs[0], sequence_lengths, training, config)
         else:
-            raise ValueError('No encoder of type "{}" available'.format(config.encoder))
+            raise ValueError('No encoder of type "{}" available'.format(config.encoder_type))
+
+
+def concat(inputs, training, config):
+    result = tf.concat(inputs, -1, name="inputs")
+    # apply dropout across entire layer
+    result = tf.layers.dropout(result, rate=config.input_dropout, training=training, name='input_layer_dropout')
+    return result
+
+
+def reduce_sum(inputs):
+    result = inputs[0]
+    for _input in inputs[1:]:
+        result += _input
+    return result
 
 
 def highway_dblstm(inputs, sequence_lengths, training, config):
@@ -204,10 +221,10 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
     return outputs, config.state_size * 2, tf.concat([fw_state.h, bw_state.h], axis=1)
 
 
-def embedding_initializer(embedding):
+def embedding_initializer(np_embedding):
     # noinspection PyUnusedLocal
     def _initializer(name, dtype=None, partition_info=None):
-        return embedding
+        return np_embedding
 
     return _initializer
 

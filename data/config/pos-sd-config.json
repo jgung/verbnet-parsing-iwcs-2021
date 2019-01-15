@@ -6,61 +6,7 @@
     }
   },
   "checkpoint_steps": 3822,
-  "state_size": 200,
-  "encoder_dropout": 0.5,
-  "encoder_output_dropout": 0.5,
-  "input_dropout": 0.5,
-  "encoder": "lstm",
-  "encoder_layers": 1,
   "batch_size": 10,
-  "buckets": [
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
-    33,
-    34,
-    35,
-    36,
-    37,
-    38,
-    39,
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    50,
-    52,
-    56,
-    61,
-    99
-  ],
   "optimizer": {
     "name": "Momentum",
     "params": {
@@ -76,16 +22,8 @@
     },
     "clip": 5.0
   },
-  "heads": [
-    {
-      "name": "gold",
-      "type": "tagger",
-      "metric": "Accuracy",
-      "crf": true
-    }
-  ],
   "features": {
-    "seq_feat": "gold",
+    "seq_feat": "word",
     "targets": [
       {
         "name": "gold",
@@ -137,5 +75,36 @@
         }
       }
     ]
-  }
+  },
+  "encoders": [
+    {
+      "name": "words_and_chars",
+      "type": "concat",
+      "inputs": [
+        "word",
+        "char"
+      ],
+      "input_dropout": 0.5
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_chars"
+      ],
+      "type": "lstm",
+      "state_size": 200,
+      "encoder_dropout": 0.5,
+      "encoder_output_dropout": 0.5,
+      "encoder_layers": 1
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "gold",
+      "type": "tagger",
+      "metric": "Accuracy",
+      "crf": true
+    }
+  ]
 }

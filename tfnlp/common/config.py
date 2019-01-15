@@ -39,18 +39,54 @@ class BaseNetworkConfig(Params):
 
         # feature/input settings
         self.features = config.get('features')
-        self.input_dropout = config.get('input_dropout', 0)
         self.buckets = config.get('buckets')
         self.max_length = config.get('max_length', 100)
 
         # encoder settings
-        self.encoder = config.get('encoder', 'lstm')
+        self.encoders = [EncoderConfig(val) for val in config.get('encoders', [])]
+        if not self.encoders:
+            raise ValueError('Must have at least one encoder')
+
+        # head configuration validation
+        self.heads = [HeadConfig(head) for head in config.get('heads', [])]
+        targets = {}
+        for target in self.features.targets:
+            if target.name not in {head.name for head in self.heads}:
+                tf.logging.warning("Missing head configuration for target '%s'" % target.name)
+            targets[target.name] = target
+        for head in self.heads:
+            if head.name not in targets:
+                raise ValueError("Missing feature configuration for target '%s'" % head.name)
+        if len(self.heads) == 0:
+            raise ValueError("Must have at least one head/target in configuration")
+
+        self.metric = config.get('metric')
+        if not self.metric:
+            metrics = [append_label(head.metric, head.name) for head in self.heads]
+            self.metric = metrics[0]
+
+
+class EncoderConfig(Params):
+    def __init__(self, config):
+        super().__init__(**config)
+        self.name = config.get('name')
+        self.inputs = config.get('inputs', [])
+        if not self.inputs:
+            raise ValueError("Encoders must have at least one input")
+        self.options = config.get('options', {})
+        self.encoder_type = config.get('type', constants.ENCODER_BLSTM)
+        if self.encoder_type not in constants.ENCODERS:
+            raise ValueError("Invalid encoder type: %s" % self.encoder_type)
+
+        self.input_dropout = config.get('input_dropout', 0)
+
         self.forget_bias = config.get('forget_bias', 1)
         self.encoder_dropout = config.get('encoder_dropout', 0)
         self.encoder_input_dropout = config.get('encoder_input_dropout', 0)
         self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
+
         # transformer encoder settings
         self.num_heads = config.get('num_heads', 8)
         self.head_dim = config.get('head_dim', 25) * self.num_heads
@@ -59,31 +95,14 @@ class BaseNetworkConfig(Params):
         self.relu_dropout = config.get('relu_dropout', 0.1)
         self.prepost_dropout = config.get('prepost_dropout', 0.1)
 
-        # parser-specific settings
-        self.mlp_dropout = config.get('mlp_dropout', 0)
-
-        # head configuration validation
-        self.heads = [HeadConfig(head) for head in config.get('heads', [])]
-        targets = {}
-        for target in self.features.targets:
-            if target.name not in {head.name for head in self.heads}:
-                tf.logging.warning("Missing head configuration for target '%s'" % target.name)
-                self.heads.append(HeadConfig({'name': target.name}))
-            targets[target.name] = target
-        for head in self.heads:
-            if head.name not in targets:
-                raise ValueError("Missing feature configuration for target '%s'" % head.name)
-        if len(self.heads) == 0:
-            raise ValueError("Must have at least one head/target in configuration")
-
-        metrics = [append_label(head.metric, head.name) for head in self.heads]
-        self.metric = metrics[0]
-
 
 class HeadConfig(Params):
-    def __init__(self, config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, config):
+        super().__init__(**config)
         self.name = config.get('name', constants.LABEL_KEY)
+        self.encoder = config.get('encoder')
+        if not self.encoder:
+            raise ValueError('Must specify an input "encoder" for this head')
         self.crf = config.get('crf', False)
         self.type = config.get('type', constants.TAGGER_KEY)
         self.zero_init = config.get('zero_init', True)

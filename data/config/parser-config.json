@@ -2,27 +2,8 @@
   "reader": "conll_2009",
   "checkpoint_steps": 1000,
   "patience": 5000,
-  "state_size": 400,
-  "encoder_dropout": 0.33,
-  "encoder_input_dropout": 0.33,
-  "input_dropout": 0.0,
-  "mlp_dropout": 0.33,
-  "encoder": "lstm",
-  "forget_bias": 1,
-  "encoder_layers": 3,
   "batch_size": 100,
-  "buckets": [
-    5,
-    10,
-    15,
-    20,
-    25,
-    30,
-    40,
-    50,
-    75,
-    100
-  ],
+  "metric": "LAS",
   "optimizer": {
     "name": "Adam",
     "params": {
@@ -32,18 +13,6 @@
     "lr": 0.002,
     "clip": 5.0
   },
-  "heads": [
-    {
-      "name": "deprel",
-      "type": "parser",
-      "metric": "LAS"
-    },
-    {
-      "name": "head",
-      "type": "parser",
-      "metric": "UAS"
-    }
-  ],
   "features": {
     "seq_feat": "head",
     "targets": [
@@ -93,7 +62,6 @@
           "dim": 100,
           "trainable": false,
           "word_dropout": 0.33,
-          "add_group": "words",
           "initializer": {
             "embedding": "vectors/glove.6B.100d.txt",
             "pkl_path": "word-vectors.pkl",
@@ -120,7 +88,6 @@
         "config": {
           "dim": 100,
           "word_dropout": 0.33,
-          "add_group": "words",
           "initializer": {
             "zero_init": true
           }
@@ -146,5 +113,45 @@
         ]
       }
     ]
-  }
+  },
+  "encoders": [
+    {
+      "name": "words_sum",
+      "type": "sum",
+      "inputs": [
+        "train_word",
+        "fix_word"
+      ]
+    },
+    {
+      "name": "words_and_pos",
+      "type": "concat",
+      "inputs": [
+        "words_sum",
+        "pos"
+      ],
+      "input_dropout": 0.0
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_pos"
+      ],
+      "encoder": "lstm",
+      "state_size": 400,
+      "encoder_dropout": 0.33,
+      "encoder_input_dropout": 0.33,
+      "forget_bias": 1,
+      "encoder_layers": 3
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "deprel",
+      "type": "parser",
+      "metric": "LAS",
+      "mlp_dropout": 0.33
+    }
+  ]
 }

@@ -53,6 +53,11 @@ def read_json(json_path):
         return _convert_to_attributes(json_dict)
 
 
+def write_json(value, json_path):
+    with file_io.FileIO(json_path, 'w') as json_out:
+        json_out.write(json.dumps(value, indent=4, sort_keys=True))
+
+
 def serialize(serializable, out_path, out_name=None, overwrite=False):
     if out_name:
         out_name = out_name if out_name.endswith(".pkl") else "{}.pkl".format(out_name)

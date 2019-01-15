@@ -1,24 +1,15 @@
 {
   "reader": "conll_2005",
   "checkpoint_steps": 2000,
-  "patience": 500000,
+  "patience": 10000,
   "max_steps": 500000,
-  "batch_size": 64,
+  "batch_size": 80,
   "optimizer": {
-    "name": "LazyNadam",
+    "name": "Adadelta",
     "params": {
-      "beta1": 0.9,
-      "beta2": 0.98,
-      "epsilon": 1e-12,
-      "use_nesterov": true
+      "epsilon": 1e-6
     },
-    "lr": {
-      "name": "vaswani",
-      "rate": 0.04,
-      "warmup_steps": 8000,
-      "decay_rate": 1.5,
-      "decay_steps": 5000
-    },
+    "lr": 1.0,
     "clip": 1.0
   },
   "features": {
@@ -26,19 +17,19 @@
     "targets": [
       {
         "name": "gold",
-        "key": "gold",
+        "key": "sense",
+        "mapping_funcs": [
+          "predicate"
+        ],
         "indices": {
-          "O": 0
+          "0": 0,
+          "1": 1
         },
-        "unknown_word": "O",
-        "pad_word": "O"
+        "unknown_word": "0",
+        "pad_word": "0"
       }
     ],
     "inputs": [
-      {
-        "name": "elmo",
-        "key": "word"
-      },
       {
         "name": "word",
         "key": "word",
@@ -55,18 +46,6 @@
             "restrict_vocab": true
           }
         }
-      },
-      {
-        "name": "marker",
-        "key": "marker",
-        "config": {
-          "dim": 100
-        },
-        "indices": {
-          "0": 0
-        },
-        "unknown_word": "0",
-        "pad_word": "0"
       }
     ]
   },
@@ -75,34 +54,26 @@
       "name": "words_and_chars",
       "type": "concat",
       "inputs": [
-        "word",
-        "elmo",
-        "marker"
+        "word"
       ],
-      "input_dropout": 0.2
+      "input_dropout": 0.0
     },
     {
       "name": "blstm",
       "inputs": [
         "words_and_chars"
       ],
-      "type": "transformer",
+      "type": "dblstm",
       "state_size": 300,
       "encoder_output_dropout": 0.1,
-      "num_heads": 8,
-      "head_dim": 25,
-      "attention_dropout": 0.1,
-      "relu_hidden_size": 800,
-      "relu_dropout": 0.1,
-      "prepost_dropout": 0.1,
-      "encoder_layers": 10
+      "encoder_layers": 2
     }
   ],
   "heads": [
     {
       "encoder": "blstm",
       "name": "gold",
-      "type": "srl"
+      "type": "tagger"
     }
   ]
 }

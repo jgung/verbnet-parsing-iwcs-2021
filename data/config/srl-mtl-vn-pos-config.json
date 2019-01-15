@@ -9,62 +9,9 @@
     "pred_start": 6
   },
   "checkpoint_steps": 2000,
-  "patience": 10000,
-  "max_steps": 100000,
-  "state_size": 300,
-  "input_dropout": 0.0,
-  "encoder_output_dropout": 0.1,
-  "encoder": "dblstm",
-  "encoder_layers": 8,
+  "patience": 500000,
+  "max_steps": 500000,
   "batch_size": 80,
-  "buckets": [
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
-    33,
-    34,
-    35,
-    36,
-    37,
-    38,
-    39,
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    50,
-    52,
-    56,
-    61,
-    99
-  ],
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -73,20 +20,8 @@
     "lr": 1.0,
     "clip": 1.0
   },
-  "heads": [
-    {
-      "name": "gold",
-      "type": "srl"
-    },
-    {
-      "name": "pos",
-      "type": "tagger",
-      "crf": true,
-      "metric": "F-Measure"
-    }
-  ],
   "features": {
-    "seq_feat": "gold",
+    "seq_feat": "word",
     "targets": [
       {
         "name": "gold",
@@ -143,5 +78,41 @@
         "pad_word": "0"
       }
     ]
-  }
+  },
+  "encoders": [
+    {
+      "name": "words_and_chars",
+      "type": "concat",
+      "inputs": [
+        "word",
+        "elmo",
+        "marker"
+      ],
+      "input_dropout": 0.0
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_chars"
+      ],
+      "type": "dblstm",
+      "state_size": 300,
+      "encoder_output_dropout": 0.1,
+      "encoder_layers": 8
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "gold",
+      "type": "srl"
+    },
+    {
+      "encoder": "blstm",
+      "name": "pos",
+      "type": "tagger",
+      "crf": true,
+      "metric": "F-Measure"
+    }
+  ]
 }

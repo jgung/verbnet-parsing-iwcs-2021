@@ -34,7 +34,9 @@ class ModelHead(object):
         self.export_outputs = {}
 
     def training(self):
-        self.targets = string2index(self.features[self.name], self.extractor)
+        self.targets = self.features[self.name]
+        if self.extractor.has_vocab():
+            self.targets = string2index(self.features[self.name], self.extractor)
 
         with tf.variable_scope(self.name):
             self._all()
@@ -42,7 +44,9 @@ class ModelHead(object):
             self._train()
 
     def evaluation(self):
-        self.targets = string2index(self.features[self.name], self.extractor)
+        self.targets = self.features[self.name]
+        if self.extractor.has_vocab():
+            self.targets = string2index(self.features[self.name], self.extractor)
 
         with tf.variable_scope(self.name):
             self._all()
@@ -269,31 +273,3 @@ class TaggerHead(ModelHead):
                     output_file=self.params.output
                 )
             )
-
-
-def model_head(config, inputs, features, mode, params):
-    """
-    Initialize a model head from a given configuration.
-    :param config: head configuration
-    :param inputs: output from encoder (e.g. biLSTM), input to head
-    :param features: all model inputs
-    :param mode: Estimator mode type (TRAIN, EVAL, or PREDICT)
-    :param params: HParams input to Estimator
-    :return: initialized model head
-    """
-    heads = {
-        constants.CLASSIFIER_KEY: ClassifierHead,
-        constants.TAGGER_KEY: TaggerHead,
-        constants.NER_KEY: TaggerHead,
-        constants.SRL_KEY: TaggerHead,
-        constants.TOKEN_CLASSIFIER_KEY: TokenClassifierHead,
-    }
-    head = heads[config.type](inputs=inputs, config=config, features=features, params=params,
-                              training=mode == tf.estimator.ModeKeys.TRAIN)
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        head.training()
-    elif mode == tf.estimator.ModeKeys.EVAL:
-        head.evaluation()
-    elif mode == tf.estimator.ModeKeys.PREDICT:
-        head.prediction()
-    return head

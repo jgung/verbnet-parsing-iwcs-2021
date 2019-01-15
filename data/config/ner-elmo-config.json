@@ -1,12 +1,6 @@
 {
   "reader": "conll_2003",
   "checkpoint_steps": 1500,
-  "state_size": 300,
-  "encoder_dropout": 0.5,
-  "encoder_output_dropout": 0.5,
-  "input_dropout": 0.5,
-  "encoder": "lstm",
-  "encoder_layers": 1,
   "batch_size": 10,
   "optimizer": {
     "name": "Momentum",
@@ -23,15 +17,8 @@
     },
     "clip": 5.0
   },
-  "heads": [
-    {
-      "name": "NE",
-      "type": "ner",
-      "crf": true
-    }
-  ],
   "features": {
-    "seq_feat": "gold",
+    "seq_feat": "word",
     "targets": [
       {
         "name": "NE",
@@ -88,5 +75,36 @@
         }
       }
     ]
-  }
+  },
+  "encoders": [
+    {
+      "name": "words_and_chars",
+      "type": "concat",
+      "inputs": [
+        "word",
+        "char",
+        "elmo"
+      ],
+      "input_dropout": 0.5
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_chars"
+      ],
+      "type": "lstm",
+      "state_size": 300,
+      "encoder_dropout": 0.5,
+      "encoder_output_dropout": 0.5,
+      "encoder_layers": 1
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "NE",
+      "type": "ner",
+      "crf": true
+    }
+  ]
 }
