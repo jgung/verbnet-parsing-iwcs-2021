@@ -107,6 +107,7 @@ gcloud ml-engine jobs submit training ${job_name} \
 --train ${job_dir}/train.txt \
 --valid ${job_dir}/valid.txt  \
 --test ${cloud_test_files} \
+--output predictions.txt \
 --mode train \
 --config ${job_dir}/config.json \
 --resources gs://${bucket_name}/resources/
