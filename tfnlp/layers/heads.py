@@ -251,7 +251,8 @@ class TaggerHead(ModelHead):
                     predict_key=predictions_key,
                     eval_update=tf.assign(self.metric, eval_placeholder),
                     eval_placeholder=eval_placeholder,
-                    output_confusions=self.params.verbose_eval
+                    output_confusions=self.params.verbose_eval,
+                    output_file=self.params.output
                 )
             )
         else:

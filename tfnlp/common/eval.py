@@ -95,30 +95,29 @@ def _write_to_file(output_file, ys, indices, ids):
 
     predicates = []
     args = []
-    for labels, markers, sentence in zip(ys, indices, ids):
-        if prev_sentence != sentence:
-            prev_sentence = sentence
-            if predicates:
-                line = ''
-                for index, predicate in enumerate(predicates):
-                    line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
-                output_file.write(line + '\n')
-                predicates = []
-                args = []
-        if not predicates:
-            predicates = ["-"] * markers.size
-        index = markers.tolist().index(1)
-        predicates[index] = 'x'
-        args.append(chunk(labels, conll=True))
 
-    if predicates:
-        line = ''
-        for index, predicate in enumerate(predicates):
-            line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
-        output_file.write(line + '\n')
+    with file_io.FileIO(output_file, 'w') as output_file:
+        for labels, markers, sentence in sorted(zip(ys, indices, ids), key=lambda x: x[2]):
+            if prev_sentence != sentence:
+                prev_sentence = sentence
+                if predicates:
+                    line = ''
+                    for index, predicate in enumerate(predicates):
+                        line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
+                    output_file.write(line + '\n')
+                    predicates = []
+                    args = []
+            if not predicates:
+                predicates = ["-"] * markers.size
+            index = markers.tolist().index(b'1')
+            predicates[index] = 'x'
+            args.append(chunk(labels, conll=True))
 
-    output_file.flush()
-    output_file.seek(0)
+        if predicates:
+            line = ''
+            for index, predicate in enumerate(predicates):
+                line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
+            output_file.write(line + '\n')
 
 
 def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
@@ -250,6 +249,9 @@ class SrlEvalHook(SequenceEvalHook):
         if self._output_confusions:
             tf.logging.info('\n%s' % result.confusion_matrix())
         session.run(self._eval_update, feed_dict={self._eval_placeholder: result.evaluation.prec_rec_f1()[2]})
+        if self._output_file:
+            _write_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
+            _write_to_file(self._output_file, self._predictions, self._markers, self._indices)
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):

@@ -56,7 +56,7 @@ class Trainer(object):
         self._raw_valid = args.valid
         self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
         self._overwrite = args.overwrite
-        self._output = args.output
+        self._output = os.path.join(args.save, args.output)
 
         self._save_path = os.path.join(args.save, MODEL_PATH)
         self._vocab_path = os.path.join(args.save, VOCAB_PATH)
@@ -78,7 +78,8 @@ class Trainer(object):
         self._feature_extractor = None
         self._estimator = None
 
-        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
+        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader,
+                                                                   self._training_config).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
         self._parse_fn = default_parser
