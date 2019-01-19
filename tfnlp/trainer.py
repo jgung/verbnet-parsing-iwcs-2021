@@ -56,7 +56,10 @@ class Trainer(object):
         self._raw_valid = args.valid
         self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
         self._overwrite = args.overwrite
-        self._output = os.path.join(args.save, args.output)
+        if args.output:
+            self._output = os.path.join(args.save, args.output)
+        else:
+            self._output = os.path.join(args.save, 'predictions.txt')
 
         self._save_path = os.path.join(args.save, MODEL_PATH)
         self._vocab_path = os.path.join(args.save, VOCAB_PATH)
@@ -103,7 +106,7 @@ class Trainer(object):
 
     def run(self):
         self._init_feature_extractor()
-        self._init_estimator(test=self._mode == "test")
+        self._init_estimator(test=False)
         if self._mode == "train":
             self.train()
         elif self._mode == "test":
@@ -147,11 +150,12 @@ class Trainer(object):
                                                            exporters=[exporter],
                                                            throttle_secs=0))
         if self._raw_test:
-            self._mode = "test"
-            self.run()
+            self.eval()
 
     def eval(self):
         for test_set in self._raw_test:
+            self._init_feature_extractor()
+            self._init_estimator(test=True, tag=os.path.split(test_set)[1])
             tf.logging.info('Evaluating on %s' % test_set)
 
             ckpt = get_earliest_checkpoint(self._save_path)
@@ -222,12 +226,12 @@ class Trainer(object):
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
-    def _init_estimator(self, test=False):
+    def _init_estimator(self, test=False, tag=None):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
                                                  config=RunConfig(
                                                      keep_checkpoint_max=self._training_config.keep_checkpoints,
                                                      save_checkpoints_steps=self._training_config.checkpoint_steps),
-                                                 params=self._params(test=test))
+                                                 params=self._params(test=test, tag=tag))
 
     def _serving_input_fn(self):
         # input has been serialized to a TFRecord string
@@ -238,12 +242,12 @@ class Trainer(object):
         features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
         return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
 
-    def _params(self, test=False):
+    def _params(self, test=False, tag=None):
         return HParams(extractor=self._feature_extractor,
                        config=self._training_config,
                        script_path=self._eval_script_path,
                        vocab_path=self._vocab_path,
-                       output=self._output,
+                       output=self._output if not tag else self._output + '.' + tag,
                        verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):

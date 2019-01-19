@@ -1,4 +1,3 @@
-import glob
 import os
 import re
 import subprocess
@@ -9,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 from nltk import ConfusionMatrix
 from tensorflow.python.lib.io import file_io
+from tensorflow.python.lib.io.file_io import get_matching_files
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
@@ -415,7 +415,7 @@ def get_earliest_checkpoint(model_dir):
     :param model_dir: base model directory containing checkpoints
     :return: path to earliest checkpoint
     """
-    ckpts = glob.glob(os.path.join(model_dir, '*.index'))
+    ckpts = get_matching_files(os.path.join(model_dir, '*.index'))
     path_step_ckpts = []
     for ckpt in ckpts:
         match = CKPT_PATTERN.search(ckpt)
