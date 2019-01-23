@@ -502,7 +502,7 @@ def get_reader(reader_config, training_config=None):
             reader = MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
         else:
             raise ValueError("Unexpected reader type: " + reader_config)
-    if training_config.max_length > 0:
+    if training_config and training_config.max_length > 0:
         reader = LengthFilter(length=training_config.max_length, reader=reader)
     return reader
 
