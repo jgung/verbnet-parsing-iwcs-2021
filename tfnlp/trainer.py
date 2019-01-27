@@ -107,14 +107,14 @@ class Trainer(object):
     def run(self):
         self._init_feature_extractor()
         self._init_estimator(test=False)
-        if self._mode == "train":
+        if self._raw_train and self._mode == "train":
             self.train()
-        elif self._mode == "test":
-            self.eval()
         elif self._mode == "predict":
             self.predict()
         elif self._mode == "itl":
             self.itl()
+        elif self._raw_test or self._mode == "test":
+            self.eval()
         else:
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 

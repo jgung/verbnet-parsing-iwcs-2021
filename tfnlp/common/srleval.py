@@ -66,7 +66,7 @@ class Evaluation(object):
                  "{:>10}   {:>6}  {:>6}  {:>6}   {:>6}  {:>6}  {:>6}  {:>6}".format(
                      "", "corr.", "excess", "missed", "prec.", "rec.", "F1", "lAcc"),
                  "{:>10}   {:>6}  {:>6}  {:>6}   {:>6.2f}  {:>6.2f}  {:>6.2f}  {:>6.2f}".format(
-                     "Unlabeled", uok, uop, ums, *Evaluation.precrecf1(uok, uop, ums), 100 * uacc / uok),
+                     "Unlabeled", uok, uop, ums, *Evaluation.precrecf1(uok, uop, ums), 0 if uok == 0 else 100 * uacc / uok),
                  "--------------------------------------------------------------------",
                  "\n---- Confusion Matrix: (one row for each correct role, with the distribution of predictions)"]
 
