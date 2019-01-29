@@ -15,31 +15,33 @@ from tensorflow.python.training.session_run_hook import SessionRunArgs
 from tfnlp.common.chunk import chunk
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, MARKER_KEY, PREDICT_KEY, REL_PROBS, \
     SENTENCE_INDEX
+from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
 
-def conll_eval(gold_batches, predicted_batches, indices, script_path, output_file=None):
+def conll_eval(gold_batches, predicted_batches, indices, output_file):
     """
     Run the CoNLL-2003 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
     :param predicted_batches: list of predicted label sequences
     :param indices: order of sequences
-    :param script_path: path to CoNLL-2003 eval script
     :param output_file: optional output file name for predictions
     :return: tuple of (overall F-score, script_output)
     """
-    _output_file = file_io.FileIO(output_file, 'w') if output_file else tempfile.NamedTemporaryFile(mode='wt')
-    with _output_file as temp:
-        # sort by sentence index to maintain original order of instances
+
+    def get_lines():
         for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
             for label, prediction in zip(gold_seq, predicted_seq):
-                temp.write("_ {} {}\n".format(label, prediction))
-            temp.write("\n")  # sentence break
-        temp.flush()
-        temp.seek(0)
-        result = subprocess.check_output(["perl", script_path], stdin=temp, universal_newlines=True)
-        return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
+                yield "_ {} {}".format(label, prediction)
+            yield ""  # sentence break
+
+    with file_io.FileIO(output_file, 'w') as output:
+        for line in get_lines():
+            output.write(line + '\n')
+
+    result = conll_eval_lines(get_lines()).to_conll_output()
+    return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
 
 
 def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
@@ -194,15 +196,13 @@ class ClassifierEvalHook(EvalHook):
 
 class SequenceEvalHook(EvalHook):
 
-    def __init__(self, *args, script_path=None, eval_update=None, eval_placeholder=None, **kwargs):
+    def __init__(self, *args, eval_update=None, eval_placeholder=None, **kwargs):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
-        :param script_path: path to eval script
         :param eval_update: operation to update current best score
         :param eval_placeholder: placeholder for update operation
         """
         super().__init__(*args, **kwargs)
-        self._script_path = script_path
         self._eval_update = eval_update
         self._eval_placeholder = eval_placeholder
 
@@ -215,11 +215,8 @@ class SequenceEvalHook(EvalHook):
             self._predictions.append([self._vocab.index_to_feat(val) for val in predictions][:seq_len])
 
     def end(self, session):
-        if self._script_path is not None:
-            score, result = conll_eval(self._gold, self._predictions, self._indices, self._script_path, self._output_file)
-            tf.logging.info(result)
-        else:
-            score = accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
+        score, result = conll_eval(self._gold, self._predictions, self._indices, self._output_file)
+        tf.logging.info(result)
         session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
 
 

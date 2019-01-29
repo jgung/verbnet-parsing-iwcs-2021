@@ -270,7 +270,6 @@ class TaggerHead(ModelHead):
                     predict_key=predictions_key,
                     eval_update=tf.assign(self.metric, eval_placeholder),
                     eval_placeholder=eval_placeholder,
-                    script_path=self.params.script_path if self.config.type == constants.NER_KEY else None,
                     output_file=self.params.output
                 )
             )
