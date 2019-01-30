@@ -63,7 +63,7 @@ case ${key} in
 esac
 done
 
-if [[ -z "CONFIG" ]] || [[ -z "$train_file" ]] || [[ -z "$valid_file" ]] || [[ -z "$comma_separated_test_files" ]]; then
+if [[ -z "CONFIG" ]] || [[ -z "$train_file" ]] || [[ -z "$valid_file" ]]; then
     usage
     exit
 fi
@@ -86,13 +86,16 @@ gsutil cp ${config} ${job_dir}/config.json
 gsutil cp ${train_file} ${job_dir}/train.txt
 gsutil cp ${valid_file} ${job_dir}/valid.txt
 
-cloud_test_files=""
-for local_test_file in ${comma_separated_test_files//,/ }
-do
-    cloud_test_file="${job_dir}/${local_test_file##*/}"
-    gsutil cp ${local_test_file} ${cloud_test_file}
-    cloud_test_files="${cloud_test_files},${cloud_test_file}"
-done
+test_arg_str=""
+if [[ -n "$comma_separated_test_files" ]]; then
+    test_arg_str="--test "
+    for local_test_file in ${comma_separated_test_files//,/ }
+    do
+        cloud_test_file="${job_dir}/${local_test_file##*/}"
+        gsutil cp ${local_test_file} ${cloud_test_file}
+        test_arg_str="${test_arg_str},${cloud_test_file}"
+    done
+fi
 
 
 gcloud ml-engine jobs submit training ${job_name} \
@@ -106,7 +109,7 @@ gcloud ml-engine jobs submit training ${job_name} \
 --job-dir ${job_dir} \
 --train ${job_dir}/train.txt \
 --valid ${job_dir}/valid.txt  \
---test ${cloud_test_files} \
+${test_arg_str} \
 --output predictions.txt \
 --mode train \
 --config ${job_dir}/config.json \
