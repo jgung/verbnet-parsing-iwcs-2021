@@ -83,6 +83,8 @@ class Trainer(object):
 
         self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader,
                                                                    self._training_config).read_file(raw_path)
+        # TODO: use separate test config
+        self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
         self._parse_fn = default_parser
@@ -162,7 +164,7 @@ class Trainer(object):
             if not ckpt:
                 raise ValueError('No checkpoints found at save path: %s', self._save_path)
 
-            self._extract_and_write(test_set)
+            self._extract_and_write(test_set, test=True)
             eval_input_fn = self._input_fn(test_set, False)
             self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
@@ -200,8 +202,11 @@ class Trainer(object):
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
 
-    def _extract_raw(self, path):
-        raw_instances = self._raw_instance_reader_fn(path)
+    def _extract_raw(self, path, test=False):
+        if test:
+            raw_instances = self._raw_test_instance_reader_fn(path)
+        else:
+            raw_instances = self._raw_instance_reader_fn(path)
         if not raw_instances:
             raise ValueError("No examples provided at path given by '{}'".format(path))
         return raw_instances
@@ -212,17 +217,17 @@ class Trainer(object):
         self._feature_extractor.train(self._extract_raw(self._raw_train))
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
 
-    def _extract_features(self, path):
+    def _extract_features(self, path, test=False):
         tf.logging.info("Extracting features from %s", path)
-        examples = self._feature_extractor.extract_all(self._extract_raw(path))
+        examples = self._feature_extractor.extract_all(self._extract_raw(path, test))
         return examples
 
-    def _extract_and_write(self, path):
+    def _extract_and_write(self, path, test=False):
         output_path = self._data_path_fn(path)
         if tf.gfile.Exists(output_path) and not self._overwrite:
             tf.logging.info("Using existing features for %s from %s", path, output_path)
             return
-        examples = self._extract_features(path)
+        examples = self._extract_features(path, test)
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
