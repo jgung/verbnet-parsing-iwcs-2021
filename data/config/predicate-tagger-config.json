@@ -23,7 +23,7 @@
     "targets": [
       {
         "name": "gold",
-        "key": "sense",
+        "key": "predicate",
         "mapping_funcs": [
           "predicate"
         ],
