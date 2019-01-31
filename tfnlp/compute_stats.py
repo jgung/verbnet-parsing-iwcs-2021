@@ -38,7 +38,7 @@ def probabilities(counts):
 def entropy(counts):
     total = 0
     for k, v in probabilities(counts).items():
-        total += v * math.log(v)
+        total += v * math.log2(v)
     return -total
 
 
@@ -64,7 +64,7 @@ def kl(dist1, dist2):
     result = 0
     for k, dist1_k in dist1.items():
         dist2_k = dist2[k]
-        result += dist1_k * math.log(dist1_k / dist2_k)
+        result += dist1_k * math.log2(dist1_k / dist2_k)
     return result
 
 
@@ -142,6 +142,34 @@ def average_entropy(counts, predicates):
     return total_entropy / total_count
 
 
+def entropies(counts, predicates=None):
+    total = 0
+    marginals = Counter()
+    for predicate, predicate_counts in counts:
+        if predicates and predicate not in predicates:
+            continue
+        for k, v in predicate_counts.items():
+            marginals[k] += v
+            total += v
+
+    pred_marginal_entropy = 0  # H(predicate)
+    joint_entropy = 0  # H(predicate,roleset)
+    for predicate, predicate_counts in counts:
+        if predicates and predicate not in predicates:
+            continue
+        for p in [c / total for c in predicate_counts.values()]:
+            joint_entropy -= p * math.log2(p)
+        predicate_prob = sum(predicate_counts.values()) / total
+        pred_marginal_entropy -= predicate_prob * math.log2(predicate_prob)
+
+    marginal_entropy = 0
+    for p in [c / total for c in marginals.values()]:
+        marginal_entropy -= p * math.log2(p)
+
+    conditional_entropy = joint_entropy - pred_marginal_entropy  # H(roleset,predicate)
+    return conditional_entropy, joint_entropy, marginal_entropy
+
+
 def get_top_k_predicates(counts, k=100):
     filtered = [(p, sum(c.values()), c) for p, c in counts]
     filtered = [p for p, _, c in sorted(filtered, key=lambda x: x[1], reverse=True)][:k]
@@ -213,12 +241,15 @@ def summary_stats(corpora, counts, output, k):
     top_predicates = get_top_k_predicates(counts[corpora[0]][0], k)
 
     with open(os.path.join(output, 'summary-{}.tsv'.format(k)), 'wt') as out:
-        out.write('Corpus\tSense Entropy\tRS Entropy\t# Predicates\n')
+        out.write('Corpus\tAverage Sense Entropy\tAverage RS Entropy\tRS Entropy\tRS Conditional Entropy\tRS Joint Entropy\t'
+                  '# Predicates\n')
         for corpus in corpora:
             avg_entropy = average_entropy(counts[corpus][0], top_predicates)
-            avg_entropy_rs = average_entropy(counts[corpus][1], top_predicates)
+            conditional_entropy, joint_entropy, marginal_entropy = entropies(counts[corpus][1])
+            avg_rs_entropy = average_entropy(counts[corpus][1], top_predicates)
             total = get_predicate_count(counts[corpus][0])
-            out.write('{}\t{}\t{}\t{}\n'.format(os.path.basename(corpus), avg_entropy, avg_entropy_rs, total))
+            out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(os.path.basename(corpus), avg_entropy, avg_rs_entropy,
+                                                            marginal_entropy, conditional_entropy, joint_entropy, total))
 
 
 def main(opts):
