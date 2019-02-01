@@ -95,7 +95,7 @@ def output_probs(counts, output_path):
 def output_kl(counts1, counts2, output_path):
     with open(output_path, 'wt') as out:
         for predicate, sense_counts in counts1:
-            probs = probabilities(smooth(sense_counts, sense_counts.keys()))
+            probs = probabilities(smooth(sense_counts.keys(), sense_counts))
             for predicate2, sense_counts2 in counts2:
                 if predicate2 != predicate:
                     continue
