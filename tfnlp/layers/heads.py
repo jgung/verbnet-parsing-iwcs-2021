@@ -220,7 +220,6 @@ class TaggerHead(ModelHead):
                 self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
             else:
                 if self.config.label_smoothing > 0:
-                    # "Rethinking the Inception Architecture for Computer Vision", Szegedy et al. 2015
                     targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
                     # handle https://github.com/tensorflow/tensorflow/issues/24397
                     smoothed_targets = smoothed_labels(self.config.label_smoothing, self.logits, targets)
@@ -233,9 +232,10 @@ class TaggerHead(ModelHead):
                     self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
 
             if self.config.confidence_penalty > 0:
-                # "Regularizing Neural Networks by Penalizing Confident Predictions", Pereyra et al. 2017
                 masked = tf.boolean_mask(self.logits, tf.sequence_mask(self._sequence_lengths))
-                entropy = tf.distributions.Categorical(logits=masked).entropy()
+                # compute entropy, ignoring padding
+                entropy = -tf.reduce_sum(tf.nn.log_softmax(masked) * tf.nn.softmax(masked), axis=-1)
+                # add the negative entropy to the negative log likelihood
                 self.loss += -tf.reduce_mean(self.config.confidence_penalty * entropy)
 
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)

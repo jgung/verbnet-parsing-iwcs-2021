@@ -107,7 +107,9 @@ class HeadConfig(Params):
         self.type = config.get('type', constants.TAGGER_KEY)
         self.zero_init = config.get('zero_init', True)
         self.metric = config.get('metric', constants.OVERALL_KEY)
+        # "Rethinking the Inception Architecture for Computer Vision", Szegedy et al. 2015 -- 0.1 is default
         self.label_smoothing = config.get('label_smoothing', 0)
+        # "Regularizing Neural Networks by Penalizing Confident Predictions", Pereyra et al. 2017 -- 1.0 is default
         self.confidence_penalty = config.get('confidence_penalty', 0)
 
 
