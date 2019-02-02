@@ -4,6 +4,7 @@ from tensorflow.python.saved_model import signature_constants
 from tfnlp.common import constants
 from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables
+from tfnlp.common.training_utils import assign_ema_weights
 from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead
 from tfnlp.layers.layers import encoder, embedding
 from tfnlp.model.parser import ParserHead
@@ -70,41 +71,51 @@ def multi_head_model_func(features, mode, params):
         # just compute mean over losses (possibly consider a more sophisticated strategy?)
         loss = losses[0] if len(losses) == 0 else tf.reduce_mean(tf.stack(losses))
 
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        log_trainable_variables()
-        train_op = train_op_from_config(config, loss)
-        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+    dependencies = []
+    # optionally setup exponential moving average of parameters
+    if config.ema_decay > 0:
+        dependencies.append(_exponential_moving_average_op(mode, config.ema_decay))
+    else:
+        dependencies.append(tf.no_op())
 
-    # EVAL/PREDICT -------------------------------------------------------------------------------------------------------------
+    with tf.control_dependencies(dependencies):
+        # make sure we have properly assigned averaged variables if we are evaluating
 
-    # combine predictions
-    predictions = {}
-    if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
-        for head in heads:
-            predictions[head.name] = head.predictions
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            log_trainable_variables()
+            train_op = train_op_from_config(config, loss)
+            return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
-    # combine evaluation hooks and metrics
-    eval_metric_ops = {}
-    evaluation_hooks = []
-    if mode == tf.estimator.ModeKeys.EVAL:
-        for head in heads:
-            eval_metric_ops.update(head.metric_ops)
-            evaluation_hooks.extend(head.evaluation_hooks)
+        # EVAL/PREDICT -----------------------------------------------------------------------------------------------------------
 
-    # combine export outputs
-    export_outputs = {}
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        for head in heads:
-            export_outputs.update(head.export_outputs)
-        if len(export_outputs) > 1:
-            export_outputs[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = export_outputs[heads[0].name]
+        # combine predictions
+        predictions = {}
+        if mode in [tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT]:
+            for head in heads:
+                predictions[head.name] = head.predictions
 
-    return tf.estimator.EstimatorSpec(mode=mode,
-                                      predictions=predictions,
-                                      loss=loss,
-                                      eval_metric_ops=eval_metric_ops,
-                                      export_outputs=export_outputs,
-                                      evaluation_hooks=evaluation_hooks)
+        # combine evaluation hooks and metrics
+        eval_metric_ops = {}
+        evaluation_hooks = []
+        if mode == tf.estimator.ModeKeys.EVAL:
+            for head in heads:
+                eval_metric_ops.update(head.metric_ops)
+                evaluation_hooks.extend(head.evaluation_hooks)
+
+        # combine export outputs
+        export_outputs = {}
+        if mode == tf.estimator.ModeKeys.PREDICT:
+            for head in heads:
+                export_outputs.update(head.export_outputs)
+            if len(export_outputs) > 1:
+                export_outputs[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = export_outputs[heads[0].name]
+
+        return tf.estimator.EstimatorSpec(mode=mode,
+                                          predictions=predictions,
+                                          loss=loss,
+                                          eval_metric_ops=eval_metric_ops,
+                                          export_outputs=export_outputs,
+                                          evaluation_hooks=evaluation_hooks)
 
 
 def model_head(config, inputs, features, mode, params):
@@ -134,3 +145,17 @@ def model_head(config, inputs, features, mode, params):
     elif mode == tf.estimator.ModeKeys.PREDICT:
         head.prediction()
     return head
+
+
+def _exponential_moving_average_op(mode, ema_decay):
+    ema = tf.train.ExponentialMovingAverage(ema_decay, num_updates=tf.train.get_global_step(), zero_debias=True)
+    ema_op = ema.apply(tf.trainable_variables())
+    tf.logging.info("Using EMA for variables: %s" % str([v.name for v in tf.trainable_variables()]))
+
+    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, ema_op)
+
+    # only use EMA averages when evaluating
+    ema_dep = tf.cond(tf.equal(mode, tf.estimator.ModeKeys.TRAIN),
+                      lambda: tf.no_op(),
+                      lambda: assign_ema_weights(ema))
+    return ema_dep

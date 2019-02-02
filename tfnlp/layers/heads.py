@@ -11,6 +11,7 @@ from tfnlp.common import constants
 from tfnlp.common.config import append_label
 from tfnlp.common.eval import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
+from tfnlp.common.training_utils import smoothed_labels
 from tfnlp.layers.layers import string2index
 
 
@@ -222,7 +223,7 @@ class TaggerHead(ModelHead):
                 if self.config.label_smoothing > 0:
                     targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
                     # handle https://github.com/tensorflow/tensorflow/issues/24397
-                    smoothed_targets = smoothed_labels(self.config.label_smoothing, self.logits, targets)
+                    smoothed_targets = smoothed_labels(self.config.label_smoothing, self.logits.dtype, targets)
                     self.loss = tf.losses.softmax_cross_entropy(onehot_labels=smoothed_targets,
                                                                 logits=self.logits,
                                                                 weights=tf.to_float(tf.sequence_mask(self._sequence_lengths)))
@@ -295,11 +296,3 @@ class TaggerHead(ModelHead):
                     output_file=self.params.output
                 )
             )
-
-
-def smoothed_labels(label_smoothing, logits, onehot_labels):
-    num_classes = tf.cast(tf.shape(onehot_labels)[-1], logits.dtype)
-    smooth_positives = 1.0 - label_smoothing
-    smooth_negatives = label_smoothing / num_classes
-    onehot_labels = onehot_labels * smooth_positives + smooth_negatives
-    return onehot_labels
