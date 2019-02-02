@@ -36,12 +36,16 @@ def _get_reduce_function(config, dim, length):
 def lower(raw):
     if isinstance(raw, str):
         return raw.lower()
+    if isinstance(raw, list):
+        return [lower(l) for l in raw]
     return [word.lower() for word in raw]
 
 
 def normalize_digits(raw):
     if isinstance(raw, str):
         return re.sub("\d", "#", raw)
+    if isinstance(raw, list):
+        return [normalize_digits(l) for l in raw]
     return [re.sub("\d", "#", word) for word in raw]
 
 

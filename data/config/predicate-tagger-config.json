@@ -1,9 +1,15 @@
 {
-  "reader": "conll_2005",
+  "reader": {
+    "field_index_map": {
+      "word": 0,
+      "sense": 3,
+      "predicate": 4
+    }
+  },
   "checkpoint_steps": 2000,
   "patience": 10000,
   "max_steps": 500000,
-  "batch_size": 80,
+  "batch_size": 64,
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -17,7 +23,7 @@
     "targets": [
       {
         "name": "gold",
-        "key": "sense",
+        "key": "predicate",
         "mapping_funcs": [
           "predicate"
         ],

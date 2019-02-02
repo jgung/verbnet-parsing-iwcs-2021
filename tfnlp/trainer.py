@@ -56,7 +56,10 @@ class Trainer(object):
         self._raw_valid = args.valid
         self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
         self._overwrite = args.overwrite
-        self._output = args.output
+        if args.output:
+            self._output = os.path.join(args.save, args.output)
+        else:
+            self._output = os.path.join(args.save, 'predictions.txt')
 
         self._save_path = os.path.join(args.save, MODEL_PATH)
         self._vocab_path = os.path.join(args.save, VOCAB_PATH)
@@ -78,7 +81,10 @@ class Trainer(object):
         self._feature_extractor = None
         self._estimator = None
 
-        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
+        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader,
+                                                                   self._training_config).read_file(raw_path)
+        # TODO: use separate test config
+        self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
         self._parse_fn = default_parser
@@ -102,15 +108,15 @@ class Trainer(object):
 
     def run(self):
         self._init_feature_extractor()
-        self._init_estimator(test=self._mode == "test")
-        if self._mode == "train":
+        self._init_estimator(test=False)
+        if self._raw_train and self._mode == "train":
             self.train()
-        elif self._mode == "test":
-            self.eval()
         elif self._mode == "predict":
             self.predict()
         elif self._mode == "itl":
             self.itl()
+        elif self._raw_test or self._mode == "test":
+            self.eval()
         else:
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 
@@ -146,18 +152,19 @@ class Trainer(object):
                                                            exporters=[exporter],
                                                            throttle_secs=0))
         if self._raw_test:
-            self._mode = "test"
-            self.run()
+            self.eval()
 
     def eval(self):
         for test_set in self._raw_test:
+            self._init_feature_extractor()
+            self._init_estimator(test=True, tag=os.path.split(test_set)[1])
             tf.logging.info('Evaluating on %s' % test_set)
 
             ckpt = get_earliest_checkpoint(self._save_path)
             if not ckpt:
                 raise ValueError('No checkpoints found at save path: %s', self._save_path)
 
-            self._extract_and_write(test_set)
+            self._extract_and_write(test_set, test=True)
             eval_input_fn = self._input_fn(test_set, False)
             self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
@@ -195,8 +202,11 @@ class Trainer(object):
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
 
-    def _extract_raw(self, path):
-        raw_instances = self._raw_instance_reader_fn(path)
+    def _extract_raw(self, path, test=False):
+        if test:
+            raw_instances = self._raw_test_instance_reader_fn(path)
+        else:
+            raw_instances = self._raw_instance_reader_fn(path)
         if not raw_instances:
             raise ValueError("No examples provided at path given by '{}'".format(path))
         return raw_instances
@@ -207,26 +217,26 @@ class Trainer(object):
         self._feature_extractor.train(self._extract_raw(self._raw_train))
         self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
 
-    def _extract_features(self, path):
+    def _extract_features(self, path, test=False):
         tf.logging.info("Extracting features from %s", path)
-        examples = self._feature_extractor.extract_all(self._extract_raw(path))
+        examples = self._feature_extractor.extract_all(self._extract_raw(path, test))
         return examples
 
-    def _extract_and_write(self, path):
+    def _extract_and_write(self, path, test=False):
         output_path = self._data_path_fn(path)
         if tf.gfile.Exists(output_path) and not self._overwrite:
             tf.logging.info("Using existing features for %s from %s", path, output_path)
             return
-        examples = self._extract_features(path)
+        examples = self._extract_features(path, test)
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
-    def _init_estimator(self, test=False):
+    def _init_estimator(self, test=False, tag=None):
         self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
                                                  config=RunConfig(
                                                      keep_checkpoint_max=self._training_config.keep_checkpoints,
                                                      save_checkpoints_steps=self._training_config.checkpoint_steps),
-                                                 params=self._params(test=test))
+                                                 params=self._params(test=test, tag=tag))
 
     def _serving_input_fn(self):
         # input has been serialized to a TFRecord string
@@ -237,12 +247,12 @@ class Trainer(object):
         features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
         return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
 
-    def _params(self, test=False):
+    def _params(self, test=False, tag=None):
         return HParams(extractor=self._feature_extractor,
                        config=self._training_config,
                        script_path=self._eval_script_path,
                        vocab_path=self._vocab_path,
-                       output=self._output,
+                       output=self._output if not tag else self._output + '.' + tag,
                        verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):

@@ -445,44 +445,66 @@ def conll_2012_reader(phrase=False):
     return reader
 
 
-def get_reader(reader_config):
+class LengthFilter(object):
+    def __init__(self, length, reader, length_key=lambda x: len(x[WORD_KEY])):
+        super().__init__()
+        self.length = length
+        self.reader = reader
+        self.length_key = length_key
+
+    def read_file(self, *args, **kwargs):
+        for instance in self.reader.read_file(*args, **kwargs):
+            if not self.length_key(instance) > self.length:
+                yield instance
+
+
+def get_reader(reader_config, training_config=None):
     """
     Return a corpus reader for a given config.
     :param reader_config: reader configuration
+    :param training_config: training configuration
     """
-    if isinstance(reader_config, str):
-        if reader_config == 'conll_2003':
+
+    def reader_from_name(reader_name):
+        if reader_name == 'conll_2003':
             return conll_2003_reader()
-        elif reader_config == 'conll_2009':
+        elif reader_name == 'conll_2009':
             return conll_2009_reader()
-        elif reader_config == 'conllx':
+        elif reader_name == 'conllx':
             return conllx_reader()
-        elif reader_config == 'conll_2005':
+        elif reader_name == 'conll_2005':
             return conll_2005_reader()
-        elif reader_config == 'conll_2005_phrase':
+        elif reader_name == 'conll_2005_phrase':
             return conll_2005_reader(phrase=True)
-        elif reader_config == 'conll_2012':
+        elif reader_name == 'conll_2012':
             return conll_2012_reader()
-        elif reader_config == 'conll_2012_phrase':
+        elif reader_name == 'conll_2012_phrase':
             return conll_2012_reader(phrase=True)
-        elif reader_config == 'ptb_pos':
+        elif reader_name == 'ptb_pos':
             return ptb_pos_reader()
-        elif reader_config == 'tsv':
+        elif reader_name == 'tsv':
             return TsvReader()
-        elif reader_config == 'semlink':
+        elif reader_name == 'semlink':
             return SemlinkReader()
 
+    if isinstance(reader_config, str):
+        reader = reader_from_name(reader_config)
     else:
         if reader_config.get('field_index_map'):
             index_field_map = {val: key for key, val in reader_config.field_index_map.items()}
             if reader_config.get('pred_start'):
-                return ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'),
-                                      label_mappings=reader_config.get('label_mappings'),
-                                      regex_mapping=reader_config.get('map_with_regex', False))
-            return ConllReader(index_field_map)
+                reader = ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'),
+                                        label_mappings=reader_config.get('label_mappings'),
+                                        regex_mapping=reader_config.get('map_with_regex', False))
+            else:
+                reader = ConllReader(index_field_map)
         elif reader_config.get('readers'):
-            return MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
-    raise ValueError("Unexpected reader type: " + reader_config)
+            reader = MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
+        else:
+            raise ValueError("Unexpected reader type: " + reader_config)
+    if training_config and training_config.max_length > 0:
+        reader = LengthFilter(length=training_config.max_length, reader=reader)
+    return reader
 
 
 def write_ptb_pos_files(wsj_path, out_dir):
