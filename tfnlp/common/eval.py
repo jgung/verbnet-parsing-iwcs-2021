@@ -13,9 +13,9 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
 from tfnlp.common.chunk import chunk
+from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, LENGTH_KEY, MARKER_KEY, PREDICT_KEY, REL_PROBS, \
     SENTENCE_INDEX
-from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
@@ -92,34 +92,36 @@ def _convert_to_sentences(ys, indices, ids):
     return sentences
 
 
-def _write_to_file(output_file, ys, indices, ids):
-    prev_sentence = -1
-
-    predicates = []
-    args = []
-
+def _write_props_to_file(output_file, ys, indices, ids):
     with file_io.FileIO(output_file, 'w') as output_file:
+
+        def _write_props(_props_by_predicate, _predicate_column):
+            # used to ensure proposition columns are in correct order (by appearance of predicate in sentence)
+            prop_list = [arg for _, arg in sorted(_props_by_predicate.items(), key=lambda item: item[0])]
+            line = ''
+            for tok, predicate in enumerate(_predicate_column):
+                line += '{} {}\n'.format(predicate, ' '.join([prop[tok] for prop in prop_list]))
+            output_file.write(line + '\n')
+
+        prev_sentence = -1
+        predicate_column = []
+        props_by_predicate = {}
         for labels, markers, sentence in sorted(zip(ys, indices, ids), key=lambda x: x[2]):
             if prev_sentence != sentence:
                 prev_sentence = sentence
-                if predicates:
-                    line = ''
-                    for index, predicate in enumerate(predicates):
-                        line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
-                    output_file.write(line + '\n')
-                    predicates = []
-                    args = []
-            if not predicates:
-                predicates = ["-"] * markers.size
-            index = markers.tolist().index(b'1')
-            predicates[index] = 'x'
-            args.append(chunk(labels, conll=True))
+                if predicate_column:
+                    _write_props(props_by_predicate, predicate_column)
+                    predicate_column = []
+                    props_by_predicate = {}
+            if not predicate_column:
+                predicate_column = ["-"] * markers.size
 
-        if predicates:
-            line = ''
-            for index, predicate in enumerate(predicates):
-                line += '{} {}\n'.format(predicate, " ".join([prop[index] for prop in args]))
-            output_file.write(line + '\n')
+            pred_idx = markers.tolist().index(b'1')  # index of predicate in tokens
+            predicate_column[pred_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
+            props_by_predicate[pred_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
+
+        if predicate_column:
+            _write_props(props_by_predicate, predicate_column)
 
 
 def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
@@ -247,8 +249,8 @@ class SrlEvalHook(SequenceEvalHook):
             tf.logging.info('\n%s' % result.confusion_matrix())
         session.run(self._eval_update, feed_dict={self._eval_placeholder: result.evaluation.prec_rec_f1()[2]})
         if self._output_file:
-            _write_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
-            _write_to_file(self._output_file, self._predictions, self._markers, self._indices)
+            _write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
+            _write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):
