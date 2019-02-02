@@ -116,8 +116,8 @@ class ClassifierHead(ModelHead):
 
     def _train_eval(self):
         if self.config.label_smoothing > 0:
-            _onehot_targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
-            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=_onehot_targets,
+            targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
+            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=targets,
                                                         logits=self.logits,
                                                         label_smoothing=self.config.label_smoothing)
         else:
@@ -221,17 +221,22 @@ class TaggerHead(ModelHead):
             else:
                 if self.config.label_smoothing > 0:
                     # "Rethinking the Inception Architecture for Computer Vision", Szegedy et al. 2015
-                    _onehot_targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
-                    mask = tf.sequence_mask(self._sequence_lengths, name="padding_mask")
-                    self.loss = tf.losses.softmax_cross_entropy(onehot_labels=_onehot_targets,
+                    targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
+                    # handle https://github.com/tensorflow/tensorflow/issues/24397
+                    smoothed_targets = smoothed_labels(self.config.label_smoothing, self.logits, targets)
+                    self.loss = tf.losses.softmax_cross_entropy(onehot_labels=smoothed_targets,
                                                                 logits=self.logits,
-                                                                weights=tf.to_float(mask),
-                                                                label_smoothing=self.config.label_smoothing)
+                                                                weights=tf.to_float(tf.sequence_mask(self._sequence_lengths)))
                 else:
-                    _losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
-                    mask = tf.sequence_mask(self._sequence_lengths, name="padding_mask")
-                    losses = tf.boolean_mask(_losses, mask, name="mask_padding_from_loss")
+                    losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
+                    losses = tf.boolean_mask(losses, tf.sequence_mask(self._sequence_lengths), name="mask_padding_from_loss")
                     self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
+
+            if self.config.confidence_penalty > 0:
+                # "Regularizing Neural Networks by Penalizing Confident Predictions", Pereyra et al. 2017
+                masked = tf.boolean_mask(self.logits, tf.sequence_mask(self._sequence_lengths))
+                entropy = tf.distributions.Categorical(logits=masked).entropy()
+                self.loss += -tf.reduce_mean(self.config.confidence_penalty * entropy)
 
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
@@ -290,3 +295,11 @@ class TaggerHead(ModelHead):
                     output_file=self.params.output
                 )
             )
+
+
+def smoothed_labels(label_smoothing, logits, onehot_labels):
+    num_classes = tf.cast(tf.shape(onehot_labels)[-1], logits.dtype)
+    smooth_positives = 1.0 - label_smoothing
+    smooth_negatives = label_smoothing / num_classes
+    onehot_labels = onehot_labels * smooth_positives + smooth_negatives
+    return onehot_labels
