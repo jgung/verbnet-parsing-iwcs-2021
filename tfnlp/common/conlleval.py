@@ -7,6 +7,8 @@ import argparse
 import re
 from collections import Counter
 
+BIES = {'B-', 'I-', 'E-', 'S-'}
+
 
 class ConllEvaluation(object):
 
@@ -134,9 +136,9 @@ def conll_eval_lines(lines, delimiter=' ', raw=False, out_tag='O', boundary='-X-
                 features[-1] = "O"
             if features[-2] == out_tag:
                 features[-2] = "O"
-            if features[-1] != "O" and len(features[-1]) < 2 or (features[-1][:2] != 'B-' and features[-1][:2] != 'I-'):
+            if features[-1] != "O" and (len(features[-1]) < 2 or (features[-1][:2] not in BIES)):
                 features[-1] = "B-%s" % features[-1]
-            if features[-2] != "O" and len(features[-2]) < 2 or (features[-2][:2] != 'B-' and features[-2][:2] != 'I-'):
+            if features[-2] != "O" and (len(features[-2]) < 2 or (features[-2][:2] not in BIES)):
                 features[-2] = "B-%s" % features[-2]
         # 20040126 ET code which allows hyphens in the types
         match = re.match("^([^-]*)-(.*)$", features[-1])
