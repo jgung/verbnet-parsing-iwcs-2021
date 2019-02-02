@@ -6,6 +6,8 @@ from collections import defaultdict, Counter
 from tfnlp.common.constants import SENSE_KEY, PREDICATE_KEY, TOKEN_INDEX_KEY, LABEL_KEY
 from tfnlp.readers import get_reader
 
+CORE_ROLES = {'ARG0', 'ARG1', 'ARG2', 'ARG3', 'ARG4', 'ARG5', 'ARGA'}
+
 
 def get_counts(instances, key1_func, key2_func):
     counts = defaultdict(Counter)
@@ -19,11 +21,12 @@ def get_counts(instances, key1_func, key2_func):
     return counts
 
 
-def get_role_counts(instances):
+def get_role_counts(instances, only_core=False):
     counts = defaultdict(Counter)
     for instance in instances:
-        labels = [label for label in instance[LABEL_KEY] if label.startswith('B-') and label != 'B-V']
-
+        labels = [label[2:] for label in instance[LABEL_KEY] if label.startswith('B-') and label != 'B-V']
+        if only_core:
+            labels = [label for label in labels if label in CORE_ROLES]
         predicate = instance[PREDICATE_KEY][instance[TOKEN_INDEX_KEY]]
         for label in labels:
             counts[predicate][label] += 1
@@ -42,14 +45,14 @@ def entropy(counts):
     return -total
 
 
-def get_count_tuples(reader, dataset):
+def get_count_tuples(reader, dataset, only_core=False):
     result = list(reader.read_file(dataset))
 
     predicate_counts = get_counts(result,
                                   lambda i: i[PREDICATE_KEY][i[TOKEN_INDEX_KEY]],
                                   lambda i: next(iter([s for s in i[SENSE_KEY] if s is not '-']), '-'))
 
-    roleset_counts = get_role_counts(result)
+    roleset_counts = get_role_counts(result, only_core)
 
     rs_tuples = [(p, sum(c.values()), c) for p, c in roleset_counts.items()]
     rs_tuples = [(p, c) for p, _, c in sorted(rs_tuples, key=lambda x: x[1])]
@@ -105,11 +108,11 @@ def output_kl(counts1, counts2, output_path):
                 out.write('{}\t{}\n'.format(predicate, kl_divergence))
 
 
-def average_kl(counts1, counts2, predicates):
+def average_kl(counts1, counts2, predicates=None):
     total_counts = 0
     total_kl = 0
     for predicate, sense_counts in counts1:
-        if predicate not in predicates:
+        if predicates and predicate not in predicates:
             continue
         sense_counts = smooth(sense_counts.keys(), sense_counts)
         probs = probabilities(sense_counts)
@@ -216,7 +219,7 @@ def kl_pairs(corpora, counts, output, k):
     for i in range(0, len(corpora) - 1, 2):
         pairs.append((corpora[i], corpora[i + 1]))
 
-    top_predicates = get_top_k_predicates(counts[pairs[0][0]][0], k)
+    top_predicates = get_top_k_predicates(counts[pairs[0][0]][0], k) if k else None
 
     with open(os.path.join(output, 'kl-{}.tsv'.format(k)), 'wt') as out:
         out.write('Posterior\tPrior\tSense KL\tRS KL\n')
@@ -261,7 +264,7 @@ def main(opts):
     for name in corpora:
         if name not in counts:
             print("Reading corpus at %s..." % name)
-            counts[name] = get_count_tuples(reader, name)
+            counts[name] = get_count_tuples(reader, name, opts.core)
 
     if opts.kl:
         kl_pairs(corpora, counts, opts.output, opts.k)
@@ -278,6 +281,8 @@ if __name__ == '__main__':
     parser.add_argument('--reader', type=str, default='conll_2012', help='Reader type')
     parser.add_argument('--kl', action='store_true',
                         help='Compute KL divergence between consecutive pairs of comma-separated corpus paths')
-    parser.add_argument('--k', type=int, default=100, help='Top 100 predicates to consider')
+    parser.add_argument('--k', type=int, help='Top 100 predicates to consider')
+    parser.add_argument('--core', action='store_true', help='Only count core roles')
     parser.set_defaults(kl=False)
+    parser.set_defaults(core=False)
     main(parser.parse_args())
