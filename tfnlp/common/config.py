@@ -107,6 +107,7 @@ class HeadConfig(Params):
         self.type = config.get('type', constants.TAGGER_KEY)
         self.zero_init = config.get('zero_init', True)
         self.metric = config.get('metric', constants.OVERALL_KEY)
+        self.label_smoothing = config.get('label_smoothing', 0)
 
 
 def get_network_config(config):

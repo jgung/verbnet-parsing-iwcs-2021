@@ -115,7 +115,13 @@ class ClassifierHead(ModelHead):
             self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
 
     def _train_eval(self):
-        self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))
+        if self.config.label_smoothing > 0:
+            _onehot_targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
+            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=_onehot_targets,
+                                                        logits=self.logits,
+                                                        label_smoothing=self.config.label_smoothing)
+        else:
+            self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))
 
     def _eval_predict(self):
         self.predictions = tf.argmax(self.logits, axis=1)
@@ -211,11 +217,22 @@ class TaggerHead(ModelHead):
                 losses = -crf_log_likelihood(self.logits, self.targets,
                                              sequence_lengths=tf.cast(self._sequence_lengths, tf.int32),
                                              transition_params=self._tag_transitions)[0]
+                self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
             else:
-                _losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
-                mask = tf.sequence_mask(self._sequence_lengths, name="padding_mask")
-                losses = tf.boolean_mask(_losses, mask, name="mask_padding_from_loss")
-            self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
+                if self.config.label_smoothing > 0:
+                    # "Rethinking the Inception Architecture for Computer Vision", Szegedy et al. 2015
+                    _onehot_targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
+                    mask = tf.sequence_mask(self._sequence_lengths, name="padding_mask")
+                    self.loss = tf.losses.softmax_cross_entropy(onehot_labels=_onehot_targets,
+                                                                logits=self.logits,
+                                                                weights=tf.to_float(mask),
+                                                                label_smoothing=self.config.label_smoothing)
+                else:
+                    _losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
+                    mask = tf.sequence_mask(self._sequence_lengths, name="padding_mask")
+                    losses = tf.boolean_mask(_losses, mask, name="mask_padding_from_loss")
+                    self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
+
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
