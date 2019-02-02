@@ -60,68 +60,66 @@ def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
 
 def _convert_to_sentences(ys, indices, ids):
     sentences = []
-    current_sentence = defaultdict(list)
-    prev_sentence = -1
 
+    def _add_sentence(_props_by_predicate, _predicates):
+        current_sentence = defaultdict(list)
+        for tok, predicate in enumerate(_predicates):
+            current_sentence[0].append(predicate)
+            for i, prop in enumerate(_props_by_predicate):
+                current_sentence[i + 1].append(prop[tok])
+        sentences.append(current_sentence)
+
+    prev_sent_idx = -1
     predicates = []
-    args = []
-    for labels, markers, sentence in zip(ys, indices, ids):
-        if prev_sentence != sentence:
-            prev_sentence = sentence
+    props_by_predicate = []
+    for labels, markers, curr_sent_idx in zip(ys, indices, ids):
+        if prev_sent_idx != curr_sent_idx:
+            prev_sent_idx = curr_sent_idx
             if predicates:
-                for index, predicate in enumerate(predicates):
-                    current_sentence[0].append(predicate)
-                    for i, prop in enumerate(args):
-                        current_sentence[i + 1].append(prop[index])
-                sentences.append(current_sentence)
-                current_sentence = defaultdict(list)
-                predicates = []
-                args = []
-        if not predicates:
+                _add_sentence(props_by_predicate, predicates)
             predicates = ["-"] * markers.size
-        index = markers.tolist().index(b'1')
-        predicates[index] = 'x'
-        args.append(chunk(labels, conll=True))
+            props_by_predicate = []
+
+        predicate_idx = markers.tolist().index(b'1')
+        predicates[predicate_idx] = 'x'
+        props_by_predicate.append(chunk(labels, conll=True))
 
     if predicates:
-        for index, predicate in enumerate(predicates):
-            current_sentence[0].append(predicate)
-            for i, prop in enumerate(args):
-                current_sentence[i + 1].append(prop[index])
-        sentences.append(current_sentence)
+        _add_sentence(props_by_predicate, predicates)
     return sentences
 
 
 def _write_props_to_file(output_file, ys, indices, ids):
     with file_io.FileIO(output_file, 'w') as output_file:
 
-        def _write_props(_props_by_predicate, _predicate_column):
+        def _write_props(_props_by_predicate, _predicates):
             # used to ensure proposition columns are in correct order (by appearance of predicate in sentence)
             prop_list = [arg for _, arg in sorted(_props_by_predicate.items(), key=lambda item: item[0])]
             line = ''
-            for tok, predicate in enumerate(_predicate_column):
-                line += '{} {}\n'.format(predicate, ' '.join([prop[tok] for prop in prop_list]))
+            for tok, predicate in enumerate(_predicates):
+                line += '%s %s\n' % (predicate, ' '.join([prop[tok] for prop in prop_list]))
             output_file.write(line + '\n')
 
-        prev_sentence = -1
-        predicate_column = []
-        props_by_predicate = {}
-        for labels, markers, sentence in sorted(zip(ys, indices, ids), key=lambda x: x[2]):
-            if prev_sentence != sentence:
-                prev_sentence = sentence
-                if predicate_column:
-                    _write_props(props_by_predicate, predicate_column)
-                    predicate_column = []
-                    props_by_predicate = {}
-            if not predicate_column:
-                predicate_column = ["-"] * markers.size
+        prev_sent_idx = -1  # previous sentence's index
+        predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
+        props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
+        for labels, markers, curr_sent_idx in sorted(zip(ys, indices, ids), key=lambda x: x[2]):
 
-            pred_idx = markers.tolist().index(b'1')  # index of predicate in tokens
-            predicate_column[pred_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
-            props_by_predicate[pred_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
+            if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
+                prev_sent_idx = curr_sent_idx
 
-        if predicate_column:
-            _write_props(props_by_predicate, predicate_column)
+                if predicates:
+                    _write_props(props_by_predicate, predicates)
+
+                predicates = ["-"] * markers.size
+                props_by_predicate = {}
+
+            predicate_idx = markers.tolist().index(b'1')  # index of predicate in tokens
+            predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
+            props_by_predicate[predicate_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
+
+        if predicates:
+            _write_props(props_by_predicate, predicates)
 
 
 def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
