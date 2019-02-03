@@ -258,7 +258,7 @@ class SrlEvalHook(SequenceEvalHook):
 
             step = session.run(tf.train.get_global_step(session.graph))
 
-            job_dir = os.path.join(self._output_file, os.pardir)
+            job_dir = os.path.abspath(os.path.join(self._output_file, os.pardir))
             summary_file = os.path.join(job_dir, SUMMARY_FILE)
             exists = tf.gfile.Exists(summary_file)
             with file_io.FileIO(summary_file, 'a') as summary:
