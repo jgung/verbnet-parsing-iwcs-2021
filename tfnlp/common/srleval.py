@@ -167,11 +167,14 @@ class SrlEvaluation(object):
         lines.append('\\end{table}')
         return '\n'.join(lines)
 
+    def perfect_props(self):
+        return 100 * self.evaluation.ptv / self.ntargets if self.ntargets > 0 else 0
+
     def __str__(self) -> str:
         lines = ['Number of Sentences    :      {:>6}'.format(self.ns),
                  'Number of Propositions :      {:>6}'.format(self.ntargets),
-                 "Percentage of perfect props : {:>6.2f}".format(
-                     100 * self.evaluation.ptv / self.ntargets if self.ntargets > 0 else 0), '',
+                 "Percentage of perfect props : {:>6.2f}".format(self.perfect_props()),
+                 '',
                  str(self.evaluation)]
         return '\n'.join(lines)
 

@@ -19,6 +19,9 @@ from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, L
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
+SUMMARY_FILE = 'eval-summary.tsv'
+EVAL_LOG = 'eval.log'
+
 
 def conll_eval(gold_batches, predicted_batches, indices, output_file):
     """
@@ -243,12 +246,35 @@ class SrlEvalHook(SequenceEvalHook):
     def end(self, session):
         result = conll_srl_eval(self._gold, self._predictions, self._markers, self._indices)
         tf.logging.info(str(result))
-        if self._output_confusions:
-            tf.logging.info('\n%s' % result.confusion_matrix())
-        session.run(self._eval_update, feed_dict={self._eval_placeholder: result.evaluation.prec_rec_f1()[2]})
+
+        p, r, f1 = result.evaluation.prec_rec_f1()
+
+        # update model's best score for early stopping
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: f1})
+
         if self._output_file:
             _write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
             _write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
+
+            step = session.run(tf.train.get_global_step(session.graph))
+
+            job_dir = os.path.join(self._output_file, os.pardir)
+            summary_file = os.path.join(job_dir, SUMMARY_FILE)
+            exists = tf.gfile.Exists(summary_file)
+            with file_io.FileIO(summary_file, 'a') as summary:
+                if not exists:
+                    summary.write('Step\tPath\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+                summary.write('%d\t%s\t%d\t%f\t%f\t%f\t%f\n' % (step,
+                                                                os.path.basename(self._output_file),
+                                                                result.ntargets,
+                                                                result.perfect_props(),
+                                                                p, r, f1))
+
+            with file_io.FileIO(os.path.join(job_dir, EVAL_LOG), 'a') as eval_log:
+                eval_log.write('\n%d\t%s\n' % (step, os.path.basename(self._output_file)))
+                eval_log.write(str(result) + '\n')
+                if self._output_confusions:
+                    eval_log.write('\n%s\n\n' % result.confusion_matrix())
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):
