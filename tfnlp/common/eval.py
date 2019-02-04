@@ -94,7 +94,14 @@ def _convert_to_sentences(ys, indices, ids):
     return sentences
 
 
-def _write_props_to_file(output_file, ys, indices, ids):
+def write_props_to_file(output_file, labels, markers, sentence_ids):
+    """
+    Write PropBank predictions to a file.
+    :param output_file: output file
+    :param labels: lists of labels
+    :param markers: predicate markers
+    :param sentence_ids: sentence indices
+    """
     with file_io.FileIO(output_file, 'w') as output_file:
 
         def _write_props(_props_by_predicate, _predicates):
@@ -108,7 +115,7 @@ def _write_props_to_file(output_file, ys, indices, ids):
         prev_sent_idx = -1  # previous sentence's index
         predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
         props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
-        for labels, markers, curr_sent_idx in sorted(zip(ys, indices, ids), key=lambda x: x[2]):
+        for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
 
             if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
                 prev_sent_idx = curr_sent_idx
@@ -255,8 +262,8 @@ class SrlEvalHook(SequenceEvalHook):
         session.run(self._eval_update, feed_dict={self._eval_placeholder: f1})
 
         if self._output_file:
-            _write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
-            _write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
+            write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
+            write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
 
             step = session.run(tf.train.get_global_step(session.graph))
 

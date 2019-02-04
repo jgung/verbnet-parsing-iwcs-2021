@@ -1,6 +1,11 @@
+import os
+
+import tensorflow as tf
+from tensorflow.python.lib.io import file_io
+
 from tfnlp.common import constants
 from tfnlp.common.constants import LABEL_KEY, SENTENCE_INDEX
-from tfnlp.common.eval import conll_eval, conll_srl_eval
+from tfnlp.common.eval import conll_eval, conll_srl_eval, write_props_to_file, SUMMARY_FILE, EVAL_LOG
 from tfnlp.common.utils import binary_np_array_to_unicode
 
 
@@ -43,7 +48,7 @@ def tagger_evaluator(labeled_instances, results, output_path=None, target_key=No
         gold.append(instance[LABEL_KEY])
         indices.append(instance[SENTENCE_INDEX])
     f1, result_str = conll_eval(gold, labels, indices, output_file=output_path)
-    print(result_str)
+    tf.logging.info(result_str)
 
 
 def srl_evaluator(labeled_instances, results, output_path=None, target_key=None):
@@ -56,5 +61,29 @@ def srl_evaluator(labeled_instances, results, output_path=None, target_key=None)
         gold.append(instance[constants.LABEL_KEY])
         markers.append(instance[constants.MARKER_KEY])
         indices.append(instance[constants.SENTENCE_INDEX])
+
+    write_props_to_file(output_path + '.gold.conll', gold, markers, indices)
+    write_props_to_file(output_path + '.conll', gold, markers, indices)
+
     result = conll_srl_eval(gold, labels, markers, indices)
-    print(str(result))
+    tf.logging.info(result)
+    p, r, f1 = result.evaluation.prec_rec_f1()
+
+    job_dir = os.path.dirname(output_path)
+
+    # append results to summary file
+    summary_file = os.path.join(job_dir, SUMMARY_FILE)
+    exists = tf.gfile.Exists(summary_file)
+    with file_io.FileIO(summary_file, 'a') as summary:
+        if not exists:
+            summary.write('Path\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+        summary.write('%s\t%d\t%f\t%f\t%f\t%f\n' % (os.path.basename(output_path),
+                                                    result.ntargets,
+                                                    result.perfect_props(),
+                                                    p, r, f1))
+
+    # append evaluation log
+    with file_io.FileIO(os.path.join(job_dir, EVAL_LOG), 'a') as eval_log:
+        eval_log.write('\n%d\t%s\n' % os.path.basename(output_path))
+        eval_log.write(str(result) + '\n')
+        eval_log.write('\n%s\n\n' % result.confusion_matrix())

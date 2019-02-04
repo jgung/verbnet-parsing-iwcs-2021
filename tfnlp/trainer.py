@@ -15,7 +15,7 @@ from tensorflow.python.ops import array_ops
 
 from tfnlp.cli.evaluators import get_evaluator
 from tfnlp.cli.formatters import get_formatter
-from tfnlp.cli.parsers import default_parser
+from tfnlp.cli.parsers import get_parser
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
 from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
@@ -92,7 +92,7 @@ class Trainer(object):
         self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
-        self._parse_fn = default_parser
+        self._parse_fn = get_parser(self._training_config)
         self._predict_input_fn = lambda feats: {"examples": feats}
         if self._mode == 'itl' or self._mode == 'predict':
             self._prediction_formatter_fn = get_formatter(self._training_config)
