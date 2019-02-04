@@ -67,7 +67,9 @@ def string2index(feature_strings, feature):
     :return: feature id Tensor
     """
     with tf.variable_scope('lookup'):
-        lookup = index_table_from_tensor(mapping=tf.constant(list(feature.ordered_feats())), default_value=feature.unk_index())
+        feats = list(feature.ordered_feats())
+        lookup = index_table_from_tensor(mapping=tf.constant(feats), default_value=feature.unk_index())
+        print('\n'.join(feats))
         return lookup.lookup(feature_strings)
 
 
