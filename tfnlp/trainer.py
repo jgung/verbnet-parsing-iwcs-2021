@@ -15,7 +15,7 @@ from tensorflow.python.ops import array_ops
 from tfnlp.common.config import get_network_config
 from tfnlp.common.constants import CLASSIFIER_KEY, LENGTH_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, \
     WORD_KEY
-from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
+from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn, conll_srl_eval
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset
@@ -110,7 +110,6 @@ class Trainer(object):
 
     def run(self):
         self._init_feature_extractor()
-        self._init_estimator(test=False)
         if self._raw_train and self._mode == "train":
             self.train()
         elif self._mode == "predict":
@@ -123,6 +122,8 @@ class Trainer(object):
             raise ValueError("Unexpected mode type: {}".format(self._mode))
 
     def train(self):
+        self._init_estimator(test=False)
+
         tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
         self._extract_and_write(self._raw_train)
         self._extract_and_write(self._raw_valid)
@@ -157,7 +158,6 @@ class Trainer(object):
             self.eval()
 
     def eval(self):
-        self._init_feature_extractor()
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
             self._init_estimator(test=True, tag=os.path.split(test_set)[1])
@@ -169,15 +169,22 @@ class Trainer(object):
             self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
     def predict(self):
-        self._init_feature_extractor()
         predictor = self._get_predictor()
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
-            examples = self._extract_features(test_set, test=True)
-            for example in examples:
+            instances = list(self._extract_raw(test_set, True))
+            examples = self._feature_extractor.extract_all(instances)
+            labels, gold, markers, indices = [], [], [], []
+            for instance, example in zip(instances, examples):
                 serialized_feats = self._predict_input_fn(example.SerializeToString())
                 result = predictor(serialized_feats)
+                labels.append([bstr.decode('utf-8') for bstr in result['gold'][0].tolist()])
+                gold.append(instance['gold'])
+                markers.append(instance['marker'])
+                indices.append(instance['sentence_idx'])
                 print(self._prediction_formatter_fn(result))
+            result = conll_srl_eval(labels, gold, markers, indices)
+            tf.logging.info(str(result))
 
     def itl(self):
         predictor = self._get_predictor()
@@ -308,7 +315,8 @@ def get_formatter(config):
     formatters = {
         CLASSIFIER_KEY: _classifier_formatter,
         TAGGER_KEY: _tagger_formatter,
-        NER_KEY: _tagger_formatter
+        NER_KEY: _tagger_formatter,
+        SRL_KEY: _tagger_formatter,
     }
     if head_type not in formatters:
         raise ValueError("Unsupported head type: " + head_type)

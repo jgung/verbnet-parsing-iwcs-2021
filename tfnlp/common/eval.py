@@ -80,10 +80,10 @@ def _convert_to_sentences(ys, indices, ids):
             prev_sent_idx = curr_sent_idx
             if predicates:
                 _add_sentence(props_by_predicate, predicates)
-            predicates = ["-"] * markers.size
+            predicates = ["-"] * len(markers)
             props_by_predicate = []
 
-        predicate_idx = markers.tolist().index(b'1')
+        predicate_idx = markers.index('1')
         predicates[predicate_idx] = 'x'
         props_by_predicate.append(chunk(labels, conll=True))
 
@@ -114,10 +114,10 @@ def _write_props_to_file(output_file, ys, indices, ids):
                 if predicates:
                     _write_props(props_by_predicate, predicates)
 
-                predicates = ["-"] * markers.size
+                predicates = ["-"] * len(markers)
                 props_by_predicate = {}
 
-            predicate_idx = markers.tolist().index(b'1')  # index of predicate in tokens
+            predicate_idx = markers.index('1')  # index of predicate in tokens
             predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
             props_by_predicate[predicate_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
 
@@ -241,7 +241,7 @@ class SrlEvalHook(SequenceEvalHook):
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
         for markers, seq_len in zip(run_values.results[MARKER_KEY], run_values.results[LENGTH_KEY]):
-            self._markers.append(markers[:seq_len])
+            self._markers.append([marker.decode('utf-8') for marker in markers[:seq_len].toList()])
 
     def end(self, session):
         result = conll_srl_eval(self._gold, self._predictions, self._markers, self._indices)
