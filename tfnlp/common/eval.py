@@ -24,7 +24,7 @@ SUMMARY_FILE = 'eval-summary.tsv'
 EVAL_LOG = 'eval.log'
 
 
-def conll_eval(gold_batches, predicted_batches, indices, output_file):
+def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
     """
     Run the CoNLL-2003 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
@@ -40,9 +40,10 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file):
                 yield "_ {} {}".format(label, prediction)
             yield ""  # sentence break
 
-    with file_io.FileIO(output_file, 'w') as output:
-        for line in get_lines():
-            output.write(line + '\n')
+    if output_file:
+        with file_io.FileIO(output_file, 'w') as output:
+            for line in get_lines():
+                output.write(line + '\n')
 
     result = conll_eval_lines(get_lines(), raw=True).to_conll_output()
     return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result

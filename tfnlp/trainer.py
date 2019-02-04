@@ -3,6 +3,7 @@ import os
 import sys
 
 import tensorflow as tf
+from tensorflow.contrib.estimator import stop_if_no_increase_hook
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
 from tensorflow.python.estimator.export.export import ServingInputReceiver
@@ -12,13 +13,14 @@ from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
+from tfnlp.cli.evaluators import get_evaluator
 from tfnlp.cli.formatters import get_formatter
 from tfnlp.cli.parsers import default_parser
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
-from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn, conll_srl_eval
+from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
 from tfnlp.common.logging import set_up_logging
-from tfnlp.common.utils import read_json, write_json, binary_np_array_to_unicode
+from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
@@ -91,7 +93,7 @@ class Trainer(object):
         self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
         self._parse_fn = default_parser
-        self._predict_input_fn = default_input_fn
+        self._predict_input_fn = lambda feats: {"examples": feats}
         if self._mode == 'itl' or self._mode == 'predict':
             self._prediction_formatter_fn = get_formatter(self._training_config)
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
@@ -125,16 +127,11 @@ class Trainer(object):
     def train(self):
         self._init_estimator(test=False)
 
-        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
-        self._extract_and_write(self._raw_train)
-        self._extract_and_write(self._raw_valid)
-
-        train_input_fn = self._input_fn(self._raw_train, True)
-        valid_input_fn = self._input_fn(self._raw_valid, False)
-
+        # TODO: fixes issue https://github.com/tensorflow/tensorflow/issues/18394
         if not os.path.exists(self._estimator.eval_dir()):
-            os.makedirs(self._estimator.eval_dir())  # TODO This shouldn't be necessary
-        early_stopping = tf.contrib.estimator.stop_if_no_increase_hook(
+            os.makedirs(self._estimator.eval_dir())
+
+        early_stopping = stop_if_no_increase_hook(
             self._estimator,
             metric_name=self._training_config.metric,
             max_steps_without_increase=self._training_config.patience,
@@ -146,6 +143,13 @@ class Trainer(object):
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
                                 compare_fn=metric_compare_fn(self._training_config.metric),
                                 exports_to_keep=self._training_config.exports_to_keep)
+
+        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
+        self._extract_and_write(self._raw_train)
+        self._extract_and_write(self._raw_valid)
+
+        train_input_fn = self._input_fn(self._raw_train, True)
+        valid_input_fn = self._input_fn(self._raw_valid, False)
 
         train_and_evaluate(self._estimator,
                            train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn,
@@ -171,21 +175,26 @@ class Trainer(object):
 
     def predict(self):
         predictor = self._get_predictor()
+        evaluator = get_evaluator(self._training_config)
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
             instances = list(self._extract_raw(test_set, True))
-            examples = self._feature_extractor.extract_all(instances)
-            labels, gold, markers, indices = [], [], [], []
-            for instance, example in zip(instances, examples):
-                serialized_feats = self._predict_input_fn(example.SerializeToString())
-                result = predictor(serialized_feats)
-                labels.append(binary_np_array_to_unicode(result['gold'][0]))
-                gold.append(instance['gold'])
-                markers.append(instance['marker'])
-                indices.append(instance['sentence_idx'])
-                print(self._prediction_formatter_fn(result))
-            result = conll_srl_eval(labels, gold, markers, indices)
-            tf.logging.info(str(result))
+            examples = [ex.SerializeToString() for ex in self._feature_extractor.extract_all(instances)]
+
+            # break up results into individual batches
+            processed_examples = []
+            for i in range(0, len(examples), self._training_config.batch_size):
+                batch_end = min(i + self._training_config.batch_size, len(examples))
+                batch = examples[i:batch_end]
+                result = predictor(self._predict_input_fn(batch))
+                for idx in range(len(batch)):
+                    single_result = {}
+                    for key, val in result.items():
+                        single_result[key] = val[idx]
+                    processed_examples.append(single_result)
+
+            # evaluate on all examples
+            evaluator(instances, processed_examples, os.path.join(self._save_path, os.path.basename(test_set) + '.eval'))
 
     def itl(self):
         predictor = self._get_predictor()
@@ -284,7 +293,7 @@ class Trainer(object):
                 bucket_sizes = None
             else:
                 # persist dynamically computed bucket sizes
-                self._training_config['bucket_sizes'] = bucket_sizes
+                self._training_config.bucket_sizes = bucket_sizes
                 write_json(self._training_config, self.config_path)
 
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
