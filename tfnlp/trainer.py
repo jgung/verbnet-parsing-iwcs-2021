@@ -275,7 +275,7 @@ class Trainer(object):
                        verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):
-        bucket_sizes = self._training_config.buckets
+        bucket_sizes = self._training_config.bucket_sizes
         if not bucket_sizes and constants.LENGTH_KEY in self._feature_extractor.features:
             length_feat = self._feature_extractor.feature(constants.LENGTH_KEY)
             bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
