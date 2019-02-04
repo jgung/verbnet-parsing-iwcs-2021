@@ -93,7 +93,7 @@ class EncoderConfig(Params):
 
         # transformer encoder settings
         self.num_heads = config.get('num_heads', 8)
-        self.head_dim = config.get('head_dim', 25) * self.num_heads
+        self.head_dim = config.get('head_dim', 25)
         self.attention_dropout = config.get('attention_dropout', 0.1)
         self.relu_hidden_size = config.get('relu_hidden_size', 0.1)
         self.relu_dropout = config.get('relu_dropout', 0.1)

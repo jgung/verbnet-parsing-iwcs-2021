@@ -391,7 +391,7 @@ class HighwayLSTMCell(LayerRNNCell):
 
 def transformer_encoder(inputs, sequence_lengths, training, config):
     with tf.variable_scope("encoder_input_proj"):
-        inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim), alpha=0.1)
+        inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads), alpha=0.1)
     with tf.variable_scope('transformer'):
         mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.int32)
         # e.g. [0 0 0 0 -inf -inf -inf] for a sequence length of 4
@@ -404,7 +404,7 @@ def transformer_encoder(inputs, sequence_lengths, training, config):
 
     inputs = layer_norm(inputs)
 
-    return inputs, config.head_dim, None
+    return inputs, config.head_dim * config.num_heads, None
 
 
 def transformer(inputs, attention_bias, training, config):
@@ -413,9 +413,9 @@ def transformer(inputs, attention_bias, training, config):
             x = inputs
             y = multihead_attention(query_antecedent=x, memory_antecedent=None,
                                     bias=attention_bias,
-                                    total_key_depth=config.head_dim,
-                                    total_value_depth=config.head_dim,
-                                    output_depth=config.head_dim,
+                                    total_key_depth=config.head_dim * config.num_heads,
+                                    total_value_depth=config.head_dim * config.num_heads,
+                                    output_depth=config.head_dim * config.num_heads,
                                     num_heads=config.num_heads,
                                     dropout_rate=(config.attention_dropout if training else 0),
                                     attention_type="dot_product")
@@ -423,7 +423,7 @@ def transformer(inputs, attention_bias, training, config):
 
         with tf.variable_scope("ffnn"):
             x = layer_norm(x)
-            y = conv_hidden_relu(x, hidden_size=config.relu_hidden_size, output_size=config.head_dim,
+            y = conv_hidden_relu(x, hidden_size=config.relu_hidden_size, output_size=config.head_dim * config.num_heads,
                                  keep_prob=(1 - config.relu_dropout) if training else 1)
             x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
 
