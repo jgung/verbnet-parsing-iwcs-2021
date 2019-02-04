@@ -330,7 +330,7 @@ class Feature(Extractor):
                 self.indices[reserved_word] = len(self.indices)
             else:
                 raise AssertionError('Missing reserved word "{}" in vocabulary'.format(reserved_word))
-        self.reversed = None
+        self.reversed = self._reverse()
 
     def train(self, instance):
         value = self._extract_raw(instance)
@@ -368,8 +368,6 @@ class Feature(Extractor):
         :param index: index in feature vocab
         :return: corresponding feature
         """
-        if not self.reversed:
-            self.reversed = self._reverse()
         return self.reversed[index]
 
     def write_vocab(self, path, overwrite=False, prune=False):

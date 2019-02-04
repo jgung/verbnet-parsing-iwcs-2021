@@ -52,6 +52,8 @@ class Trainer(object):
         super().__init__()
         args = self._validate_and_parse_args(args)
         self._mode = args.mode
+        if self._mode == 'train' and not args.train and args.test:
+            self._mode = 'test'
         self._raw_train = args.train
         self._raw_valid = args.valid
         self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
@@ -89,7 +91,7 @@ class Trainer(object):
 
         self._parse_fn = default_parser
         self._predict_input_fn = default_input_fn
-        if self._mode == 'itl':
+        if self._mode == 'itl' or self._mode == 'predict':
             self._prediction_formatter_fn = get_formatter(self._training_config)
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
@@ -115,7 +117,7 @@ class Trainer(object):
             self.predict()
         elif self._mode == "itl":
             self.itl()
-        elif self._raw_test or self._mode == "test":
+        elif self._mode == "test":
             self.eval()
         else:
             raise ValueError("Unexpected mode type: {}".format(self._mode))
@@ -155,25 +157,30 @@ class Trainer(object):
             self.eval()
 
     def eval(self):
+        self._init_feature_extractor()
         for test_set in self._raw_test:
-            self._init_feature_extractor()
-            self._init_estimator(test=True, tag=os.path.split(test_set)[1])
             tf.logging.info('Evaluating on %s' % test_set)
-
+            self._init_estimator(test=True, tag=os.path.split(test_set)[1])
             ckpt = get_earliest_checkpoint(self._save_path)
             if not ckpt:
                 raise ValueError('No checkpoints found at save path: %s', self._save_path)
-
             self._extract_and_write(test_set, test=True)
             eval_input_fn = self._input_fn(test_set, False)
             self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
     def predict(self):
-        raise NotImplementedError
+        self._init_feature_extractor()
+        predictor = self._get_predictor()
+        for test_set in self._raw_test:
+            tf.logging.info('Evaluating on %s' % test_set)
+            examples = self._extract_features(test_set, test=True)
+            for example in examples:
+                serialized_feats = self._predict_input_fn(example.SerializeToString())
+                result = predictor(serialized_feats)
+                print(self._prediction_formatter_fn(result))
 
     def itl(self):
-        export_dir = os.path.join(self._save_path, 'export/best_exporter')
-        predictor = from_saved_model(os.path.join(export_dir, max(os.listdir(export_dir))))
+        predictor = self._get_predictor()
         while True:
             sentence = input(">>> ")
             if not sentence:
@@ -183,6 +190,12 @@ class Trainer(object):
             serialized_feats = self._predict_input_fn(features.SerializeToString())
             result = predictor(serialized_feats)
             print(self._prediction_formatter_fn(result))
+
+    def _get_predictor(self):
+        export_dir = os.path.join(self._save_path, 'export/best_exporter')
+        latest = os.path.join(export_dir, max(os.listdir(export_dir)))
+        tf.logging.info("Loading predictor from saved model at %s" % latest)
+        return from_saved_model(latest)
 
     def _init_feature_extractor(self):
         self._feature_extractor = get_feature_extractor(self._feature_config)
