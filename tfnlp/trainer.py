@@ -12,13 +12,14 @@ from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
+from tfnlp.cli.formatters import get_formatter
+from tfnlp.cli.parsers import default_parser
+from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, LENGTH_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, \
-    WORD_KEY
 from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn, conll_srl_eval
 from tfnlp.common.logging import set_up_logging
-from tfnlp.common.utils import read_json, write_json
-from tfnlp.datasets import make_dataset
+from tfnlp.common.utils import read_json, write_json, binary_np_array_to_unicode
+from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
 from tfnlp.readers import get_reader
@@ -178,7 +179,7 @@ class Trainer(object):
             for instance, example in zip(instances, examples):
                 serialized_feats = self._predict_input_fn(example.SerializeToString())
                 result = predictor(serialized_feats)
-                labels.append([bstr.decode('utf-8') for bstr in result['gold'][0].tolist()])
+                labels.append(binary_np_array_to_unicode(result['gold'][0]))
                 gold.append(instance['gold'])
                 markers.append(instance['marker'])
                 indices.append(instance['sentence_idx'])
@@ -192,9 +193,9 @@ class Trainer(object):
             sentence = input(">>> ")
             if not sentence:
                 return
-            example = self._parse_fn(sentence)
-            features = self._feature_extractor.extract(example, train=False)
-            serialized_feats = self._predict_input_fn(features.SerializeToString())
+            sents = self._parse_fn(sentence)
+            features = [self._feature_extractor.extract(sent, train=True).SerializeToString() for sent in sents]
+            serialized_feats = self._predict_input_fn(features)
             result = predictor(serialized_feats)
             print(self._prediction_formatter_fn(result))
 
@@ -259,13 +260,11 @@ class Trainer(object):
                                                  params=self._params(test=test, tag=tag))
 
     def _serving_input_fn(self):
-        # input has been serialized to a TFRecord string
-        serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, name='input_example_tensor')
-        # parse serialized TFRecord string
-        features = self._feature_extractor.parse(serialized_tf_example, train=False)
-        # add batch dimension
-        features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
-        return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
+        # input has been serialized to a TFRecord string (variable batch size)
+        serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, shape=[None], name=constants.SERVING_PLACEHOLDER)
+        # create single padded batch
+        batch = padded_batch(self._feature_extractor, serialized_tf_example)
+        return ServingInputReceiver(batch, self._predict_input_fn(serialized_tf_example))
 
     def _params(self, test=False, tag=None):
         return HParams(extractor=self._feature_extractor,
@@ -277,8 +276,8 @@ class Trainer(object):
 
     def _input_fn(self, dataset, train=False):
         bucket_sizes = self._training_config.buckets
-        if not bucket_sizes and LENGTH_KEY in self._feature_extractor.features:
-            length_feat = self._feature_extractor.feature(LENGTH_KEY)
+        if not bucket_sizes and constants.LENGTH_KEY in self._feature_extractor.features:
+            length_feat = self._feature_extractor.feature(constants.LENGTH_KEY)
             bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
                                                max_length=self._training_config.max_length)
             if not bucket_sizes:
@@ -293,45 +292,19 @@ class Trainer(object):
                                     bucket_sizes=bucket_sizes)
 
 
-def default_parser(sentence):
-    return {WORD_KEY: sentence.split()}
-
-
 def default_input_fn(features):
     return {"examples": features}
-
-
-def get_formatter(config):
-    def _tagger_formatter(result):
-        target = config.features.targets[0].name
-        unicode_result = [bstr.decode('utf-8') for bstr in result[target][0].tolist()]
-        return ' '.join(unicode_result)
-
-    def _classifier_formatter(result):
-        target = config.features.targets[0].name
-        return result[target][0].decode('utf-8')
-
-    head_type = [head.type for head in config.heads][0]
-    formatters = {
-        CLASSIFIER_KEY: _classifier_formatter,
-        TAGGER_KEY: _tagger_formatter,
-        NER_KEY: _tagger_formatter,
-        SRL_KEY: _tagger_formatter,
-    }
-    if head_type not in formatters:
-        raise ValueError("Unsupported head type: " + head_type)
-    return formatters[head_type]
 
 
 def get_model_func(config):
     head_type = [head.type for head in config.heads][0]
     model_funcs = {
-        CLASSIFIER_KEY: multi_head_model_func,
-        TAGGER_KEY: multi_head_model_func,
-        NER_KEY: multi_head_model_func,
-        PARSER_KEY: multi_head_model_func,
-        SRL_KEY: multi_head_model_func,
-        TOKEN_CLASSIFIER_KEY: multi_head_model_func,
+        constants.CLASSIFIER_KEY: multi_head_model_func,
+        constants.TAGGER_KEY: multi_head_model_func,
+        constants.NER_KEY: multi_head_model_func,
+        constants.PARSER_KEY: multi_head_model_func,
+        constants.SRL_KEY: multi_head_model_func,
+        constants.TOKEN_CLASSIFIER_KEY: multi_head_model_func,
     }
     if head_type not in model_funcs:
         raise ValueError("Unexpected head type: " + head_type)

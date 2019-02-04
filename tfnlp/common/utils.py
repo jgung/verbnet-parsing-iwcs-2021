@@ -80,3 +80,7 @@ def deserialize(in_path, in_name=None):
     path = os.path.join(in_path, in_name) if in_name else in_path
     with file_io.FileIO(path, mode="rb") as in_file:
         return pickle.load(in_file)
+
+
+def binary_np_array_to_unicode(np_string_array):
+    [bstr.decode('utf-8') for bstr in np_string_array.tolist()]

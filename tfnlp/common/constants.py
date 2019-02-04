@@ -84,9 +84,13 @@ NER_KEY = "ner"
 SRL_KEY = "srl"
 PARSER_KEY = "parser"
 
+# encoder types, that apply a functon to one or more inputs
 ENCODER_BLSTM = 'lstm'
 ENCODER_DBLSTM = 'dblstm'
 ENCODER_TRANSFORMER = 'transformer'
 ENCODER_CONCAT = 'concat'
 ENCODER_SUM = 'sum'
 ENCODERS = [ENCODER_BLSTM, ENCODER_DBLSTM, ENCODER_TRANSFORMER, ENCODER_CONCAT, ENCODER_SUM]
+
+# TF serving export constants
+SERVING_PLACEHOLDER = 'input_example_tensor'

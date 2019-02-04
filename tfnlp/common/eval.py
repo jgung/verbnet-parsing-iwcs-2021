@@ -18,6 +18,7 @@ from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, L
     SENTENCE_INDEX
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
+from tfnlp.common.utils import binary_np_array_to_unicode
 
 SUMMARY_FILE = 'eval-summary.tsv'
 EVAL_LOG = 'eval.log'
@@ -241,7 +242,7 @@ class SrlEvalHook(SequenceEvalHook):
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
         for markers, seq_len in zip(run_values.results[MARKER_KEY], run_values.results[LENGTH_KEY]):
-            self._markers.append([marker.decode('utf-8') for marker in markers[:seq_len].toList()])
+            self._markers.append([binary_np_array_to_unicode(markers[:seq_len])])
 
     def end(self, session):
         result = conll_srl_eval(self._gold, self._predictions, self._markers, self._indices)
