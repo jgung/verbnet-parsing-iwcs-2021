@@ -13,18 +13,27 @@ def get_evaluator(config):
     }
     if head_type not in evaluators:
         raise ValueError("Unsupported head type: " + head_type)
-    return lambda labeled_instances, results, output_path: evaluators[head_type](labeled_instances, results, output_path,
-                                                                                 config.heads[0].name)
+    return EvaluatorWrapper(evaluator=evaluators[head_type], target=config.heads[0].name)
+
+
+class EvaluatorWrapper(object):
+
+    def __init__(self, evaluator, target):
+        super().__init__()
+        self.evaluator = evaluator
+        self.target = target
+
+    def __call__(self, labeled_instances, results, output_path=None):
+        """
+        Perform standard evaluation on a given list of gold labeled instances.
+        :param labeled_instances: labeled instances
+        :param results: prediction results corresponding to labeled instances
+        :param output_path: path to output results to, or if none, use stdout
+        """
+        return self.evaluator(labeled_instances, results, output_path, target_key=self.target)
 
 
 def tagger_evaluator(labeled_instances, results, output_path=None, target_key=None):
-    """
-    Perform standard tagger evaluation on a given list of gold labeled instances.
-    :param labeled_instances: labeled instances
-    :param results: prediction results corresponding to labeled instances
-    :param output_path: path to output results to, or if none, use stdout
-    :param target_key: result key for predictions
-    """
     target_key = LABEL_KEY if not target_key else target_key
     labels = []
     gold = []
@@ -38,13 +47,6 @@ def tagger_evaluator(labeled_instances, results, output_path=None, target_key=No
 
 
 def srl_evaluator(labeled_instances, results, output_path=None, target_key=None):
-    """
-    Perform SRL evaluation on a given list of gold labeled instances.
-    :param labeled_instances: labeled instances
-    :param results: prediction results corresponding to labeled instances
-    :param output_path: path to output results to, or if none, use stdout
-    :param target_key: result key for predictions
-    """
     labels = []
     gold = []
     markers = []
