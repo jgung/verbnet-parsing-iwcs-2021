@@ -250,7 +250,7 @@ class SrlEvalHook(SequenceEvalHook):
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
         for markers, seq_len in zip(run_values.results[MARKER_KEY], run_values.results[LENGTH_KEY]):
-            self._markers.append([binary_np_array_to_unicode(markers[:seq_len])])
+            self._markers.append(binary_np_array_to_unicode(markers[:seq_len]))
 
     def end(self, session):
         result = conll_srl_eval(self._gold, self._predictions, self._markers, self._indices)
