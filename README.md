@@ -50,12 +50,11 @@ You should end up with 3 files,
 and test data. Note that the official CoNLL 2003 evaluation script requires Perl to run.
 
 You can then begin training with the following command:
-```
+```bash
 python tfnlp.trainer.py --job-dir data/experiments/conll-03 \
 --train path/to/conll03/eng.train \
 --valid path/to/conll03/eng.testa \
 --test path/to/conll03/eng.testb \
---mode train \
 --config data/config/ner/ner-config.json \
 --resources data/
 ```
@@ -94,7 +93,6 @@ python tfnlp.trainer.py --job-dir data/experiments/conll-05 \
 --train path/to/conll05/train-set.conll \
 --valid path/to/conll05/dev-set.conll \
 --test path/to/conll05/test-wsj.conll \
---mode train \
 --config data/config/srl/srl-config.json \
 --resources data/
 ```
@@ -120,8 +118,7 @@ you can use the following command:
 python tfnlp.trainer.py --job-dir data/experiments/conll-09-en \
 --train path/to/CoNLL2009-ST-English/CoNLL2009-ST-English-train.txt \
 --valid path/to/CoNLL2009-ST-English-development.txt \
---mode train \
---config data/config/parser/parser-config.json \
+--config data/config/parsing/parser-config.json \
 --script data/scripts/eval09.pl \
 --resources data/
 ```
