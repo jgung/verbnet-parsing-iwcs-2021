@@ -105,8 +105,9 @@ def multi_head_model_func(features, mode, params):
                 evaluation_hooks.extend(head.evaluation_hooks)
 
         # combine export outputs
-        export_outputs = {}
+        export_outputs = None
         if mode == tf.estimator.ModeKeys.PREDICT:
+            export_outputs = {}
             for head in heads:
                 export_outputs.update(head.export_outputs)
             if len(export_outputs) > 1:

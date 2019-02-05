@@ -9,6 +9,7 @@ def get_parser(config):
         constants.TAGGER_KEY: default_parser,
         constants.SRL_KEY: srl_parser,
         constants.NER_KEY: default_parser,
+        constants.PARSER_KEY: dep_input_parser,
     }
     if head_type not in parsers:
         raise ValueError("ITL unsupported head type: " + head_type)
@@ -19,6 +20,15 @@ def default_parser(sentence):
     def _feats(sent):
         tokens = word_tokenize(sent)
         return {constants.WORD_KEY: tokens, constants.LABEL_KEY: ['O'] * len(tokens)}
+
+    sentences = sent_tokenize(sentence)
+    return [_feats(sent) for sent in sentences]
+
+
+def dep_input_parser(sentence):
+    def _feats(sent):
+        tokens = word_tokenize(sent)
+        return {constants.WORD_KEY: tokens, constants.HEAD_KEY: [0] * len(tokens)}
 
     sentences = sent_tokenize(sentence)
     return [_feats(sent) for sent in sentences]

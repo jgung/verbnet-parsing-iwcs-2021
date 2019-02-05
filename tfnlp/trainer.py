@@ -128,7 +128,7 @@ class Trainer(object):
             # predict from instances instead of raw text, so use .predict_inputs, don't format since we need the raw predictions
             processed_examples = predictor.predict_inputs(instances, formatted=False)
             # call evaluation function on predictions
-            evaluation_fn(instances, processed_examples, output_path)
+            evaluation_fn(instances, processed_examples, output_path=output_path, script_path=self._eval_script_path)
 
     def predict(self, test_paths):
         """

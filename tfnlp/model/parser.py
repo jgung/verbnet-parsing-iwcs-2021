@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.estimator.export.export_output import PredictOutput
-from tensorflow.python.saved_model import signature_constants
 
 import tfnlp.common.constants as constants
 from tfnlp.common.config import append_label
@@ -107,8 +106,8 @@ class ParserHead(ModelHead):
             self.evaluation_hooks.append(hook)
 
     def _prediction(self):
-        self.export_outputs = {signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: PredictOutput(self.arc_probs),
-                               constants.DEPREL_KEY: PredictOutput(self.rel_probs)}
+        self.export_outputs = {constants.ARC_PROBS: PredictOutput(self.arc_probs),
+                               constants.REL_PROBS: PredictOutput(self.rel_probs)}
 
 
 def get_shape(tensor):

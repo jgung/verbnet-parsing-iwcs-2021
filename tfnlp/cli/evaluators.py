@@ -5,7 +5,7 @@ from tensorflow.python.lib.io import file_io
 
 from tfnlp.common import constants
 from tfnlp.common.constants import LABEL_KEY, SENTENCE_INDEX
-from tfnlp.common.eval import conll_eval, conll_srl_eval, write_props_to_file, SUMMARY_FILE, EVAL_LOG
+from tfnlp.common.eval import conll_eval, conll_srl_eval, write_props_to_file, SUMMARY_FILE, EVAL_LOG, parser_write_and_eval
 from tfnlp.common.utils import binary_np_array_to_unicode
 
 
@@ -15,6 +15,7 @@ def get_evaluator(config):
         constants.TAGGER_KEY: tagger_evaluator,
         constants.SRL_KEY: srl_evaluator,
         constants.NER_KEY: tagger_evaluator,
+        constants.PARSER_KEY: dep_evaluator,
     }
     if head_type not in evaluators:
         raise ValueError("Unsupported head type: " + head_type)
@@ -28,17 +29,17 @@ class EvaluatorWrapper(object):
         self.evaluator = evaluator
         self.target = target
 
-    def __call__(self, labeled_instances, results, output_path=None):
+    def __call__(self, labeled_instances, results, output_path=None, script_path=None):
         """
         Perform standard evaluation on a given list of gold labeled instances.
         :param labeled_instances: labeled instances
         :param results: prediction results corresponding to labeled instances
         :param output_path: path to output results to, or if none, use stdout
         """
-        return self.evaluator(labeled_instances, results, output_path, target_key=self.target)
+        return self.evaluator(labeled_instances, results, output_path, target_key=self.target, script_path=None)
 
 
-def tagger_evaluator(labeled_instances, results, output_path=None, target_key=None):
+def tagger_evaluator(labeled_instances, results, output_path=None, target_key=None, script_path=None):
     target_key = LABEL_KEY if not target_key else target_key
     labels = []
     gold = []
@@ -51,7 +52,28 @@ def tagger_evaluator(labeled_instances, results, output_path=None, target_key=No
     tf.logging.info(result_str)
 
 
-def srl_evaluator(labeled_instances, results, output_path=None, target_key=None):
+def dep_evaluator(labeled_instances, results, output_path=None, target_key=None, script_path=None):
+    arc_probs = []
+    rel_probs = []
+    gold_arcs = []
+    gold_rels = []
+
+    for instance, result in zip(labeled_instances, results):
+        seq_len = 1 + len(instance[constants.WORD_KEY])  # plus 1 for head
+        gold_arcs.append([0] + instance[constants.HEAD_KEY])
+        gold_rels.append(['<ROOT>'] + instance[constants.DEPREL_KEY])
+
+        arc_probs.append(result[constants.ARC_PROBS][:seq_len, :seq_len])
+        rel_probs.append(result[constants.REL_PROBS])
+
+    parser_write_and_eval(arc_probs=arc_probs,
+                          rel_probs=rel_probs,
+                          heads=gold_arcs,
+                          rels=gold_rels,
+                          script_path=script_path)
+
+
+def srl_evaluator(labeled_instances, results, output_path=None, target_key=None, script_path=None):
     labels = []
     gold = []
     markers = []

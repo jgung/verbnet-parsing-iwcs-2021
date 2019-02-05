@@ -334,7 +334,7 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
                               script_path=self._script_path)
 
 
-def parser_write_and_eval(arc_probs, rel_probs, heads, rels, features, script_path, out_path=None, gold_path=None):
+def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features=None, out_path=None, gold_path=None):
     _gold_file = file_io.FileIO(gold_path, 'w') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     _out_file = file_io.FileIO(out_path, 'w') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
