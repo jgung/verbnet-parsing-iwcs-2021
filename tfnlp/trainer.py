@@ -28,12 +28,11 @@ from tfnlp.readers import get_reader
 
 
 class Trainer(object):
-    def __init__(self, save, mode, config=None, train=None, valid=None, test=None, resources='', script=None):
+    def __init__(self, save, config=None, train=None, valid=None, test=None, resources='', script=None):
         """
         Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
 
         :param save: directory from which to save/load model, metadata, logs, and other training files
-        :param mode: mode of use, in {train, test, predict, itl}
         :param config: path to training configuration file
         :param train: path to training data
         :param valid: path to validation data
@@ -43,10 +42,6 @@ class Trainer(object):
         """
         super().__init__()
         self._job_dir = save
-        self._mode = mode
-        if self._mode == 'train' and not train and test:
-            tf.logging.info('No training set provided, defaulting to test mode for %s' % test)
-            self._mode = 'test'
         self._raw_train = train
         self._raw_valid = valid
         self._raw_test = [t for t in test.split(',') if t.strip()] if test else None
@@ -79,23 +74,11 @@ class Trainer(object):
         self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(save, os.path.basename(orig) + ".tfrecords")
 
-        set_up_logging(os.path.join(save, '{}.log'.format(self._mode)))
-
-    def run(self):
-        self._init_feature_extractor()
-        if self._raw_train and self._mode == "train":
-            self.train()
-        elif self._mode == "predict":
-            self.predict()
-        elif self._mode == "itl":
-            self.itl()
-        elif self._mode == "test":
-            self.eval()
-        else:
-            raise ValueError("Unexpected mode type: {}".format(self._mode))
-
     def train(self):
+        if not self._feature_extractor:
+            self._init_feature_extractor(test=False)
         self._init_estimator(test=False)
+
         tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
 
         # read and extract features from training/validation data, serialize to disk
@@ -133,6 +116,9 @@ class Trainer(object):
             self.eval()
 
     def eval(self):
+        if not self._feature_extractor:
+            self._init_feature_extractor(test=True)
+
         predictor = from_job_dir(self._job_dir)
         evaluator = get_evaluator(self._training_config)
 
@@ -143,6 +129,9 @@ class Trainer(object):
             evaluator(instances, processed_examples, os.path.join(self._save_path, os.path.basename(test_set) + '.eval'))
 
     def predict(self):
+        if not self._feature_extractor:
+            self._init_feature_extractor(test=True)
+
         predictor = from_job_dir(self._job_dir)
 
         for test_set in self._raw_test:
@@ -160,6 +149,9 @@ class Trainer(object):
                         output.write('\n')
 
     def itl(self):
+        if not self._feature_extractor:
+            self._init_feature_extractor(test=True)
+
         predictor = from_job_dir(self._job_dir)
 
         while True:
@@ -177,9 +169,9 @@ class Trainer(object):
         tf.logging.info("Loading predictor from saved model at %s" % latest)
         return from_saved_model(latest)
 
-    def _init_feature_extractor(self):
+    def _init_feature_extractor(self, test=False):
         self._feature_extractor = get_feature_extractor(self._feature_config)
-        if self._mode == "train":
+        if not test:
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             if self._feature_extractor.read_vocab(self._vocab_path):
                 tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
@@ -276,6 +268,9 @@ def get_model_func(config):
     return model_funcs[head_type]
 
 
+TRAINING_MODES = {'train', 'predict', 'test', 'itl'}
+
+
 def default_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--job-dir', dest='save', type=str, required=True,
@@ -286,7 +281,7 @@ def default_args():
     parser.add_argument('--valid', type=str, help='validation/development data path')
     parser.add_argument('--test', type=str, help='test data paths, comma-separated')
     parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
-                        choices=['train', 'test', 'predict', 'itl'])
+                        choices=list(TRAINING_MODES))
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
     return parser
 
@@ -302,7 +297,24 @@ def _validate_and_parse_args():
 if __name__ == '__main__':
     opts = _validate_and_parse_args()
 
-    trainer = Trainer(save=opts.save, mode=opts.mode, config=opts.config, train=opts.train, valid=opts.valid,
+    trainer = Trainer(save=opts.save, config=opts.config, train=opts.train, valid=opts.valid,
                       test=opts.test, resources=opts.resources, script=opts.script)
+    mode = opts.mode
 
-    trainer.run()
+    if mode not in TRAINING_MODES:
+        raise ValueError("Unexpected mode type: {}".format(mode))
+
+    set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
+
+    if mode == 'train' and not opts.train and opts.test:
+        tf.logging.info('No training set provided, defaulting to test mode for %s' % opts.test)
+        mode = 'test'
+
+    if opts.train and mode == "train":
+        trainer.train()
+    elif mode == "predict":
+        trainer.predict()
+    elif mode == "itl":
+        trainer.itl()
+    elif mode == "test":
+        trainer.eval()
