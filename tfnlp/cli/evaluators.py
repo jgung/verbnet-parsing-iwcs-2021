@@ -84,6 +84,6 @@ def srl_evaluator(labeled_instances, results, output_path=None, target_key=None)
 
     # append evaluation log
     with file_io.FileIO(os.path.join(job_dir, EVAL_LOG), 'a') as eval_log:
-        eval_log.write('\n%d\t%s\n' % os.path.basename(output_path))
+        eval_log.write('\n%s\n' % os.path.basename(output_path))
         eval_log.write(str(result) + '\n')
         eval_log.write('\n%s\n\n' % result.confusion_matrix())
