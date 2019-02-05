@@ -107,7 +107,8 @@ class ParserHead(ModelHead):
 
     def _prediction(self):
         self.export_outputs = {constants.HEAD_KEY: PredictOutput({constants.HEAD_KEY: self.arc_probs}),
-                               constants.DEPREL_KEY: PredictOutput({constants.DEPREL_KEY: self.rel_probs})}
+                               constants.DEPREL_KEY: PredictOutput({constants.REL_PROBS: self.rel_probs,
+                                                                    constants.ARC_PROBS: self.arc_probs})}
 
 
 def get_shape(tensor):
