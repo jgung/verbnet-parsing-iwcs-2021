@@ -312,7 +312,7 @@ def cli():
         if not opts.train:
             tf.logging.warn('train mode was selected, but no training set path was provided (use "--train path/to/train")')
             return
-        elif opts.valid:
+        elif not opts.valid:
             tf.logging.warn('train mode was selected, but no validation set path was provided (use "--valid path/to/valid")')
             return
 
