@@ -1,18 +1,24 @@
 from tfnlp.common import constants
+from tfnlp.common.constants import WORD_KEY
 from tfnlp.common.utils import binary_np_array_to_unicode
 
 
 def get_formatter(config):
-    def _tagger_formatter(result):
+    def _tagger_formatter(result, original_input=None):
         target = config.features.targets[0].name
-        formatted = []
-        for labels in result[target]:
-            formatted.append(' '.join(binary_np_array_to_unicode(labels)))
-        return '\n'.join(formatted)
 
-    def _classifier_formatter(result):
+        labels = binary_np_array_to_unicode(result[target])
+        if not original_input or WORD_KEY not in original_input:
+            return '\n'.join(labels)
+        result = []
+        for word, label in zip(original_input[WORD_KEY], labels):
+            result.append(word + ' ' + label)
+        return '\n'.join(result)
+
+    def _classifier_formatter(result, ignored=None):
         target = config.features.targets[0].name
-        return result[target][0].decode('utf-8')
+        prediction = result[target].decode('utf-8')
+        return prediction
 
     head_type = [head.type for head in config.heads][0]
     formatters = {

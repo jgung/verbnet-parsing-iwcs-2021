@@ -14,8 +14,6 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
 
 from tfnlp.cli.evaluators import get_evaluator
-from tfnlp.cli.formatters import get_formatter
-from tfnlp.cli.parsers import get_parser
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
 from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
@@ -24,11 +22,8 @@ from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
+from tfnlp.predictor import get_latest_savedmodel_from_jobdir, from_job_dir
 from tfnlp.readers import get_reader
-
-VOCAB_PATH = 'vocab'
-CONFIG_PATH = 'config.json'
-MODEL_PATH = 'model'
 
 
 def default_args():
@@ -54,6 +49,7 @@ class Trainer(object):
     def __init__(self, args=None):
         super().__init__()
         args = self._validate_and_parse_args(args)
+        self._job_dir = args.save
         self._mode = args.mode
         if self._mode == 'train' and not args.train and args.test:
             self._mode = 'test'
@@ -66,13 +62,13 @@ class Trainer(object):
         else:
             self._output = os.path.join(args.save, 'predictions.txt')
 
-        self._save_path = os.path.join(args.save, MODEL_PATH)
-        self._vocab_path = os.path.join(args.save, VOCAB_PATH)
+        self._save_path = os.path.join(args.save, constants.MODEL_PATH)
+        self._vocab_path = os.path.join(args.save, constants.VOCAB_PATH)
         self._resources = args.resources
         self._eval_script_path = args.script
 
         # read configuration file
-        self.config_path = os.path.join(args.save, CONFIG_PATH)
+        self.config_path = os.path.join(args.save, constants.CONFIG_PATH)
         if not tf.gfile.Exists(self.config_path) or self._overwrite:
             if not args.config:
                 raise AssertionError('"--config" option is required when training for the first time')
@@ -92,10 +88,6 @@ class Trainer(object):
         self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
 
-        self._parse_fn = get_parser(self._training_config)
-        self._predict_input_fn = lambda feats: {"examples": feats}
-        if self._mode == 'itl' or self._mode == 'predict':
-            self._prediction_formatter_fn = get_formatter(self._training_config)
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
     # noinspection PyMethodMayBeStatic
@@ -174,43 +166,28 @@ class Trainer(object):
             self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
 
     def predict(self):
-        predictor = self._get_predictor()
+        predictor = from_job_dir(self._job_dir)
         evaluator = get_evaluator(self._training_config)
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
             instances = list(self._extract_raw(test_set, True))
-            examples = [ex.SerializeToString() for ex in self._feature_extractor.extract_all(instances)]
-
-            # break up results into individual batches
-            processed_examples = []
-            for i in range(0, len(examples), self._training_config.batch_size):
-                batch_end = min(i + self._training_config.batch_size, len(examples))
-                batch = examples[i:batch_end]
-                result = predictor(self._predict_input_fn(batch))
-                for idx in range(len(batch)):
-                    single_result = {}
-                    for key, val in result.items():
-                        single_result[key] = val[idx]
-                    processed_examples.append(single_result)
-
-            # evaluate on all examples
+            processed_examples = predictor.predict_inputs(instances, formatted=False)
             evaluator(instances, processed_examples, os.path.join(self._save_path, os.path.basename(test_set) + '.eval'))
 
     def itl(self):
-        predictor = self._get_predictor()
+        predictor = from_job_dir(self._job_dir)
         while True:
             sentence = input(">>> ")
             if not sentence:
-                return
-            sents = self._parse_fn(sentence)
-            features = [self._feature_extractor.extract(sent, train=True).SerializeToString() for sent in sents]
-            serialized_feats = self._predict_input_fn(features)
-            result = predictor(serialized_feats)
-            print(self._prediction_formatter_fn(result))
+                continue
+            if sentence.lower() in {'exit', 'quit'}:
+                break
+            predictions = predictor.predict(sentence)
+            for prediction in predictions:
+                print(str(prediction))
 
     def _get_predictor(self):
-        export_dir = os.path.join(self._save_path, 'export/best_exporter')
-        latest = os.path.join(export_dir, max(os.listdir(export_dir)))
+        latest = get_latest_savedmodel_from_jobdir(self._job_dir)
         tf.logging.info("Loading predictor from saved model at %s" % latest)
         return from_saved_model(latest)
 
@@ -273,7 +250,7 @@ class Trainer(object):
         serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, shape=[None], name=constants.SERVING_PLACEHOLDER)
         # create single padded batch
         batch = padded_batch(self._feature_extractor, serialized_tf_example)
-        return ServingInputReceiver(batch, self._predict_input_fn(serialized_tf_example))
+        return ServingInputReceiver(batch, {"examples": serialized_tf_example})
 
     def _params(self, test=False, tag=None):
         return HParams(extractor=self._feature_extractor,
@@ -299,10 +276,6 @@ class Trainer(object):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
                                     batch_size=self._training_config.batch_size, evaluate=not train,
                                     bucket_sizes=bucket_sizes)
-
-
-def default_input_fn(features):
-    return {"examples": features}
 
 
 def get_model_func(config):

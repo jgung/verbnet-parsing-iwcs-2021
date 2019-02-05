@@ -94,3 +94,8 @@ ENCODERS = [ENCODER_BLSTM, ENCODER_DBLSTM, ENCODER_TRANSFORMER, ENCODER_CONCAT, 
 
 # TF serving export constants
 SERVING_PLACEHOLDER = 'input_example_tensor'
+
+# paths/files used in trainer job directory
+VOCAB_PATH = 'vocab'
+CONFIG_PATH = 'config.json'
+MODEL_PATH = 'model'
