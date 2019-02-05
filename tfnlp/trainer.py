@@ -27,29 +27,9 @@ from tfnlp.predictor import get_latest_savedmodel_from_jobdir, from_job_dir
 from tfnlp.readers import get_reader
 
 
-def default_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--job-dir', dest='save', type=str, required=True,
-                        help='models/checkpoints/vocabularies save path')
-    parser.add_argument('--config', type=str, help='training configuration JSON')
-    parser.add_argument('--resources', type=str, help='shared resources directory (such as for word embeddings)')
-    parser.add_argument('--train', type=str, help='training data path')
-    parser.add_argument('--valid', type=str, help='validation/development data path')
-    parser.add_argument('--test', type=str, help='test data paths, comma-separated')
-    parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
-                        choices=['train', 'test', 'predict', 'itl'])
-    parser.add_argument('--script', type=str, help='(optional) evaluation script path')
-    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite previously saved vocabularies and training files')
-    parser.add_argument('--output', type=str, help='output path for predictions (during evaluation and application)')
-    parser.set_defaults(overwrite=False)
-    return parser
-
-
 class Trainer(object):
-    def __init__(self, args=None):
+    def __init__(self, args):
         super().__init__()
-        args = self._validate_and_parse_args(args)
         self._job_dir = args.save
         self._mode = args.mode
         if self._mode == 'train' and not args.train and args.test:
@@ -91,19 +71,6 @@ class Trainer(object):
 
         set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
 
-    # noinspection PyMethodMayBeStatic
-    def _validate_and_parse_args(self, args):
-        """
-        Parse arguments using argument parser. Can override for additional validation or logic.
-        :param args: command-line arguments
-        :return: parsed arguments
-        """
-        parser = default_args()
-        if len(sys.argv) == 1:
-            parser.print_help(sys.stderr)
-            sys.exit(1)
-        return parser.parse_args(args)
-
     def run(self):
         self._init_feature_extractor()
         if self._raw_train and self._mode == "train":
@@ -119,7 +86,13 @@ class Trainer(object):
 
     def train(self):
         self._init_estimator(test=False)
+        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
 
+        # read and extract features from training/validation data, serialize to disk
+        self._extract_and_write(self._raw_train)
+        self._extract_and_write(self._raw_valid)
+
+        # train and evaluate using Estimator API
         # TODO: fixes issue https://github.com/tensorflow/tensorflow/issues/18394
         if not os.path.exists(self._estimator.eval_dir()):
             os.makedirs(self._estimator.eval_dir())
@@ -133,31 +106,26 @@ class Trainer(object):
             run_every_steps=100,
         )
 
+        train_spec = tf.estimator.TrainSpec(self._input_fn(self._raw_train, True),
+                                            max_steps=self._training_config.max_steps, hooks=[early_stopping])
+
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
                                 compare_fn=metric_compare_fn(self._training_config.metric),
                                 exports_to_keep=self._training_config.exports_to_keep)
 
-        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
-        self._extract_and_write(self._raw_train)
-        self._extract_and_write(self._raw_valid)
+        eval_spec = tf.estimator.EvalSpec(self._input_fn(self._raw_valid, False),
+                                          steps=None, exporters=[exporter], throttle_secs=0)
 
-        train_input_fn = self._input_fn(self._raw_train, True)
-        valid_input_fn = self._input_fn(self._raw_valid, False)
+        train_and_evaluate(self._estimator, train_spec=train_spec, eval_spec=eval_spec)
 
-        train_and_evaluate(self._estimator,
-                           train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn,
-                                                             max_steps=self._training_config.max_steps,
-                                                             hooks=[early_stopping]),
-                           eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn,
-                                                           steps=None,
-                                                           exporters=[exporter],
-                                                           throttle_secs=0))
+        # test after training completes, if test set is provided
         if self._raw_test:
             self.eval()
 
     def eval(self):
         predictor = from_job_dir(self._job_dir)
         evaluator = get_evaluator(self._training_config)
+
         for test_set in self._raw_test:
             tf.logging.info('Evaluating on %s' % test_set)
             instances = list(self._extract_raw(test_set, True))
@@ -166,6 +134,7 @@ class Trainer(object):
 
     def predict(self):
         predictor = from_job_dir(self._job_dir)
+
         for test_set in self._raw_test:
             prediction_path = test_set + '.predictions.txt'
             tf.logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
@@ -182,6 +151,7 @@ class Trainer(object):
 
     def itl(self):
         predictor = from_job_dir(self._job_dir)
+
         while True:
             sentence = input(">>> ")
             if not sentence:
@@ -299,5 +269,32 @@ def get_model_func(config):
     return model_funcs[head_type]
 
 
+def default_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--job-dir', dest='save', type=str, required=True,
+                        help='models/checkpoints/vocabularies save path')
+    parser.add_argument('--config', type=str, help='training configuration JSON')
+    parser.add_argument('--resources', type=str, help='shared resources directory (such as for word embeddings)')
+    parser.add_argument('--train', type=str, help='training data path')
+    parser.add_argument('--valid', type=str, help='validation/development data path')
+    parser.add_argument('--test', type=str, help='test data paths, comma-separated')
+    parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
+                        choices=['train', 'test', 'predict', 'itl'])
+    parser.add_argument('--script', type=str, help='(optional) evaluation script path')
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+                        help='overwrite previously saved vocabularies and training files')
+    parser.add_argument('--output', type=str, help='output path for predictions (during evaluation and application)')
+    parser.set_defaults(overwrite=False)
+    return parser
+
+
+def _validate_and_parse_args(args=None):
+    parser = default_args()
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    return parser.parse_args(args)
+
+
 if __name__ == '__main__':
-    Trainer().run()
+    Trainer(_validate_and_parse_args()).run()
