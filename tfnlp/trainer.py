@@ -38,10 +38,8 @@ class Trainer(object):
         self._raw_valid = args.valid
         self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
         self._overwrite = args.overwrite
-        if args.output:
-            self._output = os.path.join(args.save, args.output)
-        else:
-            self._output = os.path.join(args.save, 'predictions.txt')
+
+        self._output = os.path.join(args.save, 'predictions.txt')
 
         self._save_path = os.path.join(args.save, constants.MODEL_PATH)
         self._vocab_path = os.path.join(args.save, constants.VOCAB_PATH)
@@ -283,7 +281,6 @@ def default_args():
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='overwrite previously saved vocabularies and training files')
-    parser.add_argument('--output', type=str, help='output path for predictions (during evaluation and application)')
     parser.set_defaults(overwrite=False)
     return parser
 
