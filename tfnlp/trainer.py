@@ -28,23 +28,17 @@ from tfnlp.readers import get_reader
 
 
 class Trainer(object):
-    def __init__(self, save, config=None, train=None, valid=None, test=None, resources='', script=None):
+    def __init__(self, save, config=None, resources='', script=None):
         """
         Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
 
         :param save: directory from which to save/load model, metadata, logs, and other training files
         :param config: path to training configuration file
-        :param train: path to training data
-        :param valid: path to validation data
-        :param test: path to test data
         :param resources: path to base directory of resources, such as for pre-trained weights
         :param script: path to official evaluation scripts
         """
         super().__init__()
         self._job_dir = save
-        self._raw_train = train
-        self._raw_valid = valid
-        self._raw_test = [t for t in test.split(',') if t.strip()] if test else None
 
         self._output = os.path.join(save, 'predictions.txt')
 
@@ -74,16 +68,22 @@ class Trainer(object):
         self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
         self._data_path_fn = lambda orig: os.path.join(save, os.path.basename(orig) + ".tfrecords")
 
-    def train(self):
+    def train(self, train, valid):
+        """
+        Train a new model with this trainer, or if a model already exists in the save path for this trainer,
+        resume training from a checkpoint.
+        :param train: path to training corpus
+        :param valid: path to validation corpus
+        """
         if not self._feature_extractor:
-            self._init_feature_extractor(test=False)
+            self._init_feature_extractor(train_path=train)
         self._init_estimator(test=False)
 
-        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
+        tf.logging.info('Training on %s, validating on %s' % (train, valid))
 
         # read and extract features from training/validation data, serialize to disk
-        self._extract_and_write(self._raw_train)
-        self._extract_and_write(self._raw_valid)
+        self._extract_and_write(train)
+        self._extract_and_write(valid)
 
         # train and evaluate using Estimator API
         # TODO: fixes issue https://github.com/tensorflow/tensorflow/issues/18394
@@ -99,42 +99,49 @@ class Trainer(object):
             run_every_steps=100,
         )
 
-        train_spec = tf.estimator.TrainSpec(self._input_fn(self._raw_train, True),
+        train_spec = tf.estimator.TrainSpec(self._input_fn(train, True),
                                             max_steps=self._training_config.max_steps, hooks=[early_stopping])
 
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
                                 compare_fn=metric_compare_fn(self._training_config.metric),
                                 exports_to_keep=self._training_config.exports_to_keep)
 
-        eval_spec = tf.estimator.EvalSpec(self._input_fn(self._raw_valid, False),
+        eval_spec = tf.estimator.EvalSpec(self._input_fn(valid, False),
                                           steps=None, exporters=[exporter], throttle_secs=0)
 
         train_and_evaluate(self._estimator, train_spec=train_spec, eval_spec=eval_spec)
 
-        # test after training completes, if test set is provided
-        if self._raw_test:
-            self.eval()
+    def eval(self, test_paths):
+        """
+        Evaluate a trained model on a given corpus or list of corpora.
+        :param test_paths: paths to test corpora
+        """
+        if type(test_paths) not in [list, tuple]:
+            test_paths = [test_paths]
 
-    def eval(self):
         if not self._feature_extractor:
-            self._init_feature_extractor(test=True)
+            self._init_feature_extractor()
 
         predictor = from_job_dir(self._job_dir)
         evaluator = get_evaluator(self._training_config)
 
-        for test_set in self._raw_test:
+        for test_set in test_paths:
             tf.logging.info('Evaluating on %s' % test_set)
             instances = list(self._extract_raw(test_set, True))
             processed_examples = predictor.predict_inputs(instances, formatted=False)
             evaluator(instances, processed_examples, os.path.join(self._save_path, os.path.basename(test_set) + '.eval'))
 
-    def predict(self):
+    def predict(self, test_paths):
+        """
+        Generate predictions from plain text corpora at a given path or list of paths.
+        :param test_paths: paths to documents for which to generate predictions
+        """
         if not self._feature_extractor:
-            self._init_feature_extractor(test=True)
+            self._init_feature_extractor()
 
         predictor = from_job_dir(self._job_dir)
 
-        for test_set in self._raw_test:
+        for test_set in test_paths:
             prediction_path = os.path.join(self._job_dir, os.path.basename(test_set) + '.predictions.txt')
             tf.logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
             with file_io.FileIO(prediction_path, mode="w") as output:
@@ -149,8 +156,11 @@ class Trainer(object):
                         output.write('\n')
 
     def itl(self):
+        """
+        Initiate a REPL-style interactive testing loop.
+        """
         if not self._feature_extractor:
-            self._init_feature_extractor(test=True)
+            self._init_feature_extractor()
 
         predictor = from_job_dir(self._job_dir)
 
@@ -169,16 +179,16 @@ class Trainer(object):
         tf.logging.info("Loading predictor from saved model at %s" % latest)
         return from_saved_model(latest)
 
-    def _init_feature_extractor(self, test=False):
+    def _init_feature_extractor(self, train_path=None):
         self._feature_extractor = get_feature_extractor(self._feature_config)
-        if not test:
+        if train_path:
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             if self._feature_extractor.read_vocab(self._vocab_path):
                 tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
             else:
                 tf.logging.info("No valid pre-existing vocabulary found at %s "
                                 "(this is normal when not loading from an existing model)", self._vocab_path)
-                self._train_vocab()
+                self._train_vocab(train_path)
         else:
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             self._feature_extractor.read_vocab(self._vocab_path)
@@ -193,10 +203,10 @@ class Trainer(object):
             raise ValueError("No examples provided at path given by '{}'".format(path))
         return raw_instances
 
-    def _train_vocab(self):
-        tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
+    def _train_vocab(self, train_path):
+        tf.logging.info("Training new vocabulary using training data at %s", train_path)
         self._feature_extractor.initialize(self._resources)
-        self._feature_extractor.train(self._extract_raw(self._raw_train))
+        self._feature_extractor.train(self._extract_raw(train_path))
         self._feature_extractor.write_vocab(self._vocab_path, resources=self._resources, prune=True)
 
     def _extract_features(self, path, test=False):
@@ -294,27 +304,53 @@ def _validate_and_parse_args():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+def cli():
     opts = _validate_and_parse_args()
 
-    trainer = Trainer(save=opts.save, config=opts.config, train=opts.train, valid=opts.valid,
-                      test=opts.test, resources=opts.resources, script=opts.script)
+    trainer = Trainer(save=opts.save, config=opts.config, resources=opts.resources, script=opts.script)
+
     mode = opts.mode
+    test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None
 
     if mode not in TRAINING_MODES:
         raise ValueError("Unexpected mode type: {}".format(mode))
 
     set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
 
-    if mode == 'train' and not opts.train and opts.test:
+    if mode == 'train' and not opts.train and test_paths:
         tf.logging.info('No training set provided, defaulting to test mode for %s' % opts.test)
         mode = 'test'
 
-    if opts.train and mode == "train":
-        trainer.train()
+    if mode == "train":
+        if not opts.train:
+            tf.logging.warn('train mode was selected, but no training set path was provided (use "--train path/to/train")')
+            return
+        elif opts.valid:
+            tf.logging.warn('train mode was selected, but no validation set path was provided (use "--valid path/to/valid")')
+            return
+
+        trainer.train(opts.train, opts.valid)
+
+        if test_paths:
+            trainer.eval(test_paths)
+
     elif mode == "predict":
-        trainer.predict()
+        if not test_paths:
+            tf.logging.warn('predict mode was selected, but no test paths were provided (use "--test path1,path2")')
+            return
+
+        trainer.predict(test_paths)
+
+    elif mode == "test":
+        if not test_paths:
+            tf.logging.warn('test mode was selected, but no test paths were provided (use "--test path1,path2")')
+            return
+
+        trainer.eval(test_paths)
+
     elif mode == "itl":
         trainer.itl()
-    elif mode == "test":
-        trainer.eval()
+
+
+if __name__ == '__main__':
+    cli()
