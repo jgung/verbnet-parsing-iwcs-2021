@@ -106,8 +106,8 @@ class ParserHead(ModelHead):
             self.evaluation_hooks.append(hook)
 
     def _prediction(self):
-        self.export_outputs = {constants.ARC_PROBS: PredictOutput(self.arc_probs),
-                               constants.REL_PROBS: PredictOutput(self.rel_probs)}
+        self.export_outputs = {constants.ARC_PROBS: PredictOutput({constants.ARC_PROBS: self.arc_probs}),
+                               constants.REL_PROBS: PredictOutput({constants.REL_PROBS: self.rel_probs})}
 
 
 def get_shape(tensor):
