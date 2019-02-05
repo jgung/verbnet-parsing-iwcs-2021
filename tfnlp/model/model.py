@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import tensorflow as tf
 from tensorflow.python.saved_model import signature_constants
 
@@ -36,7 +38,7 @@ def build(features, mode, params):
             return encoders[_encoder_config.name]
 
         # build encoder recursively
-        encoder_features = {}
+        encoder_features = OrderedDict()
         for encoder_input in _encoder_config.inputs:
             if encoder_input in inputs:
                 # input from embedding/feature input

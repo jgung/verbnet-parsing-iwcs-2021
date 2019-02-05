@@ -18,12 +18,13 @@ from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, LABEL_KEY, L
     SENTENCE_INDEX
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
+from tfnlp.common.utils import binary_np_array_to_unicode
 
 SUMMARY_FILE = 'eval-summary.tsv'
 EVAL_LOG = 'eval.log'
 
 
-def conll_eval(gold_batches, predicted_batches, indices, output_file):
+def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
     """
     Run the CoNLL-2003 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
@@ -39,9 +40,10 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file):
                 yield "_ {} {}".format(label, prediction)
             yield ""  # sentence break
 
-    with file_io.FileIO(output_file, 'w') as output:
-        for line in get_lines():
-            output.write(line + '\n')
+    if output_file:
+        with file_io.FileIO(output_file, 'w') as output:
+            for line in get_lines():
+                output.write(line + '\n')
 
     result = conll_eval_lines(get_lines(), raw=True).to_conll_output()
     return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
@@ -80,10 +82,10 @@ def _convert_to_sentences(ys, indices, ids):
             prev_sent_idx = curr_sent_idx
             if predicates:
                 _add_sentence(props_by_predicate, predicates)
-            predicates = ["-"] * markers.size
+            predicates = ["-"] * len(markers)
             props_by_predicate = []
 
-        predicate_idx = markers.tolist().index(b'1')
+        predicate_idx = markers.index('1')
         predicates[predicate_idx] = 'x'
         props_by_predicate.append(chunk(labels, conll=True))
 
@@ -92,7 +94,14 @@ def _convert_to_sentences(ys, indices, ids):
     return sentences
 
 
-def _write_props_to_file(output_file, ys, indices, ids):
+def write_props_to_file(output_file, labels, markers, sentence_ids):
+    """
+    Write PropBank predictions to a file.
+    :param output_file: output file
+    :param labels: lists of labels
+    :param markers: predicate markers
+    :param sentence_ids: sentence indices
+    """
     with file_io.FileIO(output_file, 'w') as output_file:
 
         def _write_props(_props_by_predicate, _predicates):
@@ -106,7 +115,7 @@ def _write_props_to_file(output_file, ys, indices, ids):
         prev_sent_idx = -1  # previous sentence's index
         predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
         props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
-        for labels, markers, curr_sent_idx in sorted(zip(ys, indices, ids), key=lambda x: x[2]):
+        for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
 
             if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
                 prev_sent_idx = curr_sent_idx
@@ -114,10 +123,10 @@ def _write_props_to_file(output_file, ys, indices, ids):
                 if predicates:
                     _write_props(props_by_predicate, predicates)
 
-                predicates = ["-"] * markers.size
+                predicates = ["-"] * len(markers)
                 props_by_predicate = {}
 
-            predicate_idx = markers.tolist().index(b'1')  # index of predicate in tokens
+            predicate_idx = markers.index('1')  # index of predicate in tokens
             predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
             props_by_predicate[predicate_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
 
@@ -241,7 +250,7 @@ class SrlEvalHook(SequenceEvalHook):
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
         for markers, seq_len in zip(run_values.results[MARKER_KEY], run_values.results[LENGTH_KEY]):
-            self._markers.append(markers[:seq_len])
+            self._markers.append(binary_np_array_to_unicode(markers[:seq_len]))
 
     def end(self, session):
         result = conll_srl_eval(self._gold, self._predictions, self._markers, self._indices)
@@ -253,12 +262,13 @@ class SrlEvalHook(SequenceEvalHook):
         session.run(self._eval_update, feed_dict={self._eval_placeholder: f1})
 
         if self._output_file:
-            _write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
-            _write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
+            write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
+            write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
 
             step = session.run(tf.train.get_global_step(session.graph))
 
-            job_dir = os.path.join(self._output_file, os.pardir)
+            job_dir = os.path.dirname(self._output_file)
+
             summary_file = os.path.join(job_dir, SUMMARY_FILE)
             exists = tf.gfile.Exists(summary_file)
             with file_io.FileIO(summary_file, 'a') as summary:

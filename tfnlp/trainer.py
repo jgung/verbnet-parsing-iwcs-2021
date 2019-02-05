@@ -3,6 +3,7 @@ import os
 import sys
 
 import tensorflow as tf
+from tensorflow.contrib.estimator import stop_if_no_increase_hook
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
 from tensorflow.python.estimator.export.export import ServingInputReceiver
@@ -10,22 +11,261 @@ from tensorflow.python.estimator.exporter import BestExporter
 from tensorflow.python.estimator.run_config import RunConfig
 from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
+from tensorflow.python.lib.io import file_io
 from tensorflow.python.ops import array_ops
 
+from tfnlp.cli.evaluators import get_evaluator
+from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
-from tfnlp.common.constants import CLASSIFIER_KEY, LENGTH_KEY, NER_KEY, PARSER_KEY, SRL_KEY, TAGGER_KEY, TOKEN_CLASSIFIER_KEY, \
-    WORD_KEY
-from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
+from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json, write_json
-from tfnlp.datasets import make_dataset
+from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_func
+from tfnlp.predictor import get_latest_savedmodel_from_jobdir, from_job_dir
 from tfnlp.readers import get_reader
 
-VOCAB_PATH = 'vocab'
-CONFIG_PATH = 'config.json'
-MODEL_PATH = 'model'
+
+class Trainer(object):
+    def __init__(self, save, config=None, resources='', script=None, model_fn=multi_head_model_func):
+        """
+        Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
+
+        :param save: directory from which to save/load model, metadata, logs, and other training files
+        :param config: path to training configuration file
+        :param resources: path to base directory of resources, such as for pre-trained weights
+        :param script: path to official evaluation scripts
+        :param model_fn: model function, for non-default
+        """
+        super().__init__()
+        self._job_dir = save
+
+        self._model_path = os.path.join(self._job_dir, constants.MODEL_PATH)
+        self._vocab_path = os.path.join(self._job_dir, constants.VOCAB_PATH)
+        self._resources = resources
+        self._eval_script_path = script
+        self._model_fn = model_fn
+
+        # read configuration file
+        self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
+        if not tf.gfile.Exists(self.config_path):
+            if not config:
+                raise AssertionError('trainer configuration is required when training for the first time')
+            tf.gfile.MakeDirs(self._job_dir)
+            tf.gfile.Copy(config, self.config_path, overwrite=True)
+        self._training_config = get_network_config(read_json(self.config_path))
+
+        self._data_path_fn = lambda orig: os.path.join(self._job_dir, os.path.basename(orig) + ".tfrecords")
+
+        self._feature_extractor = None
+
+    def train(self, train, valid):
+        """
+        Train a new model with this trainer, or if a model already exists in the save path for this trainer,
+        resume training from a checkpoint.
+        :param train: path to training corpus
+        :param valid: path to validation corpus
+        """
+        if not self._feature_extractor:
+            self._init_feature_extractor(train_path=train)
+        estimator = self._init_estimator(test=False)
+
+        tf.logging.info('Training on %s, validating on %s' % (train, valid))
+
+        # read and extract features from training/validation data, serialize to disk
+        self._extract_and_write(train)
+        self._extract_and_write(valid)
+
+        # train and evaluate using Estimator API
+        # TODO: fixes issue https://github.com/tensorflow/tensorflow/issues/18394
+        if not os.path.exists(estimator.eval_dir()):
+            os.makedirs(estimator.eval_dir())
+
+        early_stopping = stop_if_no_increase_hook(
+            estimator,
+            metric_name=self._training_config.metric,
+            max_steps_without_increase=self._training_config.patience,
+            min_steps=100,
+            run_every_secs=None,
+            run_every_steps=100,
+        )
+
+        train_spec = tf.estimator.TrainSpec(self._input_fn(train, True),
+                                            max_steps=self._training_config.max_steps, hooks=[early_stopping])
+
+        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
+                                compare_fn=metric_compare_fn(self._training_config.metric),
+                                exports_to_keep=self._training_config.exports_to_keep)
+
+        eval_spec = tf.estimator.EvalSpec(self._input_fn(valid, False),
+                                          steps=None, exporters=[exporter], throttle_secs=0)
+
+        train_and_evaluate(estimator, train_spec=train_spec, eval_spec=eval_spec)
+
+    def eval(self, test_paths):
+        """
+        Evaluate a trained model on a given corpus or list of corpora.
+        :param test_paths: paths to test corpora
+        """
+        if type(test_paths) not in [list, tuple]:
+            test_paths = [test_paths]
+
+        if not self._feature_extractor:
+            self._init_feature_extractor()
+
+        # initialize predictor from saved trained model
+        predictor = from_job_dir(self._job_dir)
+        # get function that is used to evaluate predictions from configuration
+        evaluation_fn = get_evaluator(self._training_config)
+
+        for test_set in test_paths:
+            tf.logging.info('Evaluating on %s' % test_set)
+            output_path = os.path.join(self._model_path, os.path.basename(test_set) + '.eval')
+
+            # extract instances from test file at given path--this is a generator, so wrap in a list
+            instances = list(self._extract_raw(test_set, True))
+            # predict from instances instead of raw text, so use .predict_inputs, don't format since we need the raw predictions
+            processed_examples = predictor.predict_inputs(instances, formatted=False)
+            # call evaluation function on predictions
+            evaluation_fn(instances, processed_examples, output_path)
+
+    def predict(self, test_paths):
+        """
+        Generate predictions from plain text corpora at a given path or list of paths.
+        :param test_paths: paths to documents for which to generate predictions
+        """
+        if not self._feature_extractor:
+            self._init_feature_extractor()
+
+        # initialize predictor from saved trained model
+        predictor = from_job_dir(self._job_dir)
+
+        for test_set in test_paths:
+            prediction_path = os.path.join(self._job_dir, os.path.basename(test_set) + '.predictions.txt')
+            tf.logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
+            with file_io.FileIO(prediction_path, mode="w") as output:
+                with file_io.FileIO(test_set, mode="r") as text_lines:
+                    for line in text_lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        predictions = predictor.predict(line)
+                        for prediction in predictions:
+                            output.write(str(prediction) + '\n')
+                        output.write('\n')
+
+    def itl(self):
+        """
+        Initiate a REPL-style interactive testing loop.
+        """
+        if not self._feature_extractor:
+            self._init_feature_extractor()
+
+        # initialize predictor from saved trained model
+        predictor = from_job_dir(self._job_dir)
+
+        while True:
+            sentence = input(">>> ")
+            if not sentence:
+                continue
+            if sentence.lower() in {'exit', 'quit'}:
+                break
+            predictions = predictor.predict(sentence)
+            for prediction in predictions:
+                print(str(prediction))
+
+    def _get_predictor(self):
+        latest = get_latest_savedmodel_from_jobdir(self._job_dir)
+        tf.logging.info("Loading predictor from saved model at %s" % latest)
+        return from_saved_model(latest)
+
+    def _init_feature_extractor(self, train_path=None):
+        self._feature_extractor = get_feature_extractor(self._training_config.features)
+        if train_path:
+            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
+            if self._feature_extractor.read_vocab(self._vocab_path):
+                tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
+            else:
+                tf.logging.info("No valid pre-existing vocabulary found at %s "
+                                "(this is normal when not loading from an existing model)", self._vocab_path)
+                self._train_vocab(train_path)
+        else:
+            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
+            self._feature_extractor.read_vocab(self._vocab_path)
+            tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
+
+    def _extract_raw(self, path, test=False):
+        # TODO: allow for separate test reader configuration
+        reader = get_reader(self._training_config.reader) if test else get_reader(self._training_config.reader,
+                                                                                  self._training_config)
+        raw_instances = reader.read_file(path)
+
+        if not raw_instances:
+            raise ValueError("No examples provided at path given by '{}'".format(path))
+        return raw_instances
+
+    def _train_vocab(self, train_path):
+        tf.logging.info("Training new vocabulary using training data at %s", train_path)
+        self._feature_extractor.initialize(self._resources)
+        self._feature_extractor.train(self._extract_raw(train_path))
+        self._feature_extractor.write_vocab(self._vocab_path, resources=self._resources, prune=True)
+
+    def _extract_features(self, path, test=False):
+        tf.logging.info("Extracting features from %s", path)
+        examples = self._feature_extractor.extract_all(self._extract_raw(path, test))
+        return examples
+
+    def _extract_and_write(self, path, test=False):
+        output_path = self._data_path_fn(path)
+        if tf.gfile.Exists(output_path):
+            tf.logging.info("Using existing features for %s from %s", path, output_path)
+            return
+        examples = self._extract_features(path, test)
+        tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
+        write_features(examples, output_path)
+
+    def _init_estimator(self, test=False):
+        return tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._model_path,
+                                      config=RunConfig(
+                                          keep_checkpoint_max=self._training_config.keep_checkpoints,
+                                          save_checkpoints_steps=self._training_config.checkpoint_steps),
+                                      params=self._params(test=test))
+
+    def _serving_input_fn(self):
+        # input has been serialized to a TFRecord string (variable batch size)
+        serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, shape=[None], name=constants.SERVING_PLACEHOLDER)
+        # create single padded batch
+        batch = padded_batch(self._feature_extractor, serialized_tf_example)
+        return ServingInputReceiver(batch, {"examples": serialized_tf_example})
+
+    def _params(self, test=False):
+        return HParams(extractor=self._feature_extractor,
+                       config=self._training_config,
+                       script_path=self._eval_script_path,
+                       vocab_path=self._vocab_path,
+                       output=os.path.join(self._job_dir, 'predictions.txt'),
+                       verbose_eval=test)
+
+    def _input_fn(self, dataset, train=False):
+        bucket_sizes = self._training_config.bucket_sizes
+        if not bucket_sizes and constants.LENGTH_KEY in self._feature_extractor.features:
+            length_feat = self._feature_extractor.feature(constants.LENGTH_KEY)
+            bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
+                                               max_length=self._training_config.max_length)
+            if not bucket_sizes:
+                bucket_sizes = None
+            else:
+                # persist dynamically computed bucket sizes
+                self._training_config.bucket_sizes = bucket_sizes
+                write_json(self._training_config, self.config_path)
+
+        return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
+                                    batch_size=self._training_config.batch_size, evaluate=not train,
+                                    bucket_sizes=bucket_sizes)
+
+
+TRAINING_MODES = {'train', 'predict', 'test', 'itl'}
 
 
 def default_args():
@@ -38,284 +278,66 @@ def default_args():
     parser.add_argument('--valid', type=str, help='validation/development data path')
     parser.add_argument('--test', type=str, help='test data paths, comma-separated')
     parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
-                        choices=['train', 'test', 'predict', 'itl'])
+                        choices=list(TRAINING_MODES))
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
-    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite previously saved vocabularies and training files')
-    parser.add_argument('--output', type=str, help='output path for predictions (during evaluation and application)')
-    parser.set_defaults(overwrite=False)
     return parser
 
 
-class Trainer(object):
-    def __init__(self, args=None):
-        super().__init__()
-        args = self._validate_and_parse_args(args)
-        self._mode = args.mode
-        self._raw_train = args.train
-        self._raw_valid = args.valid
-        self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
-        self._overwrite = args.overwrite
-        if args.output:
-            self._output = os.path.join(args.save, args.output)
-        else:
-            self._output = os.path.join(args.save, 'predictions.txt')
+def _validate_and_parse_args():
+    parser = default_args()
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    return parser.parse_args()
 
-        self._save_path = os.path.join(args.save, MODEL_PATH)
-        self._vocab_path = os.path.join(args.save, VOCAB_PATH)
-        self._resources = args.resources
-        self._eval_script_path = args.script
 
-        # read configuration file
-        self.config_path = os.path.join(args.save, CONFIG_PATH)
-        if not tf.gfile.Exists(self.config_path) or self._overwrite:
-            if not args.config:
-                raise AssertionError('"--config" option is required when training for the first time')
-            tf.gfile.MakeDirs(args.save)
-            tf.gfile.Copy(args.config, self.config_path, overwrite=True)
-        self._training_config = get_network_config(read_json(self.config_path))
-        self._feature_config = self._training_config.features
+def cli():
+    opts = _validate_and_parse_args()
 
-        self._model_fn = get_model_func(self._training_config)
+    trainer = Trainer(save=opts.save, config=opts.config, resources=opts.resources, script=opts.script)
 
-        self._feature_extractor = None
-        self._estimator = None
+    mode = opts.mode
+    test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None
 
-        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader,
-                                                                   self._training_config).read_file(raw_path)
-        # TODO: use separate test config
-        self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
-        self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
+    if mode not in TRAINING_MODES:
+        raise ValueError("Unexpected mode type: {}".format(mode))
 
-        self._parse_fn = default_parser
-        self._predict_input_fn = default_input_fn
-        if self._mode == 'itl':
-            self._prediction_formatter_fn = get_formatter(self._training_config)
-        set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
+    set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
 
-    # noinspection PyMethodMayBeStatic
-    def _validate_and_parse_args(self, args):
-        """
-        Parse arguments using argument parser. Can override for additional validation or logic.
-        :param args: command-line arguments
-        :return: parsed arguments
-        """
-        parser = default_args()
-        if len(sys.argv) == 1:
-            parser.print_help(sys.stderr)
-            sys.exit(1)
-        return parser.parse_args(args)
+    if mode == 'train' and not opts.train and test_paths:
+        tf.logging.info('No training set provided, defaulting to test mode for %s' % opts.test)
+        mode = 'test'
 
-    def run(self):
-        self._init_feature_extractor()
-        self._init_estimator(test=False)
-        if self._raw_train and self._mode == "train":
-            self.train()
-        elif self._mode == "predict":
-            self.predict()
-        elif self._mode == "itl":
-            self.itl()
-        elif self._raw_test or self._mode == "test":
-            self.eval()
-        else:
-            raise ValueError("Unexpected mode type: {}".format(self._mode))
-
-    def train(self):
-        tf.logging.info('Training on %s, validating on %s' % (self._raw_train, self._raw_valid))
-        self._extract_and_write(self._raw_train)
-        self._extract_and_write(self._raw_valid)
-
-        train_input_fn = self._input_fn(self._raw_train, True)
-        valid_input_fn = self._input_fn(self._raw_valid, False)
-
-        if not os.path.exists(self._estimator.eval_dir()):
-            os.makedirs(self._estimator.eval_dir())  # TODO This shouldn't be necessary
-        early_stopping = tf.contrib.estimator.stop_if_no_increase_hook(
-            self._estimator,
-            metric_name=self._training_config.metric,
-            max_steps_without_increase=self._training_config.patience,
-            min_steps=100,
-            run_every_secs=None,
-            run_every_steps=100,
-        )
-
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
-                                compare_fn=metric_compare_fn(self._training_config.metric),
-                                exports_to_keep=self._training_config.exports_to_keep)
-
-        train_and_evaluate(self._estimator,
-                           train_spec=tf.estimator.TrainSpec(input_fn=train_input_fn,
-                                                             max_steps=self._training_config.max_steps,
-                                                             hooks=[early_stopping]),
-                           eval_spec=tf.estimator.EvalSpec(input_fn=valid_input_fn,
-                                                           steps=None,
-                                                           exporters=[exporter],
-                                                           throttle_secs=0))
-        if self._raw_test:
-            self.eval()
-
-    def eval(self):
-        for test_set in self._raw_test:
-            self._init_feature_extractor()
-            self._init_estimator(test=True, tag=os.path.split(test_set)[1])
-            tf.logging.info('Evaluating on %s' % test_set)
-
-            ckpt = get_earliest_checkpoint(self._save_path)
-            if not ckpt:
-                raise ValueError('No checkpoints found at save path: %s', self._save_path)
-
-            self._extract_and_write(test_set, test=True)
-            eval_input_fn = self._input_fn(test_set, False)
-            self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
-
-    def predict(self):
-        raise NotImplementedError
-
-    def itl(self):
-        export_dir = os.path.join(self._save_path, 'export/best_exporter')
-        predictor = from_saved_model(os.path.join(export_dir, max(os.listdir(export_dir))))
-        while True:
-            sentence = input(">>> ")
-            if not sentence:
-                return
-            example = self._parse_fn(sentence)
-            features = self._feature_extractor.extract(example, train=False)
-            serialized_feats = self._predict_input_fn(features.SerializeToString())
-            result = predictor(serialized_feats)
-            print(self._prediction_formatter_fn(result))
-
-    def _init_feature_extractor(self):
-        self._feature_extractor = get_feature_extractor(self._feature_config)
-        if self._mode == "train":
-            if not self._overwrite:
-                tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
-                if self._feature_extractor.read_vocab(self._vocab_path):
-                    tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
-                else:
-                    tf.logging.info("No valid pre-existing vocabulary found at %s "
-                                    "(this is normal when not loading from an existing model)", self._vocab_path)
-                    self._train_vocab()
-            else:
-                self._train_vocab()
-        else:
-            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
-            self._feature_extractor.read_vocab(self._vocab_path)
-            tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
-
-    def _extract_raw(self, path, test=False):
-        if test:
-            raw_instances = self._raw_test_instance_reader_fn(path)
-        else:
-            raw_instances = self._raw_instance_reader_fn(path)
-        if not raw_instances:
-            raise ValueError("No examples provided at path given by '{}'".format(path))
-        return raw_instances
-
-    def _train_vocab(self):
-        tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
-        self._feature_extractor.initialize(self._resources)
-        self._feature_extractor.train(self._extract_raw(self._raw_train))
-        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
-
-    def _extract_features(self, path, test=False):
-        tf.logging.info("Extracting features from %s", path)
-        examples = self._feature_extractor.extract_all(self._extract_raw(path, test))
-        return examples
-
-    def _extract_and_write(self, path, test=False):
-        output_path = self._data_path_fn(path)
-        if tf.gfile.Exists(output_path) and not self._overwrite:
-            tf.logging.info("Using existing features for %s from %s", path, output_path)
+    if mode == "train":
+        if not opts.train:
+            tf.logging.warn('train mode was selected, but no training set path was provided (use "--train path/to/train")')
             return
-        examples = self._extract_features(path, test)
-        tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
-        write_features(examples, output_path)
+        elif not opts.valid:
+            tf.logging.warn('train mode was selected, but no validation set path was provided (use "--valid path/to/valid")')
+            return
 
-    def _init_estimator(self, test=False, tag=None):
-        self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                                 config=RunConfig(
-                                                     keep_checkpoint_max=self._training_config.keep_checkpoints,
-                                                     save_checkpoints_steps=self._training_config.checkpoint_steps),
-                                                 params=self._params(test=test, tag=tag))
+        trainer.train(opts.train, opts.valid)
 
-    def _serving_input_fn(self):
-        # input has been serialized to a TFRecord string
-        serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, name='input_example_tensor')
-        # parse serialized TFRecord string
-        features = self._feature_extractor.parse(serialized_tf_example, train=False)
-        # add batch dimension
-        features = {key: tf.expand_dims(val, axis=0) for key, val in features.items()}
-        return ServingInputReceiver(features, self._predict_input_fn(serialized_tf_example))
+        if test_paths:
+            trainer.eval(test_paths)
 
-    def _params(self, test=False, tag=None):
-        return HParams(extractor=self._feature_extractor,
-                       config=self._training_config,
-                       script_path=self._eval_script_path,
-                       vocab_path=self._vocab_path,
-                       output=self._output if not tag else self._output + '.' + tag,
-                       verbose_eval=test)
+    elif mode == "predict":
+        if not test_paths:
+            tf.logging.warn('predict mode was selected, but no test paths were provided (use "--test path1,path2")')
+            return
 
-    def _input_fn(self, dataset, train=False):
-        bucket_sizes = self._training_config.buckets
-        if not bucket_sizes and LENGTH_KEY in self._feature_extractor.features:
-            length_feat = self._feature_extractor.feature(LENGTH_KEY)
-            bucket_sizes = get_default_buckets(length_feat.counts, self._training_config.batch_size * 2,
-                                               max_length=self._training_config.max_length)
-            if not bucket_sizes:
-                bucket_sizes = None
-            else:
-                # persist dynamically computed bucket sizes
-                self._training_config['bucket_sizes'] = bucket_sizes
-                write_json(self._training_config, self.config_path)
+        trainer.predict(test_paths)
 
-        return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
-                                    batch_size=self._training_config.batch_size, evaluate=not train,
-                                    bucket_sizes=bucket_sizes)
+    elif mode == "test":
+        if not test_paths:
+            tf.logging.warn('test mode was selected, but no test paths were provided (use "--test path1,path2")')
+            return
 
+        trainer.eval(test_paths)
 
-def default_parser(sentence):
-    return {WORD_KEY: sentence.split()}
-
-
-def default_input_fn(features):
-    return {"examples": features}
-
-
-def get_formatter(config):
-    def _tagger_formatter(result):
-        target = config.features.targets[0].name
-        unicode_result = [bstr.decode('utf-8') for bstr in result[target][0].tolist()]
-        return ' '.join(unicode_result)
-
-    def _classifier_formatter(result):
-        target = config.features.targets[0].name
-        return result[target][0].decode('utf-8')
-
-    head_type = [head.type for head in config.heads][0]
-    formatters = {
-        CLASSIFIER_KEY: _classifier_formatter,
-        TAGGER_KEY: _tagger_formatter,
-        NER_KEY: _tagger_formatter
-    }
-    if head_type not in formatters:
-        raise ValueError("Unsupported head type: " + head_type)
-    return formatters[head_type]
-
-
-def get_model_func(config):
-    head_type = [head.type for head in config.heads][0]
-    model_funcs = {
-        CLASSIFIER_KEY: multi_head_model_func,
-        TAGGER_KEY: multi_head_model_func,
-        NER_KEY: multi_head_model_func,
-        PARSER_KEY: multi_head_model_func,
-        SRL_KEY: multi_head_model_func,
-        TOKEN_CLASSIFIER_KEY: multi_head_model_func,
-    }
-    if head_type not in model_funcs:
-        raise ValueError("Unexpected head type: " + head_type)
-    return model_funcs[head_type]
+    elif mode == "itl":
+        trainer.itl()
 
 
 if __name__ == '__main__':
-    Trainer().run()
+    cli()

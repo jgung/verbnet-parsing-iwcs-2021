@@ -58,7 +58,7 @@ def write_json(value, json_path):
         json_out.write(json.dumps(value, indent=4, sort_keys=True))
 
 
-def serialize(serializable, out_path, out_name=None, overwrite=False):
+def serialize(serializable, out_path, out_name=None):
     if out_name:
         out_name = out_name if out_name.endswith(".pkl") else "{}.pkl".format(out_name)
     path = os.path.join(out_path, out_name) if out_name else out_path
@@ -68,8 +68,8 @@ def serialize(serializable, out_path, out_name=None, overwrite=False):
     except OSError:
         if not os.path.isdir(parent_path):
             raise
-    if not overwrite and os.path.exists(path):
-        raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
+    if os.path.exists(path):
+        raise AssertionError("Pre-existing vocabulary file at %s" % path)
     with file_io.FileIO(path, mode="wb") as out_file:
         pickle.dump(serializable, out_file)
 
@@ -80,3 +80,7 @@ def deserialize(in_path, in_name=None):
     path = os.path.join(in_path, in_name) if in_name else in_path
     with file_io.FileIO(path, mode="rb") as in_file:
         return pickle.load(in_file)
+
+
+def binary_np_array_to_unicode(np_string_array):
+    return [bstr.decode('utf-8') for bstr in np_string_array.tolist()]
