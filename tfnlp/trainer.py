@@ -28,7 +28,7 @@ from tfnlp.readers import get_reader
 
 
 class Trainer(object):
-    def __init__(self, save, config=None, resources='', script=None):
+    def __init__(self, save, config=None, resources='', script=None, model_fn=multi_head_model_func):
         """
         Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
 
@@ -36,6 +36,7 @@ class Trainer(object):
         :param config: path to training configuration file
         :param resources: path to base directory of resources, such as for pre-trained weights
         :param script: path to official evaluation scripts
+        :param model_fn: model function, for non-default
         """
         super().__init__()
         self._job_dir = save
@@ -57,7 +58,7 @@ class Trainer(object):
         self._training_config = get_network_config(read_json(self.config_path))
         self._feature_config = self._training_config.features
 
-        self._model_fn = get_model_func(self._training_config)
+        self._model_fn = model_fn
 
         self._feature_extractor = None
         self._estimator = None
@@ -261,21 +262,6 @@ class Trainer(object):
         return lambda: make_dataset(self._feature_extractor, paths=self._data_path_fn(dataset),
                                     batch_size=self._training_config.batch_size, evaluate=not train,
                                     bucket_sizes=bucket_sizes)
-
-
-def get_model_func(config):
-    head_type = [head.type for head in config.heads][0]
-    model_funcs = {
-        constants.CLASSIFIER_KEY: multi_head_model_func,
-        constants.TAGGER_KEY: multi_head_model_func,
-        constants.NER_KEY: multi_head_model_func,
-        constants.PARSER_KEY: multi_head_model_func,
-        constants.SRL_KEY: multi_head_model_func,
-        constants.TOKEN_CLASSIFIER_KEY: multi_head_model_func,
-    }
-    if head_type not in model_funcs:
-        raise ValueError("Unexpected head type: " + head_type)
-    return model_funcs[head_type]
 
 
 TRAINING_MODES = {'train', 'predict', 'test', 'itl'}
