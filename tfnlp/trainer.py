@@ -28,31 +28,43 @@ from tfnlp.readers import get_reader
 
 
 class Trainer(object):
-    def __init__(self, args):
+    def __init__(self, save, mode, config=None, train=None, valid=None, test=None, resources='', script=None):
+        """
+        Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
+
+        :param save: directory from which to save/load model, metadata, logs, and other training files
+        :param mode: mode of use, in {train, test, predict, itl}
+        :param config: path to training configuration file
+        :param train: path to training data
+        :param valid: path to validation data
+        :param test: path to test data
+        :param resources: path to base directory of resources, such as for pre-trained weights
+        :param script: path to official evaluation scripts
+        """
         super().__init__()
-        self._job_dir = args.save
-        self._mode = args.mode
-        if self._mode == 'train' and not args.train and args.test:
+        self._job_dir = save
+        self._mode = mode
+        if self._mode == 'train' and not train and test:
+            tf.logging.info('No training set provided, defaulting to test mode for %s' % test)
             self._mode = 'test'
-        self._raw_train = args.train
-        self._raw_valid = args.valid
-        self._raw_test = [t for t in args.test.split(',') if t.strip()] if args.test else None
-        self._overwrite = args.overwrite
+        self._raw_train = train
+        self._raw_valid = valid
+        self._raw_test = [t for t in test.split(',') if t.strip()] if test else None
 
-        self._output = os.path.join(args.save, 'predictions.txt')
+        self._output = os.path.join(save, 'predictions.txt')
 
-        self._save_path = os.path.join(args.save, constants.MODEL_PATH)
-        self._vocab_path = os.path.join(args.save, constants.VOCAB_PATH)
-        self._resources = args.resources
-        self._eval_script_path = args.script
+        self._save_path = os.path.join(save, constants.MODEL_PATH)
+        self._vocab_path = os.path.join(save, constants.VOCAB_PATH)
+        self._resources = resources
+        self._eval_script_path = script
 
         # read configuration file
-        self.config_path = os.path.join(args.save, constants.CONFIG_PATH)
-        if not tf.gfile.Exists(self.config_path) or self._overwrite:
-            if not args.config:
+        self.config_path = os.path.join(save, constants.CONFIG_PATH)
+        if not tf.gfile.Exists(self.config_path):
+            if not config:
                 raise AssertionError('"--config" option is required when training for the first time')
-            tf.gfile.MakeDirs(args.save)
-            tf.gfile.Copy(args.config, self.config_path, overwrite=True)
+            tf.gfile.MakeDirs(save)
+            tf.gfile.Copy(config, self.config_path, overwrite=True)
         self._training_config = get_network_config(read_json(self.config_path))
         self._feature_config = self._training_config.features
 
@@ -65,9 +77,9 @@ class Trainer(object):
                                                                    self._training_config).read_file(raw_path)
         # TODO: use separate test config
         self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
-        self._data_path_fn = lambda orig: os.path.join(args.save, os.path.basename(orig) + ".tfrecords")
+        self._data_path_fn = lambda orig: os.path.join(save, os.path.basename(orig) + ".tfrecords")
 
-        set_up_logging(os.path.join(args.save, '{}.log'.format(self._mode)))
+        set_up_logging(os.path.join(save, '{}.log'.format(self._mode)))
 
     def run(self):
         self._init_feature_extractor()
@@ -134,7 +146,7 @@ class Trainer(object):
         predictor = from_job_dir(self._job_dir)
 
         for test_set in self._raw_test:
-            prediction_path = test_set + '.predictions.txt'
+            prediction_path = os.path.join(self._job_dir, os.path.basename(test_set) + '.predictions.txt')
             tf.logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
             with file_io.FileIO(prediction_path, mode="w") as output:
                 with file_io.FileIO(test_set, mode="r") as text_lines:
@@ -168,15 +180,12 @@ class Trainer(object):
     def _init_feature_extractor(self):
         self._feature_extractor = get_feature_extractor(self._feature_config)
         if self._mode == "train":
-            if not self._overwrite:
-                tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
-                if self._feature_extractor.read_vocab(self._vocab_path):
-                    tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
-                else:
-                    tf.logging.info("No valid pre-existing vocabulary found at %s "
-                                    "(this is normal when not loading from an existing model)", self._vocab_path)
-                    self._train_vocab()
+            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
+            if self._feature_extractor.read_vocab(self._vocab_path):
+                tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
             else:
+                tf.logging.info("No valid pre-existing vocabulary found at %s "
+                                "(this is normal when not loading from an existing model)", self._vocab_path)
                 self._train_vocab()
         else:
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
@@ -196,7 +205,7 @@ class Trainer(object):
         tf.logging.info("Training new vocabulary using training data at %s", self._raw_train)
         self._feature_extractor.initialize(self._resources)
         self._feature_extractor.train(self._extract_raw(self._raw_train))
-        self._feature_extractor.write_vocab(self._vocab_path, overwrite=self._overwrite, resources=self._resources, prune=True)
+        self._feature_extractor.write_vocab(self._vocab_path, resources=self._resources, prune=True)
 
     def _extract_features(self, path, test=False):
         tf.logging.info("Extracting features from %s", path)
@@ -205,7 +214,7 @@ class Trainer(object):
 
     def _extract_and_write(self, path, test=False):
         output_path = self._data_path_fn(path)
-        if tf.gfile.Exists(output_path) and not self._overwrite:
+        if tf.gfile.Exists(output_path):
             tf.logging.info("Using existing features for %s from %s", path, output_path)
             return
         examples = self._extract_features(path, test)
@@ -279,19 +288,21 @@ def default_args():
     parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
                         choices=['train', 'test', 'predict', 'itl'])
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
-    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite previously saved vocabularies and training files')
-    parser.set_defaults(overwrite=False)
     return parser
 
 
-def _validate_and_parse_args(args=None):
+def _validate_and_parse_args():
     parser = default_args()
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
-    return parser.parse_args(args)
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
-    Trainer(_validate_and_parse_args()).run()
+    opts = _validate_and_parse_args()
+
+    trainer = Trainer(save=opts.save, mode=opts.mode, config=opts.config, train=opts.train, valid=opts.valid,
+                      test=opts.test, resources=opts.resources, script=opts.script)
+
+    trainer.run()

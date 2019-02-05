@@ -370,15 +370,14 @@ class Feature(Extractor):
         """
         return self.reversed[index]
 
-    def write_vocab(self, path, overwrite=False, prune=False):
+    def write_vocab(self, path, prune=False):
         """
         Write vocabulary as a file with a single line per entry and index 0 corresponding to the first line.
         :param path: path to file to save vocabulary
-        :param overwrite: overwrite previously saved vocabularies--if `False`, raises an error if there is a pre-existing file
         :param prune: if `True`, prune feature vocabulary based on counts
         """
-        if not overwrite and os.path.exists(path):
-            raise AssertionError("Pre-existing vocabulary file at %s. Set `overwrite` to `True` to ignore." % path)
+        if os.path.exists(path):
+            raise AssertionError("Pre-existing vocabulary file at %s." % path)
         if prune:
             self.prune_vocab()
         with file_io.FileIO(path, mode='w') as vocab:
@@ -730,12 +729,11 @@ class FeatureExtractor(object):
             if initializer.restrict_vocab:
                 feature.frozen = True
 
-    def write_vocab(self, base_path, overwrite=False, resources='', prune=False):
+    def write_vocab(self, base_path, resources='', prune=False):
         """
         Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
         Creates pickled embeddings if explicit initializers are provided.
         :param base_path: base directory for vocabulary files
-        :param overwrite: overwrite pre-existing vocabulary files--if `False`, raises an error when already existing
         :param resources: optional base path for embedding resources
         :param prune: if `True`, prune feature vocabularies based on counts
         """
@@ -750,7 +748,7 @@ class FeatureExtractor(object):
                 if not os.path.isdir(parent_path):
                     raise
 
-            feature.write_vocab(path, overwrite=overwrite, prune=prune)
+            feature.write_vocab(path, prune=prune)
 
             initializer = feature.config.initializer
             if not initializer.embedding:
@@ -770,7 +768,7 @@ class FeatureExtractor(object):
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
             feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
             tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
-            serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path, overwrite=overwrite)
+            serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
 
     def read_vocab(self, base_path):
         """
