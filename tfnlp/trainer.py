@@ -11,12 +11,13 @@ from tensorflow.python.estimator.exporter import BestExporter
 from tensorflow.python.estimator.run_config import RunConfig
 from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
+from tensorflow.python.lib.io import file_io
 from tensorflow.python.ops import array_ops
 
 from tfnlp.cli.evaluators import get_evaluator
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
-from tfnlp.common.eval import get_earliest_checkpoint, metric_compare_fn
+from tfnlp.common.eval import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
@@ -155,17 +156,6 @@ class Trainer(object):
             self.eval()
 
     def eval(self):
-        for test_set in self._raw_test:
-            tf.logging.info('Evaluating on %s' % test_set)
-            self._init_estimator(test=True, tag=os.path.split(test_set)[1])
-            ckpt = get_earliest_checkpoint(self._save_path)
-            if not ckpt:
-                raise ValueError('No checkpoints found at save path: %s', self._save_path)
-            self._extract_and_write(test_set, test=True)
-            eval_input_fn = self._input_fn(test_set, False)
-            self._estimator.evaluate(eval_input_fn, checkpoint_path=ckpt)
-
-    def predict(self):
         predictor = from_job_dir(self._job_dir)
         evaluator = get_evaluator(self._training_config)
         for test_set in self._raw_test:
@@ -173,6 +163,22 @@ class Trainer(object):
             instances = list(self._extract_raw(test_set, True))
             processed_examples = predictor.predict_inputs(instances, formatted=False)
             evaluator(instances, processed_examples, os.path.join(self._save_path, os.path.basename(test_set) + '.eval'))
+
+    def predict(self):
+        predictor = from_job_dir(self._job_dir)
+        for test_set in self._raw_test:
+            prediction_path = test_set + '.predictions.txt'
+            tf.logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
+            with file_io.FileIO(prediction_path, mode="w") as output:
+                with file_io.FileIO(test_set, mode="r") as text_lines:
+                    for line in text_lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        predictions = predictor.predict(line)
+                        for prediction in predictions:
+                            output.write(str(prediction) + '\n')
+                        output.write('\n')
 
     def itl(self):
         predictor = from_job_dir(self._job_dir)
