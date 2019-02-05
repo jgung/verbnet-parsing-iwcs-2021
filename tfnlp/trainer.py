@@ -236,7 +236,7 @@ class Trainer(object):
         # input has been serialized to a TFRecord string (variable batch size)
         serialized_tf_example = array_ops.placeholder(dtype=dtypes.string, shape=[None], name=constants.SERVING_PLACEHOLDER)
         # create single padded batch
-        batch = padded_batch(self._feature_extractor, serialized_tf_example)
+        batch = padded_batch(self._feature_extractor, serialized_tf_example, self._training_config.batch_size)
         return ServingInputReceiver(batch, {"examples": serialized_tf_example})
 
     def _params(self, test=False):
