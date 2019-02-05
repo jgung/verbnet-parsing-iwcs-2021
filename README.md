@@ -22,7 +22,7 @@ cd tfnlp
 # if no compatible GPU available, use requirements-cpu.txt
 pip install -r requirements.txt
 export PYTHONPATH=$PYTHONPATH:`pwd`
-python tfnlp.trainer.py
+python tfnlp/trainer.py
 ```
 
 We use [GloVe word vectors](https://nlp.stanford.edu/projects/glove/) in the below examples.
