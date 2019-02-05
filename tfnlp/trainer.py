@@ -41,33 +41,24 @@ class Trainer(object):
         super().__init__()
         self._job_dir = save
 
-        self._output = os.path.join(save, 'predictions.txt')
-
-        self._save_path = os.path.join(save, constants.MODEL_PATH)
-        self._vocab_path = os.path.join(save, constants.VOCAB_PATH)
+        self._model_path = os.path.join(self._job_dir, constants.MODEL_PATH)
+        self._vocab_path = os.path.join(self._job_dir, constants.VOCAB_PATH)
         self._resources = resources
         self._eval_script_path = script
-
-        # read configuration file
-        self.config_path = os.path.join(save, constants.CONFIG_PATH)
-        if not tf.gfile.Exists(self.config_path):
-            if not config:
-                raise AssertionError('"--config" option is required when training for the first time')
-            tf.gfile.MakeDirs(save)
-            tf.gfile.Copy(config, self.config_path, overwrite=True)
-        self._training_config = get_network_config(read_json(self.config_path))
-        self._feature_config = self._training_config.features
-
         self._model_fn = model_fn
 
-        self._feature_extractor = None
-        self._estimator = None
+        # read configuration file
+        self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
+        if not tf.gfile.Exists(self.config_path):
+            if not config:
+                raise AssertionError('trainer configuration is required when training for the first time')
+            tf.gfile.MakeDirs(self._job_dir)
+            tf.gfile.Copy(config, self.config_path, overwrite=True)
+        self._training_config = get_network_config(read_json(self.config_path))
 
-        self._raw_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader,
-                                                                   self._training_config).read_file(raw_path)
-        # TODO: use separate test config
-        self._raw_test_instance_reader_fn = lambda raw_path: get_reader(self._training_config.reader).read_file(raw_path)
-        self._data_path_fn = lambda orig: os.path.join(save, os.path.basename(orig) + ".tfrecords")
+        self._data_path_fn = lambda orig: os.path.join(self._job_dir, os.path.basename(orig) + ".tfrecords")
+
+        self._feature_extractor = None
 
     def train(self, train, valid):
         """
@@ -78,7 +69,7 @@ class Trainer(object):
         """
         if not self._feature_extractor:
             self._init_feature_extractor(train_path=train)
-        self._init_estimator(test=False)
+        estimator = self._init_estimator(test=False)
 
         tf.logging.info('Training on %s, validating on %s' % (train, valid))
 
@@ -88,11 +79,11 @@ class Trainer(object):
 
         # train and evaluate using Estimator API
         # TODO: fixes issue https://github.com/tensorflow/tensorflow/issues/18394
-        if not os.path.exists(self._estimator.eval_dir()):
-            os.makedirs(self._estimator.eval_dir())
+        if not os.path.exists(estimator.eval_dir()):
+            os.makedirs(estimator.eval_dir())
 
         early_stopping = stop_if_no_increase_hook(
-            self._estimator,
+            estimator,
             metric_name=self._training_config.metric,
             max_steps_without_increase=self._training_config.patience,
             min_steps=100,
@@ -110,7 +101,7 @@ class Trainer(object):
         eval_spec = tf.estimator.EvalSpec(self._input_fn(valid, False),
                                           steps=None, exporters=[exporter], throttle_secs=0)
 
-        train_and_evaluate(self._estimator, train_spec=train_spec, eval_spec=eval_spec)
+        train_and_evaluate(estimator, train_spec=train_spec, eval_spec=eval_spec)
 
     def eval(self, test_paths):
         """
@@ -123,14 +114,21 @@ class Trainer(object):
         if not self._feature_extractor:
             self._init_feature_extractor()
 
+        # initialize predictor from saved trained model
         predictor = from_job_dir(self._job_dir)
-        evaluator = get_evaluator(self._training_config)
+        # get function that is used to evaluate predictions from configuration
+        evaluation_fn = get_evaluator(self._training_config)
 
         for test_set in test_paths:
             tf.logging.info('Evaluating on %s' % test_set)
+            output_path = os.path.join(self._model_path, os.path.basename(test_set) + '.eval')
+
+            # extract instances from test file at given path--this is a generator, so wrap in a list
             instances = list(self._extract_raw(test_set, True))
+            # predict from instances instead of raw text, so use .predict_inputs, don't format since we need the raw predictions
             processed_examples = predictor.predict_inputs(instances, formatted=False)
-            evaluator(instances, processed_examples, os.path.join(self._save_path, os.path.basename(test_set) + '.eval'))
+            # call evaluation function on predictions
+            evaluation_fn(instances, processed_examples, output_path)
 
     def predict(self, test_paths):
         """
@@ -140,6 +138,7 @@ class Trainer(object):
         if not self._feature_extractor:
             self._init_feature_extractor()
 
+        # initialize predictor from saved trained model
         predictor = from_job_dir(self._job_dir)
 
         for test_set in test_paths:
@@ -163,6 +162,7 @@ class Trainer(object):
         if not self._feature_extractor:
             self._init_feature_extractor()
 
+        # initialize predictor from saved trained model
         predictor = from_job_dir(self._job_dir)
 
         while True:
@@ -181,7 +181,7 @@ class Trainer(object):
         return from_saved_model(latest)
 
     def _init_feature_extractor(self, train_path=None):
-        self._feature_extractor = get_feature_extractor(self._feature_config)
+        self._feature_extractor = get_feature_extractor(self._training_config.features)
         if train_path:
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
             if self._feature_extractor.read_vocab(self._vocab_path):
@@ -196,10 +196,11 @@ class Trainer(object):
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
 
     def _extract_raw(self, path, test=False):
-        if test:
-            raw_instances = self._raw_test_instance_reader_fn(path)
-        else:
-            raw_instances = self._raw_instance_reader_fn(path)
+        # TODO: allow for separate test reader configuration
+        reader = get_reader(self._training_config.reader) if test else get_reader(self._training_config.reader,
+                                                                                  self._training_config)
+        raw_instances = reader.read_file(path)
+
         if not raw_instances:
             raise ValueError("No examples provided at path given by '{}'".format(path))
         return raw_instances
@@ -224,12 +225,12 @@ class Trainer(object):
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
-    def _init_estimator(self, test=False, tag=None):
-        self._estimator = tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._save_path,
-                                                 config=RunConfig(
-                                                     keep_checkpoint_max=self._training_config.keep_checkpoints,
-                                                     save_checkpoints_steps=self._training_config.checkpoint_steps),
-                                                 params=self._params(test=test, tag=tag))
+    def _init_estimator(self, test=False):
+        return tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._model_path,
+                                      config=RunConfig(
+                                          keep_checkpoint_max=self._training_config.keep_checkpoints,
+                                          save_checkpoints_steps=self._training_config.checkpoint_steps),
+                                      params=self._params(test=test))
 
     def _serving_input_fn(self):
         # input has been serialized to a TFRecord string (variable batch size)
@@ -238,12 +239,12 @@ class Trainer(object):
         batch = padded_batch(self._feature_extractor, serialized_tf_example)
         return ServingInputReceiver(batch, {"examples": serialized_tf_example})
 
-    def _params(self, test=False, tag=None):
+    def _params(self, test=False):
         return HParams(extractor=self._feature_extractor,
                        config=self._training_config,
                        script_path=self._eval_script_path,
                        vocab_path=self._vocab_path,
-                       output=self._output if not tag else self._output + '.' + tag,
+                       output=os.path.join(self._job_dir, 'predictions.txt'),
                        verbose_eval=test)
 
     def _input_fn(self, dataset, train=False):
