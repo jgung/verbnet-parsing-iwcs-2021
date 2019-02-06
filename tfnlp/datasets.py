@@ -1,3 +1,5 @@
+from typing import List, Iterable, Union
+
 import tensorflow as tf
 from tensorflow.contrib.data import bucket_by_sequence_length, shuffle_and_repeat, AUTOTUNE
 
@@ -11,23 +13,43 @@ def _add_uniform_noise(value, amount):
     return tf.cast(value + noise, dtype=tf.int32)
 
 
-def make_dataset(extractor, paths, batch_size=16, bucket_sizes=None, evaluate=False, num_parallel_calls=4,
-                 num_parallel_reads=1, max_epochs=999, length_noise_stdev=0.1):
+def make_dataset(extractor,
+                 paths: Union[str, Iterable],
+                 batch_size: int = 16,
+                 bucket_sizes: List[int] = None,
+                 evaluate: bool = False,
+                 num_parallel_calls: int = 4,
+                 num_parallel_reads: int = 1,
+                 max_epochs: int = -1,
+                 length_noise_stdev: int = 0.1,
+                 buffer_size: int = 100000,
+                 batch_buffer_size: int = 512):
     if bucket_sizes is None:
         bucket_sizes = [5, 10, 25, 50, 100]
-    if type(paths) not in [list, tuple]:
+    if not isinstance(paths, Iterable):
         paths = [paths]
 
     dataset = tf.data.TFRecordDataset(paths, num_parallel_reads=num_parallel_reads)
+
     if not evaluate:
-        dataset = shuffle_and_repeat(buffer_size=100000, count=max_epochs)(dataset)
+        # shuffle TF records
+        dataset = shuffle_and_repeat(buffer_size=buffer_size, count=max_epochs)(dataset)
+
+    # parse serialized TF records into dictionaries of Tensors for each feature
     dataset = dataset.map(extractor.parse, num_parallel_calls=num_parallel_calls)
+
+    # bucket dataset by sequence length, applying random noise to sequences so we don't repeat the same buckets across epochs
     dataset = dataset.apply(bucket_by_sequence_length(element_length_func=lambda elem: _add_uniform_noise(elem[LENGTH_KEY],
                                                                                                           length_noise_stdev),
                                                       bucket_boundaries=bucket_sizes,
                                                       bucket_batch_sizes=(len(bucket_sizes) + 1) * [batch_size],
                                                       padded_shapes=extractor.get_shapes(),
                                                       padding_values=extractor.get_padding()))
+    if not evaluate:
+        # now sort bucketed batches -- maybe not efficient, but let's ensure our training set order is really random
+        dataset = dataset.shuffle(batch_buffer_size)
+
+    # seems to be generally set to 1 or 2
     dataset = dataset.prefetch(AUTOTUNE)
 
     return dataset
