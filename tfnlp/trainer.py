@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from typing import Union, Iterable, Callable
+from typing import Union, Iterable, Callable, Optional
 
 import tensorflow as tf
 from tensorflow.contrib.estimator import stop_if_no_increase_hook
@@ -27,35 +27,41 @@ from tfnlp.model.model import multi_head_model_fn
 from tfnlp.predictor import get_latest_savedmodel_from_jobdir, from_job_dir
 from tfnlp.readers import get_reader
 
+TF_MODEL_FN = Callable[[dict, str, type(HParams)], type(tf.estimator.EstimatorSpec)]
+
 
 class Trainer(object):
-    def __init__(self, save: str, config: str = None, resources: str = '', script: str = None,
-                 model_fn: Callable[[dict, str, type(HParams)], type(tf.estimator.EstimatorSpec)] = multi_head_model_fn) -> None:
-        """
-        Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
+    """
+    Model trainer, used to train and evaluate models using the TF Estimator API.
 
-        :param save: directory from which to save/load model, metadata, logs, and other training files
-        :param config: path to training configuration file
-        :param resources: path to base directory of resources, such as for pre-trained weights
-        :param script: path to official evaluation scripts
-        :param model_fn: TF model function ([features, mode, params] -> EstimatorSpec)
-        """
+    :param save_dir_path: directory from which to save/load model, metadata, logs, and other training files
+    :param config_json_path: path to training configuration file
+    :param resources_dir_path: path to base directory of resources, such as for pre-trained weights
+    :param script_file_path: path to official evaluation scripts
+    :param model_fn: TF model function ([features, mode, params] -> EstimatorSpec)
+    """
+    def __init__(self,
+                 save_dir_path: str,
+                 config_json_path: Optional[str] = None,
+                 resources_dir_path: Optional[str] = '',
+                 script_file_path: Optional[str] = None,
+                 model_fn: Optional[TF_MODEL_FN] = multi_head_model_fn) -> None:
         super().__init__()
-        self._job_dir = save
+        self._job_dir = save_dir_path
 
         self._model_path = os.path.join(self._job_dir, constants.MODEL_PATH)
         self._vocab_path = os.path.join(self._job_dir, constants.VOCAB_PATH)
-        self._resources = resources
-        self._eval_script_path = script
+        self._resources = resources_dir_path
+        self._eval_script_path = script_file_path
         self._model_fn = model_fn
 
         # read configuration file
         self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
         if not tf.gfile.Exists(self.config_path):
-            if not config:
+            if not config_json_path:
                 raise AssertionError('trainer configuration is required when training for the first time')
             tf.gfile.MakeDirs(self._job_dir)
-            tf.gfile.Copy(config, self.config_path, overwrite=True)
+            tf.gfile.Copy(config_json_path, self.config_path, overwrite=True)
         self._training_config = get_network_config(read_json(self.config_path))
 
         self._data_path_fn = lambda orig: os.path.join(self._job_dir, os.path.basename(orig) + ".tfrecords")
@@ -299,7 +305,10 @@ def _validate_and_parse_args():
 def cli():
     opts = _validate_and_parse_args()
 
-    trainer = Trainer(save=opts.save, config=opts.config, resources=opts.resources, script=opts.script)
+    trainer = Trainer(save_dir_path=opts.save,
+                      config_json_path=opts.config,
+                      resources_dir_path=opts.resources,
+                      script_file_path=opts.script)
 
     mode = opts.mode
     test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None
