@@ -78,7 +78,7 @@ def get_latest_savedmodel_from_jobdir(job_dir):
     Return the latest saved model from a given output directory of a trainer.
     """
     export_dir = os.path.join(job_dir, constants.MODEL_PATH, 'export', 'best_exporter')
-    latest = os.path.join(export_dir, max(os.listdir(export_dir)))
+    latest = os.path.join(export_dir, max([path for path in os.listdir(export_dir) if not path.startswith('temp')]))
     return latest
 
 
