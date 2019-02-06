@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.contrib.crf.python.ops import crf
-from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 from tfnlp.common import constants
@@ -99,7 +98,7 @@ class ModelHead(object):
         index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(self.params.vocab_path, self.name),
                                                          default_value=self.extractor.unknown_word)
         self.predictions = tf.identity(index_to_label.lookup(tf.cast(self.predictions, dtype=tf.int64)), name="labels")
-        self.export_outputs[self.name] = PredictOutput({self.name: self.predictions})
+        self.export_outputs[self.name] = {self.name: self.predictions}
 
 
 class ClassifierHead(ModelHead):

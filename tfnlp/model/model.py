@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 import tensorflow as tf
+from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
 
 from tfnlp.common import constants
@@ -109,9 +110,10 @@ def multi_head_model_func(features, mode, params):
         if mode == tf.estimator.ModeKeys.PREDICT:
             export_outputs = {}
             for head in heads:
+                export_outputs[head.name] = PredictOutput(head.export_outputs)
                 export_outputs.update(head.export_outputs)
-            if len(export_outputs) > 1:
-                export_outputs[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = export_outputs[heads[0].name]
+            # combined signature with all relevant outputs
+            export_outputs[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = PredictOutput(export_outputs)
 
         return tf.estimator.EstimatorSpec(mode=mode,
                                           predictions=predictions,
