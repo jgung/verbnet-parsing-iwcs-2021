@@ -61,7 +61,7 @@ def build(features, mode, params):
     return [get_head(head) for head in config.heads]
 
 
-def multi_head_model_func(features, mode, params):
+def multi_head_model_fn(features, mode, params):
     config = params.config
 
     heads = build(features, mode, params)

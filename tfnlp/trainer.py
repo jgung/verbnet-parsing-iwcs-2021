@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from typing import Union, Iterable
+from typing import Union, Iterable, Callable
 
 import tensorflow as tf
 from tensorflow.contrib.estimator import stop_if_no_increase_hook
@@ -23,13 +23,14 @@ from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
-from tfnlp.model.model import multi_head_model_func
+from tfnlp.model.model import multi_head_model_fn
 from tfnlp.predictor import get_latest_savedmodel_from_jobdir, from_job_dir
 from tfnlp.readers import get_reader
 
 
 class Trainer(object):
-    def __init__(self, save: str, config: str = None, resources: str = '', script: str = None, model_fn: callable = None) -> None:
+    def __init__(self, save: str, config: str = None, resources: str = '', script: str = None,
+                 model_fn: Callable[[dict, str, type(HParams)], type(tf.estimator.EstimatorSpec)] = multi_head_model_fn) -> None:
         """
         Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
 
@@ -37,7 +38,7 @@ class Trainer(object):
         :param config: path to training configuration file
         :param resources: path to base directory of resources, such as for pre-trained weights
         :param script: path to official evaluation scripts
-        :param model_fn: model function, for non-standard models
+        :param model_fn: TF model function ([features, mode, params] -> EstimatorSpec)
         """
         super().__init__()
         self._job_dir = save
@@ -46,7 +47,7 @@ class Trainer(object):
         self._vocab_path = os.path.join(self._job_dir, constants.VOCAB_PATH)
         self._resources = resources
         self._eval_script_path = script
-        self._model_fn = model_fn if model_fn else multi_head_model_func
+        self._model_fn = model_fn
 
         # read configuration file
         self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
