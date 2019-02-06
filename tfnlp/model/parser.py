@@ -3,7 +3,7 @@ import tensorflow as tf
 
 import tfnlp.common.constants as constants
 from tfnlp.common.config import append_label
-from tfnlp.common.eval import ParserEvalHook
+from tfnlp.common.eval_hooks import ParserEvalHook
 from tfnlp.layers.heads import ModelHead
 from tfnlp.layers.layers import numpy_orthogonal_matrix
 

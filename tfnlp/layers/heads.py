@@ -8,7 +8,7 @@ from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 from tfnlp.common import constants
 from tfnlp.common.config import append_label
-from tfnlp.common.eval import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
+from tfnlp.common.eval_hooks import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
 from tfnlp.common.training_utils import smoothed_labels
 from tfnlp.layers.layers import string2index

@@ -18,7 +18,7 @@ from tensorflow.python.ops import array_ops
 from tfnlp.cli.evaluators import get_evaluator
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
-from tfnlp.common.eval import metric_compare_fn
+from tfnlp.common.eval_hooks import metric_compare_fn
 from tfnlp.common.logging import set_up_logging
 from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
