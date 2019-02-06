@@ -130,6 +130,27 @@ def write_props_to_file(output_file, labels, markers, sentence_ids):
             _write_props(props_by_predicate, predicates)
 
 
+def append_srl_prediction_output(identifier, result, output_dir, output_confusions=False):
+    summary_file = os.path.join(output_dir, SUMMARY_FILE)
+    exists = tf.gfile.Exists(summary_file)
+
+    p, r, f1 = result.evaluation.prec_rec_f1()
+
+    with file_io.FileIO(summary_file, 'a') as summary:
+        if not exists:
+            summary.write('ID\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+        summary.write('%s\t%d\t%f\t%f\t%f\t%f\n' % (identifier,
+                                                    result.ntargets,
+                                                    result.perfect_props(),
+                                                    p, r, f1))
+
+    with file_io.FileIO(os.path.join(output_dir, EVAL_LOG), 'a') as eval_log:
+        eval_log.write('\nID: %s\n' % identifier)
+        eval_log.write(str(result) + '\n')
+        if output_confusions:
+            eval_log.write('\n%s\n\n' % result.confusion_matrix())
+
+
 def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
     gold = []
     test = []

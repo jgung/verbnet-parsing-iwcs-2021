@@ -1,13 +1,12 @@
 import os
 
 import tensorflow as tf
-from tensorflow.python.lib.io import file_io
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
-from tfnlp.common.eval import PREDICTIONS_FILE, SUMMARY_FILE, EVAL_LOG
+from tfnlp.common.eval import PREDICTIONS_FILE, append_srl_prediction_output
 from tfnlp.common.eval import accuracy_eval, conll_eval, conll_srl_eval, write_props_to_file, parser_write_and_eval
 from tfnlp.common.utils import binary_np_array_to_unicode
 
@@ -107,10 +106,8 @@ class SrlEvalHook(SequenceEvalHook):
         result = conll_srl_eval(self._gold, self._predictions, self._markers, self._indices)
         tf.logging.info(str(result))
 
-        p, r, f1 = result.evaluation.prec_rec_f1()
-
         # update model's best score for early stopping
-        session.run(self._eval_update, feed_dict={self._eval_placeholder: f1})
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: result.evaluation.prec_rec_f1()[2]})
 
         if self._output_dir:
             predictions_path = os.path.join(self._output_dir, PREDICTIONS_FILE)
@@ -118,22 +115,7 @@ class SrlEvalHook(SequenceEvalHook):
             write_props_to_file(predictions_path, self._predictions, self._markers, self._indices)
 
             step = session.run(tf.train.get_global_step(session.graph))
-
-            summary_file = os.path.join(self._output_dir, SUMMARY_FILE)
-            exists = tf.gfile.Exists(summary_file)
-            with file_io.FileIO(summary_file, 'a') as summary:
-                if not exists:
-                    summary.write('Identifier\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
-                summary.write('%d\t%d\t%f\t%f\t%f\t%f\n' % (step,
-                                                            result.ntargets,
-                                                            result.perfect_props(),
-                                                            p, r, f1))
-
-            with file_io.FileIO(os.path.join(self._output_dir, EVAL_LOG), 'a') as eval_log:
-                eval_log.write('\nStep %d\n' % step)
-                eval_log.write(str(result) + '\n')
-                if self._output_confusions:
-                    eval_log.write('\n%s\n\n' % result.confusion_matrix())
+            append_srl_prediction_output(str(step), result, self._output_dir, output_confusions=self._output_confusions)
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):
