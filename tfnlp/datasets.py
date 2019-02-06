@@ -1,11 +1,11 @@
 import tensorflow as tf
-from tensorflow.contrib.data import bucket_by_sequence_length, shuffle_and_repeat
+from tensorflow.contrib.data import bucket_by_sequence_length, shuffle_and_repeat, AUTOTUNE
 
 from tfnlp.common.constants import LENGTH_KEY
 
 
 def make_dataset(extractor, paths, batch_size=16, bucket_sizes=None, evaluate=False, num_parallel_calls=4,
-                 num_parallel_reads=1, prefetch_batches=1, max_epochs=999):
+                 num_parallel_reads=1, max_epochs=999):
     if bucket_sizes is None:
         bucket_sizes = [5, 10, 25, 50, 100]
     if type(paths) not in [list, tuple]:
@@ -20,7 +20,7 @@ def make_dataset(extractor, paths, batch_size=16, bucket_sizes=None, evaluate=Fa
                                                       bucket_batch_sizes=(len(bucket_sizes) + 1) * [batch_size],
                                                       padded_shapes=extractor.get_shapes(),
                                                       padding_values=extractor.get_padding()))
-    dataset = dataset.prefetch(prefetch_batches)
+    dataset = dataset.prefetch(AUTOTUNE)
 
     return dataset
 
