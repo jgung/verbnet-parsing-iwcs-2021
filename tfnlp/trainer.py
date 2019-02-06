@@ -40,6 +40,7 @@ class Trainer(object):
     :param script_file_path: path to official evaluation scripts
     :param model_fn: TF model function ([features, mode, params] -> EstimatorSpec)
     """
+
     def __init__(self,
                  save_dir_path: str,
                  config_json_path: Optional[str] = None,
@@ -255,7 +256,7 @@ class Trainer(object):
                        config=self._training_config,
                        script_path=self._eval_script_path,
                        vocab_path=self._vocab_path,
-                       output=os.path.join(self._job_dir, 'predictions.txt'),
+                       job_dir=self._job_dir,
                        verbose_eval=test)
 
     def _input_fn(self, dataset: str, train: bool = False):

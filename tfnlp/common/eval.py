@@ -22,6 +22,7 @@ from tfnlp.common.utils import binary_np_array_to_unicode
 
 SUMMARY_FILE = 'eval-summary.tsv'
 EVAL_LOG = 'eval.log'
+PREDICTIONS_FILE = 'predictions.txt'
 
 
 def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
@@ -162,20 +163,20 @@ def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
 
 
 class EvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, tensors, vocab, label_key=LABEL_KEY, predict_key=PREDICT_KEY, output_file=None):
+    def __init__(self, tensors, vocab, label_key=LABEL_KEY, predict_key=PREDICT_KEY, output_dir=None):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors: dictionary of batch-sized tensors necessary for computing evaluation
         :param vocab: label feature vocab
         :param label_key: targets key in `tensors`
         :param predict_key: predictions key in `tensors`
-        :param output_file: optional output file name for predictions
+        :param output_dir: output directory for any predictions or extra logs
         """
         self._fetches = tensors
         self._vocab = vocab
         self._label_key = label_key
         self._predict_key = predict_key
-        self._output_file = output_file
+        self._output_dir = output_dir
 
         self._predictions = None
         self._gold = None
@@ -203,7 +204,7 @@ class ClassifierEvalHook(EvalHook):
         self._predictions.append((self._vocab.index_to_feat(prediction) for prediction in run_values.results[self._predict_key]))
 
     def end(self, session):
-        accuracy_eval(self._gold, self._predictions, self._indices, output_file=self._output_file)
+        accuracy_eval(self._gold, self._predictions, self._indices, output_file=os.path.join(self._output_dir, PREDICTIONS_FILE))
 
 
 class SequenceEvalHook(EvalHook):
@@ -227,7 +228,7 @@ class SequenceEvalHook(EvalHook):
             self._predictions.append([self._vocab.index_to_feat(val) for val in predictions][:seq_len])
 
     def end(self, session):
-        score, result = conll_eval(self._gold, self._predictions, self._indices, self._output_file)
+        score, result = conll_eval(self._gold, self._predictions, self._indices, os.path.join(self._output_dir, PREDICTIONS_FILE))
         tf.logging.info(result)
         session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
 
@@ -261,27 +262,25 @@ class SrlEvalHook(SequenceEvalHook):
         # update model's best score for early stopping
         session.run(self._eval_update, feed_dict={self._eval_placeholder: f1})
 
-        if self._output_file:
-            write_props_to_file(self._output_file + '.gold', self._gold, self._markers, self._indices)
-            write_props_to_file(self._output_file, self._predictions, self._markers, self._indices)
+        if self._output_dir:
+            predictions_path = os.path.join(self._output_dir, PREDICTIONS_FILE)
+            write_props_to_file(predictions_path + '.gold', self._gold, self._markers, self._indices)
+            write_props_to_file(predictions_path, self._predictions, self._markers, self._indices)
 
             step = session.run(tf.train.get_global_step(session.graph))
 
-            job_dir = os.path.dirname(self._output_file)
-
-            summary_file = os.path.join(job_dir, SUMMARY_FILE)
+            summary_file = os.path.join(self._output_dir, SUMMARY_FILE)
             exists = tf.gfile.Exists(summary_file)
             with file_io.FileIO(summary_file, 'a') as summary:
                 if not exists:
-                    summary.write('Step\tPath\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
-                summary.write('%d\t%s\t%d\t%f\t%f\t%f\t%f\n' % (step,
-                                                                os.path.basename(self._output_file),
-                                                                result.ntargets,
-                                                                result.perfect_props(),
-                                                                p, r, f1))
+                    summary.write('Identifier\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+                summary.write('%d\t%d\t%f\t%f\t%f\t%f\n' % (step,
+                                                            result.ntargets,
+                                                            result.perfect_props(),
+                                                            p, r, f1))
 
-            with file_io.FileIO(os.path.join(job_dir, EVAL_LOG), 'a') as eval_log:
-                eval_log.write('\n%d\t%s\n' % (step, os.path.basename(self._output_file)))
+            with file_io.FileIO(os.path.join(self._output_dir, EVAL_LOG), 'a') as eval_log:
+                eval_log.write('\nStep %d\n' % step)
                 eval_log.write(str(result) + '\n')
                 if self._output_confusions:
                     eval_log.write('\n%s\n\n' % result.confusion_matrix())
