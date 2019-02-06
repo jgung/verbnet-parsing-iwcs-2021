@@ -128,7 +128,7 @@ def from_config_and_savedmodel(path_to_config: str, path_to_savedmodel: str, pat
     return Predictor(tf_predictor, parser_function, feature_function, formatter, default_batching_function(config.batch_size))
 
 
-def _get_feature_function(config: object, path_to_vocab: str) -> Callable[[dict]: str]:
+def _get_feature_function(config: object, path_to_vocab: str) -> Callable[[dict], str]:
     feature_extractor = get_feature_extractor(config)
     feature_extractor.read_vocab(path_to_vocab)
 
