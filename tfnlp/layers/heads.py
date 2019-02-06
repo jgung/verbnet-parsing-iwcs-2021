@@ -94,11 +94,10 @@ class ModelHead(object):
         """
         Called after `_eval_predict` for prediction.
         """
-        self.export_outputs = {}
         index_to_label = index_to_string_table_from_file(vocabulary_file=os.path.join(self.params.vocab_path, self.name),
                                                          default_value=self.extractor.unknown_word)
         self.predictions = tf.identity(index_to_label.lookup(tf.cast(self.predictions, dtype=tf.int64)), name="labels")
-        self.export_outputs[self.name] = {self.name: self.predictions}
+        self.export_outputs = {self.name: self.predictions}
 
 
 class ClassifierHead(ModelHead):
