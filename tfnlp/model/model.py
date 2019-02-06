@@ -109,11 +109,12 @@ def multi_head_model_func(features, mode, params):
         export_outputs = None
         if mode == tf.estimator.ModeKeys.PREDICT:
             export_outputs = {}
+            combined_outputs = {}
             for head in heads:
                 export_outputs[head.name] = PredictOutput(head.export_outputs)
-                export_outputs.update(head.export_outputs)
+                combined_outputs.update(head.export_outputs)
             # combined signature with all relevant outputs
-            export_outputs[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = PredictOutput(export_outputs)
+            export_outputs[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = PredictOutput(combined_outputs)
 
         return tf.estimator.EstimatorSpec(mode=mode,
                                           predictions=predictions,
