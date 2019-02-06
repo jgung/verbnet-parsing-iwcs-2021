@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from typing import Union, Iterable
 
 import tensorflow as tf
 from tensorflow.contrib.estimator import stop_if_no_increase_hook
@@ -28,7 +29,7 @@ from tfnlp.readers import get_reader
 
 
 class Trainer(object):
-    def __init__(self, save, config=None, resources='', script=None, model_fn=multi_head_model_func):
+    def __init__(self, save: str, config: str = None, resources: str = '', script: str = None, model_fn: callable = None) -> None:
         """
         Initialize a model trainer, used to train and evaluate models using the TF Estimator API.
 
@@ -36,7 +37,7 @@ class Trainer(object):
         :param config: path to training configuration file
         :param resources: path to base directory of resources, such as for pre-trained weights
         :param script: path to official evaluation scripts
-        :param model_fn: model function, for non-default
+        :param model_fn: model function, for non-standard models
         """
         super().__init__()
         self._job_dir = save
@@ -45,7 +46,7 @@ class Trainer(object):
         self._vocab_path = os.path.join(self._job_dir, constants.VOCAB_PATH)
         self._resources = resources
         self._eval_script_path = script
-        self._model_fn = model_fn
+        self._model_fn = model_fn if model_fn else multi_head_model_func
 
         # read configuration file
         self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
@@ -60,7 +61,7 @@ class Trainer(object):
 
         self._feature_extractor = None
 
-    def train(self, train, valid):
+    def train(self, train: str, valid: str) -> None:
         """
         Train a new model with this trainer, or if a model already exists in the save path for this trainer,
         resume training from a checkpoint.
@@ -103,12 +104,12 @@ class Trainer(object):
 
         train_and_evaluate(estimator, train_spec=train_spec, eval_spec=eval_spec)
 
-    def eval(self, test_paths):
+    def eval(self, test_paths: Union[str, Iterable[str]]) -> None:
         """
         Evaluate a trained model on a given corpus or list of corpora.
         :param test_paths: paths to test corpora
         """
-        if type(test_paths) not in [list, tuple]:
+        if not isinstance(test_paths, Iterable):
             test_paths = [test_paths]
 
         if not self._feature_extractor:
@@ -126,15 +127,18 @@ class Trainer(object):
             # extract instances from test file at given path--this is a generator, so wrap in a list
             instances = list(self._extract_raw(test_set, True))
             # predict from instances instead of raw text, so use .predict_inputs, don't format since we need the raw predictions
-            processed_examples = predictor.predict_inputs(instances, formatted=False)
+            processed_examples = predictor.predict_parsed(instances, formatted=False)
             # call evaluation function on predictions
             evaluation_fn(instances, processed_examples, output_path=output_path, script_path=self._eval_script_path)
 
-    def predict(self, test_paths):
+    def predict(self, test_paths: Union[str, Iterable[str]]) -> None:
         """
         Generate predictions from plain text corpora at a given path or list of paths.
         :param test_paths: paths to documents for which to generate predictions
         """
+        if not isinstance(test_paths, Iterable):
+            test_paths = [test_paths]
+
         if not self._feature_extractor:
             self._init_feature_extractor()
 
@@ -155,7 +159,7 @@ class Trainer(object):
                             output.write(str(prediction) + '\n')
                         output.write('\n')
 
-    def itl(self):
+    def itl(self) -> None:
         """
         Initiate a REPL-style interactive testing loop.
         """
@@ -180,7 +184,7 @@ class Trainer(object):
         tf.logging.info("Loading predictor from saved model at %s" % latest)
         return from_saved_model(latest)
 
-    def _init_feature_extractor(self, train_path=None):
+    def _init_feature_extractor(self, train_path: str = None):
         self._feature_extractor = get_feature_extractor(self._training_config.features)
         if train_path:
             tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
@@ -195,7 +199,7 @@ class Trainer(object):
             self._feature_extractor.read_vocab(self._vocab_path)
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
 
-    def _extract_raw(self, path, test=False):
+    def _extract_raw(self, path: str, test: bool = False):
         # TODO: allow for separate test reader configuration
         reader = get_reader(self._training_config.reader) if test else get_reader(self._training_config.reader,
                                                                                   self._training_config)
@@ -205,18 +209,18 @@ class Trainer(object):
             raise ValueError("No examples provided at path given by '{}'".format(path))
         return raw_instances
 
-    def _train_vocab(self, train_path):
+    def _train_vocab(self, train_path: str):
         tf.logging.info("Training new vocabulary using training data at %s", train_path)
         self._feature_extractor.initialize(self._resources)
         self._feature_extractor.train(self._extract_raw(train_path))
         self._feature_extractor.write_vocab(self._vocab_path, resources=self._resources, prune=True)
 
-    def _extract_features(self, path, test=False):
+    def _extract_features(self, path: str, test: bool = False):
         tf.logging.info("Extracting features from %s", path)
         examples = self._feature_extractor.extract_all(self._extract_raw(path, test))
         return examples
 
-    def _extract_and_write(self, path, test=False):
+    def _extract_and_write(self, path: str, test: bool = False):
         output_path = self._data_path_fn(path)
         if tf.gfile.Exists(output_path):
             tf.logging.info("Using existing features for %s from %s", path, output_path)
@@ -225,7 +229,7 @@ class Trainer(object):
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
-    def _init_estimator(self, test=False):
+    def _init_estimator(self, test: bool = False):
         return tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._model_path,
                                       config=RunConfig(
                                           keep_checkpoint_max=self._training_config.keep_checkpoints,
@@ -239,7 +243,7 @@ class Trainer(object):
         batch = padded_batch(self._feature_extractor, serialized_tf_example, self._training_config.batch_size)
         return ServingInputReceiver(batch, {"examples": serialized_tf_example})
 
-    def _params(self, test=False):
+    def _params(self, test: bool = False):
         return HParams(extractor=self._feature_extractor,
                        config=self._training_config,
                        script_path=self._eval_script_path,
@@ -247,7 +251,7 @@ class Trainer(object):
                        output=os.path.join(self._job_dir, 'predictions.txt'),
                        verbose_eval=test)
 
-    def _input_fn(self, dataset, train=False):
+    def _input_fn(self, dataset: str, train: bool = False):
         bucket_sizes = self._training_config.bucket_sizes
         if not bucket_sizes and constants.LENGTH_KEY in self._feature_extractor.features:
             length_feat = self._feature_extractor.feature(constants.LENGTH_KEY)
