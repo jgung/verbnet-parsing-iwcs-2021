@@ -1,7 +1,6 @@
 import os
 import re
 import subprocess
-import tempfile
 from collections import defaultdict
 
 import numpy as np
@@ -184,18 +183,16 @@ def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
 
 
 def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features=None, out_path=None, gold_path=None):
-    _gold_file = file_io.FileIO(gold_path, 'w') if gold_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
-    _out_file = file_io.FileIO(out_path, 'w') if out_path else tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
 
     write_func = write_parse_results_to_conllx_file if 'conllx' in script_path else write_parse_results_to_file
 
-    with _out_file as system_file, _gold_file as gold_file:
+    with file_io.FileIO(out_path, 'w') as system_file, file_io.FileIO(gold_path, 'w') as gold_file:
         write_func(sys_heads, sys_rels, system_file, features)
         write_func(heads, rels, gold_file)
-        result = subprocess.check_output(['perl', script_path, '-g', gold_file.name, '-s', system_file.name, '-q'],
-                                         universal_newlines=True)
-        tf.logging.info('\n%s', result)
+    result = subprocess.check_output(['perl', script_path, '-g', gold_path, '-s', out_path, '-q'],
+                                     universal_newlines=True)
+    tf.logging.info('\n%s', result)
 
 
 def get_parse_predictions(arc_probs, rel_probs):
@@ -223,13 +220,11 @@ def write_parse_results_to_file(heads, rels, file, features=None):
             if features:
                 rel = features.index_to_feat(rel_pred)
             else:
-                rel = rel_pred.decode('utf-8')
+                rel = rel_pred
             token[10] = rel
             token[11] = rel
             file.write('\t'.join(token) + '\n')
         file.write('\n')
-    file.flush()
-    file.seek(0)
 
 
 def write_parse_results_to_conllx_file(heads, rels, file, features=None):
@@ -243,12 +238,10 @@ def write_parse_results_to_conllx_file(heads, rels, file, features=None):
             if features:
                 rel = features.index_to_feat(rel_pred)
             else:
-                rel = rel_pred.decode('utf-8')
+                rel = rel_pred
             token[7] = rel
             file.write('\t'.join(token) + '\n')
         file.write('\n')
-    file.flush()
-    file.seek(0)
 
 
 def log_trainable_variables():

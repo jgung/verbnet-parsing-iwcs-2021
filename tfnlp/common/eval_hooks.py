@@ -151,7 +151,7 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
                                                    run_values.results[HEAD_KEY],
                                                    run_values.results[LENGTH_KEY]):
             self._arc_probs.append(arc_probs[:seq_len, :seq_len])
-            self._rels.append(rels[:seq_len])
+            self._rels.append(binary_np_array_to_unicode(rels[:seq_len]))
             self._arcs.append(heads[:seq_len])
 
     def end(self, session):

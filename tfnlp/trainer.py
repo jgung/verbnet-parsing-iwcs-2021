@@ -130,18 +130,20 @@ class Trainer(object):
         # initialize predictor from saved trained model
         predictor = from_job_dir(self._job_dir)
         # get function that is used to evaluate predictions from configuration
-        evaluation_fn = get_evaluator(self._training_config)
 
         for test_set in test_paths:
             tf.logging.info('Evaluating on %s' % test_set)
             output_path = os.path.join(self._model_path, os.path.basename(test_set) + '.eval')
+
+            evaluation_fn = get_evaluator(self._training_config.heads[0],
+                                          self._feature_extractor, output_path, self._eval_script_path)
 
             # extract instances from test file at given path--this is a generator, so wrap in a list
             instances = list(self._extract_raw(test_set, True))
             # predict from instances instead of raw text, so use .predict_inputs, don't format since we need the raw predictions
             processed_examples = predictor.predict_parsed(instances, formatted=False)
             # call evaluation function on predictions
-            evaluation_fn(instances, processed_examples, output_path=output_path, script_path=self._eval_script_path)
+            evaluation_fn(instances, processed_examples)
 
     def predict(self, test_paths: Union[str, Iterable[str]]) -> None:
         """
