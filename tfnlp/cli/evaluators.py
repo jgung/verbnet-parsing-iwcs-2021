@@ -83,14 +83,15 @@ def dep_evaluator(labeled_instances, results, features, script_path, output_path
         arc_probs.append(result[constants.ARC_PROBS][:seq_len, :seq_len])
         rel_probs.append(result[constants.REL_PROBS])
 
-    parser_write_and_eval(arc_probs=arc_probs,
-                          rel_probs=rel_probs,
-                          heads=gold_arcs,
-                          rels=gold_rels,
-                          features=features,
-                          out_path=output_path,
-                          gold_path=output_path + '.gold.conll',
-                          script_path=script_path)
+    result = parser_write_and_eval(arc_probs=arc_probs,
+                                   rel_probs=rel_probs,
+                                   heads=gold_arcs,
+                                   rels=gold_rels,
+                                   script_path=script_path,
+                                   features=features,
+                                   out_path=output_path,
+                                   gold_path=output_path + '.gold')
+    tf.logging.info('\n%s', result)
 
 
 class SrlEvaluator(Evaluator):

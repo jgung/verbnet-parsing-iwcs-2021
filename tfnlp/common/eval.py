@@ -182,20 +182,19 @@ def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
     return accuracy
 
 
-def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features=None, out_path=None, gold_path=None):
-    sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs)
+def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features, out_path=None, gold_path=None):
+    sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs, features)
 
-    write_func = write_parse_results_to_conllx_file if 'conllx' in script_path else write_parse_results_to_file
+    line_func = _conllx_line if 'conllx' in script_path else _conll09_line
 
     with file_io.FileIO(out_path, 'w') as system_file, file_io.FileIO(gold_path, 'w') as gold_file:
-        write_func(sys_heads, sys_rels, system_file, features)
-        write_func(heads, rels, gold_file)
-    result = subprocess.check_output(['perl', script_path, '-g', gold_path, '-s', out_path, '-q'],
-                                     universal_newlines=True)
-    tf.logging.info('\n%s', result)
+        write_parse_results_to_file(sys_heads, sys_rels, system_file, line_func)
+        write_parse_results_to_file(heads, rels, gold_file, line_func)
+
+    return subprocess.check_output(['perl', script_path, '-g', gold_path, '-s', out_path, '-q'], universal_newlines=True)
 
 
-def get_parse_predictions(arc_probs, rel_probs):
+def get_parse_predictions(arc_probs, rel_probs, rel_feat):
     heads = []
     rels = []
     for arc_prob_matrix, rel_prob_tensor in zip(arc_probs, rel_probs):
@@ -203,44 +202,39 @@ def get_parse_predictions(arc_probs, rel_probs):
         arc_preds_one_hot = np.zeros([rel_prob_tensor.shape[0], rel_prob_tensor.shape[2]])
         arc_preds_one_hot[np.arange(len(arc_preds)), arc_preds] = 1.
         rel_preds = np.argmax(np.einsum('nrb,nb->nr', rel_prob_tensor, arc_preds_one_hot), axis=1)
+        rel_preds = [rel_feat.index_to_feat(rel) for rel in rel_preds]
         rels.append(rel_preds)
         heads.append(arc_preds)
     return heads, rels
 
 
-def write_parse_results_to_file(heads, rels, file, features=None):
-    for sentence_heads, sentence_rels in zip(heads, rels):
-        for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
-            # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
-            token = ['_'] * 15
-            token[0] = str(index + 1)
-            token[1] = '_'
-            token[8] = str(arc_pred)
-            token[9] = str(arc_pred)
-            if features:
-                rel = features.index_to_feat(rel_pred)
-            else:
-                rel = rel_pred
-            token[10] = rel
-            token[11] = rel
-            file.write('\t'.join(token) + '\n')
-        file.write('\n')
+def _conllx_line(index, arc_pred, rel_pred):
+    # ID FORM LEMMA CPOS POS FEAT HEAD DEPREL PHEAD PDEPREL
+    fields = ['_'] * 10
+    fields[0] = str(index + 1)
+    fields[1] = 'x'
+    fields[6] = str(arc_pred)
+    fields[7] = rel_pred
+    return fields
 
 
-def write_parse_results_to_conllx_file(heads, rels, file, features=None):
+def _conll09_line(index, arc_pred, rel_pred):
+    # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
+    fields = ['_'] * 15
+    fields[0] = str(index + 1)
+    fields[1] = '_'
+    fields[8] = str(arc_pred)
+    fields[9] = str(arc_pred)
+    fields[10] = rel_pred
+    fields[11] = rel_pred
+    return fields
+
+
+def write_parse_results_to_file(heads, rels, file, line_func=_conllx_line):
     for sentence_heads, sentence_rels in zip(heads, rels):
         for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
-            # ID FORM LEMMA CPOS POS FEAT HEAD DEPREL PHEAD PDEPREL
-            token = ['_'] * 10
-            token[0] = str(index + 1)
-            token[1] = 'x'
-            token[6] = str(arc_pred)
-            if features:
-                rel = features.index_to_feat(rel_pred)
-            else:
-                rel = rel_pred
-            token[7] = rel
-            file.write('\t'.join(token) + '\n')
+            fields = line_func(index, arc_pred, rel_pred)
+            file.write('\t'.join(fields) + '\n')
         file.write('\n')
 
 
