@@ -101,7 +101,7 @@ fi
 gcloud ml-engine jobs submit training ${job_name} \
 --packages ${job_dir}/app.tar.gz \
 --config config.yaml \
---runtime-version 1.10 \
+--runtime-version 1.12 \
 --module-name tfnlp.trainer \
 --region us-east1 \
 --stream-logs \
