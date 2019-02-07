@@ -38,7 +38,7 @@ class BaseNetworkConfig(Params):
             self.max_steps = self.checkpoint_steps * 100
             tf.logging.warn("No 'max_steps' parameter provided. Using default value of %d", self.max_steps)
         self.exports_to_keep = config.get('exports_to_keep', 1)
-        self.keep_checkpoints = config.get('checkpoints_to_keep', 5)
+        self.keep_checkpoints = config.get('checkpoints_to_keep', 1)
 
         # feature/input settings
         self.features = config.get('features')
