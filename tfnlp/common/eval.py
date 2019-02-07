@@ -132,19 +132,24 @@ def write_props_to_file(output_file, labels, markers, sentence_ids):
 
 def append_srl_prediction_output(identifier, result, output_dir, output_confusions=False):
     summary_file = os.path.join(output_dir, SUMMARY_FILE)
-    exists = tf.gfile.Exists(summary_file)
+    eval_log = os.path.join(output_dir, EVAL_LOG)
 
-    p, r, f1 = result.evaluation.prec_rec_f1()
+    exists = tf.gfile.Exists(summary_file) and tf.gfile.Exists(eval_log)
+
+    if not exists:
+        with file_io.FileIO(summary_file, 'w') as summary:
+            summary.write('ID\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+        with file_io.FileIO(eval_log, 'w') as log:
+            log.write('%s\n\n' % output_dir)
 
     with file_io.FileIO(summary_file, 'a') as summary:
-        if not exists:
-            summary.write('ID\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+        p, r, f1 = result.evaluation.prec_rec_f1()
         summary.write('%s\t%d\t%f\t%f\t%f\t%f\n' % (identifier,
                                                     result.ntargets,
                                                     result.perfect_props(),
                                                     p, r, f1))
 
-    with file_io.FileIO(os.path.join(output_dir, EVAL_LOG), 'a') as eval_log:
+    with file_io.FileIO(eval_log, 'a') as eval_log:
         eval_log.write('\nID: %s\n' % identifier)
         eval_log.write(str(result) + '\n')
         if output_confusions:
