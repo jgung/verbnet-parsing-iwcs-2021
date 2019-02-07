@@ -95,20 +95,24 @@ class Trainer(object):
             estimator,
             metric_name=self._training_config.metric,
             max_steps_without_increase=self._training_config.patience,
-            min_steps=100,
+            min_steps=self._training_config.checkpoint_steps,
             run_every_secs=None,
-            run_every_steps=100,
+            # reduce how often we check if we should stop to when it makes sense--when we evaluate
+            run_every_steps=self._training_config.checkpoint_steps,
         )
 
         train_spec = tf.estimator.TrainSpec(self._input_fn(train, True),
-                                            max_steps=self._training_config.max_steps, hooks=[early_stopping])
+                                            max_steps=self._training_config.max_steps,
+                                            hooks=[early_stopping])
 
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
                                 compare_fn=metric_compare_fn(self._training_config.metric),
                                 exports_to_keep=self._training_config.exports_to_keep)
 
         eval_spec = tf.estimator.EvalSpec(self._input_fn(valid, False),
-                                          steps=None, exporters=[exporter], throttle_secs=0)
+                                          steps=None,  # evaluate on full validation set
+                                          exporters=[exporter],
+                                          throttle_secs=0)
 
         train_and_evaluate(estimator, train_spec=train_spec, eval_spec=eval_spec)
 
@@ -238,8 +242,11 @@ class Trainer(object):
         write_features(examples, output_path)
 
     def _init_estimator(self, test: bool = False):
-        return tf.estimator.Estimator(model_fn=self._model_fn, model_dir=self._model_path,
+        return tf.estimator.Estimator(model_fn=self._model_fn,
+                                      model_dir=self._model_path,
                                       config=RunConfig(
+                                          log_step_count_steps=self._training_config.checkpoint_steps / 10,
+                                          save_summary_steps=self._training_config.checkpoint_steps,
                                           keep_checkpoint_max=self._training_config.keep_checkpoints,
                                           save_checkpoints_steps=self._training_config.checkpoint_steps),
                                       params=self._params(test=test))
