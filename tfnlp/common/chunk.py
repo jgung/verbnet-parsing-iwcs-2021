@@ -82,10 +82,12 @@ def _to_besio(iob_labeling):
     return iob_labeling[:-1] + [END + iob_labeling[-1][1:]]
 
 
+BESIO_PREFIX = '^[BESI]-'
+
+
 def _to_conll(iob_label):
     label_type = iob_label
-    for suffix in [BEGIN_, END_, SINGLE_, IN_]:
-        label_type = label_type.replace(suffix, "")
+    label_type = re.sub(BESIO_PREFIX, '', label_type)
 
     if iob_label.startswith(BEGIN_):
         return "(" + label_type + "*"
