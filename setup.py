@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-REQUIRED_PACKAGES = ["tensorflow-gpu==1.10.1", "numpy>=1.14.2", "nltk>=3.2.5", "tensorflow-hub==0.1.1", "tensor2tensor==1.9.0"]
+REQUIRED_PACKAGES = ["tensorflow-gpu==1.12.0", "numpy>=1.14.2", "nltk>=3.2.5", "tensorflow-hub>=0.1.1", "tensor2tensor>=1.9.0"]
 
 setup(
     name="tfnlp",
