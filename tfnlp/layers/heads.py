@@ -285,6 +285,7 @@ class BiaffineSrlHead(ModelHead):
         self._sequence_lengths = self.features[constants.LENGTH_KEY]
         self._tag_transitions = None
         self.n_steps = None
+        self.predicate_indices = None
 
     def _all(self):
         inputs, encoder_dim = self.inputs[:2]
@@ -296,8 +297,7 @@ class BiaffineSrlHead(ModelHead):
         def _mlp(size, name):
             return mlp(inputs, input_shape, self.config.mlp_dropout, size, self._training, name, n_splits=2)
 
-        mlp_size = 200
-        arg_mlp, predicate_mlp = _mlp(mlp_size, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
+        arg_mlp, predicate_mlp = _mlp(self.config.mlp_dim, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
 
         # apply variable class biaffine classifier for semantic role labels
         with tf.variable_scope("bilinear_logits"):
@@ -312,11 +312,17 @@ class BiaffineSrlHead(ModelHead):
             self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels], trainable=False,
                                                     initializer=create_transition_matrix(self.extractor))
 
+        # batch-length vector of predicate indices
+        predicate_indices = self.features[constants.PREDICATE_INDEX_KEY]
+        predicate_indices = tf.expand_dims(predicate_indices, -1)
+        # convert to [batch x n_steps] size Tensor, since each token's head is the predicate
+        self.predicate_indices = tf.tile(predicate_indices, [1, self.n_steps])
+
     def _train_eval(self):
         self.mask = tf.sequence_mask(self.features[constants.LENGTH_KEY], name="padding_mask")
 
         num_labels = self.extractor.vocab_size()
-        _logits = select_logits(self.logits, self.features[constants.TOKEN_INDEX_KEY], self.n_steps)
+        _logits = select_logits(self.logits, self.predicate_indices, self.n_steps)
 
         rel_loss = sequence_loss(logits=_logits,
                                  targets=self.targets,
@@ -333,7 +339,7 @@ class BiaffineSrlHead(ModelHead):
     def _eval_predict(self):
         self.rel_probs = tf.nn.softmax(self.logits, axis=2)  # (b x n x r x n)
         self.n_tokens = tf.cast(tf.reduce_sum(self.features[constants.LENGTH_KEY]), tf.int32)
-        _logits = select_logits(self.logits, self.features[constants.TOKEN_INDEX_KEY], self.n_steps)  # (b x n x r)
+        _logits = select_logits(self.logits, self.predicate_indices, self.n_steps)  # (b x n x r)
         self.predictions = crf.crf_decode(_logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
 
     def _evaluation(self):
@@ -352,7 +358,7 @@ class BiaffineSrlHead(ModelHead):
 
         overall_key = append_label(constants.OVERALL_KEY, self.name)
 
-        self.metric_ops ={overall_key: (overall_score, overall_score)}
+        self.metric_ops = {overall_key: (overall_score, overall_score)}
         # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
         eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 

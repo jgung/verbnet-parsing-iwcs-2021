@@ -8,7 +8,7 @@ from tfnlp.common import constants
 from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables
 from tfnlp.common.training_utils import assign_ema_weights
-from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead
+from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead, BiaffineSrlHead
 from tfnlp.layers.layers import encoder, embedding
 from tfnlp.model.parser import ParserHead
 
@@ -139,6 +139,7 @@ def model_head(config, inputs, features, mode, params):
         constants.TAGGER_KEY: TaggerHead,
         constants.NER_KEY: TaggerHead,
         constants.SRL_KEY: TaggerHead,
+        constants.BIAFFINE_SRL_KEY: BiaffineSrlHead,
         constants.TOKEN_CLASSIFIER_KEY: TokenClassifierHead,
         constants.PARSER_KEY: ParserHead
     }

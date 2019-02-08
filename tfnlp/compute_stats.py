@@ -3,7 +3,7 @@ import math
 import os
 from collections import defaultdict, Counter
 
-from tfnlp.common.constants import SENSE_KEY, PREDICATE_KEY, TOKEN_INDEX_KEY, LABEL_KEY
+from tfnlp.common.constants import SENSE_KEY, PREDICATE_KEY, PREDICATE_INDEX_KEY, LABEL_KEY
 from tfnlp.readers import get_reader
 
 CORE_ROLES = {'ARG0', 'ARG1', 'ARG2', 'ARG3', 'ARG4', 'ARG5', 'ARGA'}
@@ -27,7 +27,7 @@ def get_role_counts(instances, only_core=False):
         labels = [label[2:] for label in instance[LABEL_KEY] if label.startswith('B-') and label != 'B-V']
         if only_core:
             labels = [label for label in labels if label in CORE_ROLES]
-        predicate = instance[PREDICATE_KEY][instance[TOKEN_INDEX_KEY]]
+        predicate = instance[PREDICATE_KEY][instance[PREDICATE_INDEX_KEY]]
         for label in labels:
             counts[predicate][label] += 1
     return counts
@@ -49,7 +49,7 @@ def get_count_tuples(reader, dataset, only_core=False):
     result = list(reader.read_file(dataset))
 
     predicate_counts = get_counts(result,
-                                  lambda i: i[PREDICATE_KEY][i[TOKEN_INDEX_KEY]],
+                                  lambda i: i[PREDICATE_KEY][i[PREDICATE_INDEX_KEY]],
                                   lambda i: next(iter([s for s in i[SENSE_KEY] if s is not '-']), '-'))
 
     roleset_counts = get_role_counts(result, only_core)
