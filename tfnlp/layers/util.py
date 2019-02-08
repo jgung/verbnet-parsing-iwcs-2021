@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.crf import crf_log_likelihood
 
+from tfnlp.common.training_utils import smoothed_labels
 from tfnlp.layers.layers import numpy_orthogonal_matrix
 
 
@@ -98,3 +100,33 @@ def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include
         bilinear_result = tf.reshape(bilinear_result, [-1, timesteps, output_size, timesteps])
 
     return bilinear_result
+
+
+def sequence_loss(logits, targets, sequence_lengths, num_labels, crf=False, tag_transitions=None, label_smoothing=0,
+                  confidence_penalty=0, name="loss"):
+    with tf.variable_scope(name):
+        if crf:
+            losses = -crf_log_likelihood(logits, targets,
+                                         sequence_lengths=tf.cast(sequence_lengths, tf.int32),
+                                         transition_params=tag_transitions)[0]
+            loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
+        else:
+            if label_smoothing > 0:
+                targets = tf.one_hot(targets, depth=num_labels)
+                # handle https://github.com/tensorflow/tensorflow/issues/24397
+                smoothed_targets = smoothed_labels(label_smoothing, logits.dtype, targets)
+                loss = tf.losses.softmax_cross_entropy(onehot_labels=smoothed_targets,
+                                                       logits=logits,
+                                                       weights=tf.to_float(tf.sequence_mask(sequence_lengths)))
+            else:
+                losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=targets)
+                losses = tf.boolean_mask(losses, tf.sequence_mask(sequence_lengths), name="mask_padding_from_loss")
+                loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
+
+        if confidence_penalty > 0:
+            masked = tf.boolean_mask(logits, tf.sequence_mask(sequence_lengths))
+            # compute entropy, ignoring padding
+            entropy = -tf.reduce_sum(tf.nn.log_softmax(masked) * tf.nn.softmax(masked), axis=-1)
+            # add the negative entropy to the negative log likelihood
+            loss += -tf.reduce_mean(confidence_penalty * entropy)
+    return loss
