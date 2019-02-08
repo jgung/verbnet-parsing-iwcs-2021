@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.crf import crf_log_likelihood
 from tensorflow.contrib.crf.python.ops import crf
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
@@ -10,8 +9,8 @@ from tfnlp.common import constants
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
-from tfnlp.common.training_utils import smoothed_labels
 from tfnlp.layers.layers import string2index
+from tfnlp.layers.util import get_shape, mlp, bilinear, select_logits, sequence_loss
 
 
 class ModelHead(object):
@@ -211,31 +210,14 @@ class TaggerHead(ModelHead):
                                                     initializer=create_transition_matrix(self.extractor))
 
     def _train_eval(self):
-        with tf.variable_scope("loss"):
-            if self.config.crf:
-                losses = -crf_log_likelihood(self.logits, self.targets,
-                                             sequence_lengths=tf.cast(self._sequence_lengths, tf.int32),
-                                             transition_params=self._tag_transitions)[0]
-                self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
-            else:
-                if self.config.label_smoothing > 0:
-                    targets = tf.one_hot(self.targets, depth=self.extractor.vocab_size())
-                    # handle https://github.com/tensorflow/tensorflow/issues/24397
-                    smoothed_targets = smoothed_labels(self.config.label_smoothing, self.logits.dtype, targets)
-                    self.loss = tf.losses.softmax_cross_entropy(onehot_labels=smoothed_targets,
-                                                                logits=self.logits,
-                                                                weights=tf.to_float(tf.sequence_mask(self._sequence_lengths)))
-                else:
-                    losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
-                    losses = tf.boolean_mask(losses, tf.sequence_mask(self._sequence_lengths), name="mask_padding_from_loss")
-                    self.loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
-
-            if self.config.confidence_penalty > 0:
-                masked = tf.boolean_mask(self.logits, tf.sequence_mask(self._sequence_lengths))
-                # compute entropy, ignoring padding
-                entropy = -tf.reduce_sum(tf.nn.log_softmax(masked) * tf.nn.softmax(masked), axis=-1)
-                # add the negative entropy to the negative log likelihood
-                self.loss += -tf.reduce_mean(self.config.confidence_penalty * entropy)
+        num_labels = self.extractor.vocab_size()
+        self.loss = sequence_loss(logits=self.logits,
+                                  targets=self.targets,
+                                  sequence_lengths=self._sequence_lengths,
+                                  num_labels=num_labels,
+                                  crf=self.config.crf, tag_transitions=self._tag_transitions,
+                                  label_smoothing=self.config.label_smoothing,
+                                  confidence_penalty=self.config.confidence_penalty)
 
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
@@ -294,3 +276,101 @@ class TaggerHead(ModelHead):
                     output_dir=self.params.job_dir
                 )
             )
+
+
+class BiaffineSrlHead(ModelHead):
+
+    def __init__(self, inputs, config, features, params, training=False):
+        super().__init__(inputs, config, features, params, training)
+        self._sequence_lengths = self.features[constants.LENGTH_KEY]
+        self._tag_transitions = None
+        self.n_steps = None
+        self.predicate_indices = None
+
+    def _all(self):
+        inputs, encoder_dim = self.inputs[:2]
+
+        input_shape = get_shape(inputs)  # (b x n x d), d == output_size
+        self.n_steps = input_shape[1]  # n
+
+        # apply 2 arc and 2 rel MLPs to each output vector (1 for representing dependents, 1 for heads)
+        def _mlp(size, name):
+            return mlp(inputs, input_shape, self.config.mlp_dropout, size, self._training, name, n_splits=2)
+
+        arg_mlp, predicate_mlp = _mlp(self.config.mlp_dim, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
+
+        # apply variable class biaffine classifier for semantic role labels
+        with tf.variable_scope("bilinear_logits"):
+            num_labels = self.extractor.vocab_size()  # r
+            self.logits = bilinear(arg_mlp, predicate_mlp, num_labels, self.n_steps)  # (b x n x r x n)
+
+        if self.config.crf:
+            # explicitly train a transition matrix
+            self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels])
+        else:
+            # use constrained decoding based on IOB labels
+            self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels], trainable=False,
+                                                    initializer=create_transition_matrix(self.extractor))
+
+        # batch-length vector of predicate indices
+        predicate_indices = self.features[constants.PREDICATE_INDEX_KEY]
+        predicate_indices = tf.expand_dims(predicate_indices, -1)
+        # convert to [batch x n_steps] size Tensor, since each token's head is the predicate
+        self.predicate_indices = tf.tile(predicate_indices, [1, self.n_steps])
+
+    def _train_eval(self):
+        self.mask = tf.sequence_mask(self.features[constants.LENGTH_KEY], name="padding_mask")
+
+        num_labels = self.extractor.vocab_size()
+        _logits = select_logits(self.logits, self.predicate_indices, self.n_steps)
+
+        rel_loss = sequence_loss(logits=_logits,
+                                 targets=self.targets,
+                                 sequence_lengths=self._sequence_lengths,
+                                 num_labels=num_labels,
+                                 crf=self.config.crf,
+                                 tag_transitions=self._tag_transitions,
+                                 label_smoothing=self.config.label_smoothing,
+                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss")
+
+        self.loss = rel_loss
+        self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
+
+    def _eval_predict(self):
+        self.rel_probs = tf.nn.softmax(self.logits, axis=2)  # (b x n x r x n)
+        self.n_tokens = tf.cast(tf.reduce_sum(self.features[constants.LENGTH_KEY]), tf.int32)
+        _logits = select_logits(self.logits, self.predicate_indices, self.n_steps)  # (b x n x r)
+        self.predictions = crf.crf_decode(_logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
+
+    def _evaluation(self):
+        labels_key = append_label(constants.LABEL_KEY, self.name)
+        predictions_key = append_label(constants.PREDICT_KEY, self.name)
+
+        eval_tensors = {  # tensors necessary for evaluation hooks (such as sequence length)
+            constants.LENGTH_KEY: self._sequence_lengths,
+            constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
+            labels_key: self.targets,
+            predictions_key: self.predictions,
+            constants.MARKER_KEY: self.features[constants.MARKER_KEY]
+        }
+
+        overall_score = tf.identity(self.metric)
+
+        overall_key = append_label(constants.OVERALL_KEY, self.name)
+
+        self.metric_ops = {overall_key: (overall_score, overall_score)}
+        # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
+        eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
+
+        self.evaluation_hooks = [
+            SrlEvalHook(
+                tensors=eval_tensors,
+                vocab=self.extractor,
+                label_key=labels_key,
+                predict_key=predictions_key,
+                eval_update=tf.assign(self.metric, eval_placeholder),
+                eval_placeholder=eval_placeholder,
+                output_confusions=self.params.verbose_eval,
+                output_dir=self.params.job_dir
+            )
+        ]

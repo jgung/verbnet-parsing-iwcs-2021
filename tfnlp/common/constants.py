@@ -42,6 +42,7 @@ MISC_KEY = "misc"
 
 MARKER_KEY = "marker"
 TOKEN_INDEX_KEY = "token_index"
+PREDICATE_INDEX_KEY = "predicate_index"
 INSTANCE_INDEX = "instance_idx"
 SENTENCE_INDEX = "sentence_idx"
 PREDICATE_KEY = "predicate"
@@ -82,6 +83,7 @@ CLASSIFIER_KEY = "classifier"
 TAGGER_KEY = "tagger"
 NER_KEY = "ner"
 SRL_KEY = "srl"
+BIAFFINE_SRL_KEY = "biaffine-srl"
 PARSER_KEY = "parser"
 
 # encoder types, that apply a functon to one or more inputs
