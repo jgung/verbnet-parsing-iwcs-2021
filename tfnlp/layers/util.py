@@ -56,7 +56,8 @@ def mlp(inputs, inputs_shape, dropout_rate, output_size, training, name, n_split
     return tf.split(result, num_or_size_splits=n_splits, axis=1)
 
 
-def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include_bias2=True):
+def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include_bias2=True,
+             initializer=tf.orthogonal_initializer):
     """
     Compute bilinear attention as described in 'Deep Biaffine Attention for Neural Dependency Parsing' (Dozat and Manning, 2017).
     :param input1: (bn x d1) `Tensor`
@@ -65,13 +66,14 @@ def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include
     :param timesteps: number of timesteps in input, n
     :param include_bias1: if `True`, make first transformation affine
     :param include_bias2: if `True`, add biases to both linear transformations
+    :param initializer: initializer for tensor
     :return: bilinear mapping (b x n x r x n) `Tensor` between `input1` and `input2`, or (b x n x n) if `output_size` == 1
     """
 
     def _add_bias(_input):
         batches_and_tokens = tf.shape(_input)[0]
         bias = tf.ones([batches_and_tokens, 1])
-        return tf.concat([_input, bias], -1)
+        return tf.concat([_input, bias], axis=-1)
 
     if include_bias1:
         # (bn x d) -> (bn x d+1)
@@ -82,7 +84,7 @@ def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include
     input1dim = input1.get_shape()[-1]
     input2dim = input2.get_shape()[-1]
 
-    weights = tf.get_variable("weights", shape=[input1dim, output_size, input2dim], initializer=tf.orthogonal_initializer)
+    weights = tf.get_variable("weights", shape=[input1dim, output_size, input2dim], initializer=initializer)
 
     # (d x r x d) -> (d x rd)
     weights = tf.reshape(weights, [input1dim, -1])

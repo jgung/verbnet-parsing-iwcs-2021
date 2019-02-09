@@ -300,7 +300,8 @@ class BiaffineSrlHead(TaggerHead):
         # apply variable class biaffine classifier for semantic role labels
         with tf.variable_scope("bilinear_logits"):
             num_labels = self.extractor.vocab_size()  # r
-            self.logits = bilinear(arg_mlp, predicate_mlp, num_labels, self.n_steps)  # (b x n x r x n)
+            initializer = tf.zeros_initializer if self.config.zero_init else None
+            self.logits = bilinear(arg_mlp, predicate_mlp, num_labels, self.n_steps, initializer=initializer)  # (b x n x r x n)
 
         if self.config.crf:
             # explicitly train a transition matrix
