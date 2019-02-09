@@ -143,6 +143,9 @@ def model_head(config, inputs, features, mode, params):
         constants.TOKEN_CLASSIFIER_KEY: TokenClassifierHead,
         constants.PARSER_KEY: ParserHead
     }
+    if config.type not in heads:
+        raise AssertionError('Unsupported head type: %s' % config.type)
+
     head = heads[config.type](inputs=inputs, config=config, features=features, params=params,
                               training=mode == tf.estimator.ModeKeys.TRAIN)
     if mode == tf.estimator.ModeKeys.TRAIN:
@@ -157,7 +160,7 @@ def model_head(config, inputs, features, mode, params):
 def _exponential_moving_average_op(mode, ema_decay):
     ema = tf.train.ExponentialMovingAverage(ema_decay, num_updates=tf.train.get_global_step(), zero_debias=True)
     ema_op = ema.apply(tf.trainable_variables())
-    tf.logging.info("Using EMA for variables: %s" % str([v.name for v in tf.trainable_variables()]))
+    tf.logging.debug("Using EMA for variables: %s" % str([v.name for v in tf.trainable_variables()]))
 
     tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, ema_op)
 

@@ -57,7 +57,9 @@ def make_dataset(extractor,
     # seems to be generally set to 1 or 2
     dataset = dataset.prefetch(AUTOTUNE)
 
-    return dataset
+    iterator = dataset.make_initializable_iterator()
+
+    return iterator.get_next()
 
 
 def padded_batch(extractor, placeholder, batch_size=64):
