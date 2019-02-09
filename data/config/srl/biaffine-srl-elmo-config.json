@@ -5,6 +5,7 @@
   "patience": 70000,
   "max_steps": 1000000,
   "batch_size": 32,
+  "ema_decay": 0.999,
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -78,7 +79,8 @@
       "name": "gold",
       "type": "biaffine-srl",
       "mlp_dim": 200,
-      "mlp_dropout": 0.1
+      "mlp_dropout": 0.1,
+      "label_smoothing": 0.1
     }
   ]
 }
