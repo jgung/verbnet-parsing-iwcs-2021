@@ -11,8 +11,8 @@ from tfnlp.common.utils import binary_np_array_to_unicode
 def get_evaluator(head, feature_extractor, output_path, script_path):
     evaluators = {
         constants.TAGGER_KEY: TaggerEvaluator,
-        constants.SRL_KEY: srl_evaluator,
-        constants.BIAFFINE_SRL_KEY: srl_evaluator,
+        constants.SRL_KEY: SrlEvaluator,
+        constants.BIAFFINE_SRL_KEY: SrlEvaluator,
         constants.NER_KEY: TaggerEvaluator,
         constants.PARSER_KEY: DepParserEvaluator,
     }
