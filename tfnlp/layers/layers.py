@@ -391,7 +391,6 @@ class HighwayLSTMCell(LayerRNNCell):
 
 
 def transformer_encoder(inputs, sequence_lengths, training, config):
-
     # nonlinear projection of input to dimensionality of transformer (head size x num heads)
     with tf.variable_scope("encoder_input_proj"):
         inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads), alpha=0.1)
@@ -406,48 +405,68 @@ def transformer_encoder(inputs, sequence_lengths, training, config):
             with tf.variable_scope('layer%d' % i):
                 inputs = transformer(inputs, attention_bias, training, config)
 
+    # apply final layer norm
     inputs = layer_norm(inputs)
 
     return inputs, config.head_dim * config.num_heads, None
 
 
 def transformer(inputs, attention_bias, training, config):
+    def _layer_norm(_x):
+        return layer_norm(_x, begin_norm_axis=-1, begin_params_axis=-1)
+
+    def _residual(_x, _y):
+        return tf.add(_x, tf.layers.dropout(_y, rate=config.prepost_dropout, training=training))
+
+    self_attention_dim = config.head_dim * config.num_heads
     with tf.name_scope('transformer_layer'):
         with tf.variable_scope("self_attention"):
-            x = inputs
+            # apply layer norm before self attention layer
+            x = _layer_norm(inputs)
+
+            # multi-head self-attention
             y = multihead_attention(query_antecedent=x, memory_antecedent=None,
                                     bias=attention_bias,
-                                    total_key_depth=config.head_dim * config.num_heads,
-                                    total_value_depth=config.head_dim * config.num_heads,
-                                    output_depth=config.head_dim * config.num_heads,
+                                    total_key_depth=self_attention_dim,
+                                    total_value_depth=self_attention_dim,
+                                    output_depth=self_attention_dim,
                                     num_heads=config.num_heads,
-                                    dropout_rate=(config.attention_dropout if training else 0),
+                                    dropout_rate=config.attention_dropout if training else 0,
                                     attention_type="dot_product")
-            x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
+            x = _residual(x, y)
 
         with tf.variable_scope("ffnn"):
+            # apply layer norm after self attention layer
             x = layer_norm(x, begin_norm_axis=-1, begin_params_axis=-1)
-            y = conv_hidden_relu(x, hidden_size=config.relu_hidden_size, output_size=config.head_dim * config.num_heads,
-                                 keep_prob=(1 - config.relu_dropout) if training else 1)
-            x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
+
+            y = _mlp(x,
+                     hidden_size=config.relu_hidden_size,
+                     output_size=self_attention_dim,
+                     keep_prob=(1 - config.relu_dropout) if training else 1.0)
+            # residual connection
+            x = _residual(x, y)
 
         return x
 
 
-def conv_hidden_relu(inputs, hidden_size, output_size, keep_prob):
-    """Hidden layer with RELU activation followed by linear projection."""
-    with tf.variable_scope("conv_hidden_relu", [inputs]):
+def _mlp(inputs, hidden_size, output_size, keep_prob):
+    with tf.variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
-        in_size = inputs.get_shape().as_list()[-1]
-        params1 = tf.get_variable("ff1", [1, 1, in_size, hidden_size])
-        params2 = tf.get_variable("ff2", [1, 1, hidden_size, hidden_size])
-        params3 = tf.get_variable("ff3", [1, 1, hidden_size, output_size])
-        h = tf.nn.conv2d(inputs, params1, [1, 1, 1, 1], "SAME")
-        h = tf.nn.leaky_relu(h, alpha=0.1)
-        h = tf.nn.dropout(h, keep_prob)
-        h = tf.nn.conv2d(h, params2, [1, 1, 1, 1], "SAME")
-        h = tf.nn.leaky_relu(h, alpha=0.1)
-        h = tf.nn.dropout(h, keep_prob)
-        ret = tf.nn.conv2d(h, params3, [1, 1, 1, 1], "SAME")
-        ret = tf.squeeze(ret, 1)
-        return ret
+        input_dim = inputs.get_shape().as_list()[-1]
+
+        def ff(name, x, in_dim, out_dim, last=False):
+            weights = tf.get_variable(name, [1, 1, in_dim, out_dim])
+
+            h = tf.nn.conv2d(x, filter=weights, strides=[1, 1, 1, 1], padding="SAME")
+            if not last:
+                h = tf.nn.leaky_relu(h, alpha=0.1)
+                h = tf.nn.dropout(h, keep_prob)
+            else:
+                h = tf.squeeze(h, 1)
+            return h
+
+        y = ff("ff1", inputs, input_dim, hidden_size)
+        y = ff("ff2", y, hidden_size, hidden_size)
+        y = ff("ff3", y, hidden_size, output_size, last=True)
+
+        return y
