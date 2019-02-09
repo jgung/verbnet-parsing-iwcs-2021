@@ -93,14 +93,14 @@ python tfnlp.trainer.py --job-dir data/experiments/conll-05 \
 --train path/to/conll05/train-set.conll \
 --valid path/to/conll05/dev-set.conll \
 --test path/to/conll05/test-wsj.conll \
---config data/config/srl/srl-config.json \
+--config data/config/srl/srl-glove-config.json \
 --resources data/
 ```
 You can run the same command to resume training from a saved checkpoint. 
 The development F1 score typically reaches between 80 and 81.
 
 For training on CoNLL-2012, you will only need to change the `"reader": "conll_2005"` field in 
-`srl-config.json` to `"reader": "conll_2012"`.
+`srl-glove-config.json` to `"reader": "conll_2012"`.
 
 ### Dependency Parsing
 We also provide an implementation of the graph-based dependency parser described in the paper 

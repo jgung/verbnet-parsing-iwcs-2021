@@ -64,7 +64,7 @@
   },
   "encoders": [
     {
-      "name": "words_and_chars",
+      "name": "tokens",
       "type": "concat",
       "inputs": [
         "word",
@@ -74,9 +74,9 @@
       "input_dropout": 0.0
     },
     {
-      "name": "blstm",
+      "name": "alternating_lstm",
       "inputs": [
-        "words_and_chars"
+        "tokens"
       ],
       "type": "dblstm",
       "state_size": 300,
@@ -86,7 +86,7 @@
   ],
   "heads": [
     {
-      "encoder": "blstm",
+      "encoder": "alternating_lstm",
       "name": "gold",
       "type": "srl"
     }
