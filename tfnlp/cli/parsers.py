@@ -8,6 +8,7 @@ def get_parser(config):
     parsers = {
         constants.TAGGER_KEY: default_parser,
         constants.SRL_KEY: srl_parser,
+        constants.BIAFFINE_SRL_KEY: srl_parser,
         constants.NER_KEY: default_parser,
         constants.PARSER_KEY: dep_input_parser,
     }
@@ -43,7 +44,10 @@ def srl_parser(sentence):
         for index, token in enumerate(tokens):
             if token.startswith('+'):
                 markers = ['1' if i == index else '0' for i in range(0, len(tokens))]
-                feats = {constants.WORD_KEY: tokens, constants.LABEL_KEY: ['O'] * len(tokens), constants.MARKER_KEY: markers}
+                feats = {constants.WORD_KEY: tokens,
+                         constants.LABEL_KEY: ['O'] * len(tokens),
+                         constants.MARKER_KEY: markers,
+                         constants.PREDICATE_INDEX_KEY: index}
                 results.append(feats)
 
     return results

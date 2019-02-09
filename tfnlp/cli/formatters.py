@@ -29,6 +29,7 @@ def get_formatter(config):
         constants.TAGGER_KEY: _tagger_formatter,
         constants.NER_KEY: _tagger_formatter,
         constants.SRL_KEY: _tagger_formatter,
+        constants.BIAFFINE_SRL_KEY: _tagger_formatter,
         constants.PARSER_KEY: _no_op_formatter
     }
     if head_type not in formatters:
