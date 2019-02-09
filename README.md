@@ -41,7 +41,7 @@ and dependency parsing.
 We can closely replicate the 
 [LSTM-CNN-CRF architecture from Xuezhe Ma and Eduard Hovy (2016)](
 http://www.aclweb.org/anthology/P16-1101) 
-using the provided configuration in `data/config/ner/ner-config.json`.
+using the provided configuration in `data/config/ner/ner-glove-config.json`.
 
 Follow the [instructions](https://www.clips.uantwerpen.be/conll2003/ner/) 
 for downloading and preparing the CoNLL 2003 English NER dataset.
@@ -55,7 +55,7 @@ python tfnlp.trainer.py --job-dir data/experiments/conll-03 \
 --train path/to/conll03/eng.train \
 --valid path/to/conll03/eng.testa \
 --test path/to/conll03/eng.testb \
---config data/config/ner/ner-config.json \
+--config data/config/ner/ner-glove-config.json \
 --resources data/
 ```
 where `path/to/conll03` gives the location of the CoNLL 2003 corpus.
@@ -66,13 +66,13 @@ You can run the same command to resume training from a saved checkpoint,
 Feature vocabularies, extracted features, checkpoints and final models are saved here.
 
 `--resources data/` indicates the base path to any resources, such as word embeddings, 
-specified in the configuration file given by `--config data/config/ner/ner-config.json`.
+specified in the configuration file given by `--config data/config/ner/ner-glove-config.json`.
 
 Typically, the development F1 score reaches ~94, with a test F1 score of ~90.5.
 
 To train using ELMo–described in the paper 
 [Deep contextualized word representations](https://arxiv.org/abs/1802.05365), 
-use `ner-elmo-config.json` instead of `ner-config.json`.
+use `ner-elmo-config.json` instead of `ner-glove-config.json`.
 
 ### Semantic Role Labeling
 To train a model based on
