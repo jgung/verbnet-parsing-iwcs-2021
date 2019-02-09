@@ -18,18 +18,23 @@ def make_dataset(extractor,
                  batch_size: int = 16,
                  bucket_sizes: List[int] = None,
                  evaluate: bool = False,
-                 num_parallel_calls: int = 4,
+                 num_parallel_calls: int = 8,
                  num_parallel_reads: int = 1,
                  max_epochs: int = -1,
                  length_noise_stdev: int = 0.1,
                  buffer_size: int = 100000,
-                 batch_buffer_size: int = 512):
+                 batch_buffer_size: int = 512,
+                 caching=True):
+
     if bucket_sizes is None:
         bucket_sizes = [5, 10, 25, 50, 100]
     if not isinstance(paths, Iterable):
         paths = [paths]
 
     dataset = tf.data.TFRecordDataset(paths, num_parallel_reads=num_parallel_reads)
+
+    if caching:
+        dataset = dataset.cache()
 
     if not evaluate:
         # shuffle TF records

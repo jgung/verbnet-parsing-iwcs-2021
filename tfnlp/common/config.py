@@ -24,6 +24,7 @@ class BaseNetworkConfig(Params):
             tf.logging.warn("No 'batch_size' parameter provided. Using default value of %d", self.batch_size)
         self.buffer_size = config.get('buffer_size', 999999)  # in other words, read full dataset into memory by default
         self.batch_buffer_size = config.get('batch_buffer_size', 512)  # number of consecutive batches to shuffle
+        self.dataset_caching = config.get('dataset_caching', True)
 
         self.checkpoint_steps = config.get('checkpoint_steps')
         if not self.checkpoint_steps:

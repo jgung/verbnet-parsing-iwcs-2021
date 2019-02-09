@@ -287,7 +287,8 @@ class Trainer(object):
                                     evaluate=not train,
                                     bucket_sizes=bucket_sizes,
                                     buffer_size=self._training_config.buffer_size,
-                                    batch_buffer_size=self._training_config.batch_buffer_size)
+                                    batch_buffer_size=self._training_config.batch_buffer_size,
+                                    caching=self._training_config.dataset_caching)
 
 
 TRAINING_MODES = {'train', 'predict', 'test', 'itl'}
