@@ -39,6 +39,7 @@ class Trainer(object):
     :param resources_dir_path: path to base directory of resources, such as for pre-trained weights
     :param script_file_path: path to official evaluation scripts
     :param model_fn: TF model function ([features, mode, params] -> EstimatorSpec)
+    :param debug: debug mode for training
     """
 
     def __init__(self,
@@ -46,7 +47,8 @@ class Trainer(object):
                  config_json_path: Optional[str] = None,
                  resources_dir_path: Optional[str] = '',
                  script_file_path: Optional[str] = None,
-                 model_fn: Optional[TF_MODEL_FN] = multi_head_model_fn) -> None:
+                 model_fn: Optional[TF_MODEL_FN] = multi_head_model_fn,
+                 debug: bool = False) -> None:
         super().__init__()
         self._job_dir = save_dir_path
 
@@ -55,6 +57,7 @@ class Trainer(object):
         self._resources = resources_dir_path
         self._eval_script_path = script_file_path
         self._model_fn = model_fn
+        self._debug = debug
 
         # read configuration file
         self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
@@ -91,6 +94,7 @@ class Trainer(object):
         if not os.path.exists(estimator.eval_dir()):
             os.makedirs(estimator.eval_dir())
 
+        hooks = []
         early_stopping = stop_if_no_increase_hook(
             estimator,
             metric_name=self._training_config.metric,
@@ -100,10 +104,16 @@ class Trainer(object):
             # reduce how often we check if we should stop to when it makes sense--when we evaluate
             run_every_steps=self._training_config.checkpoint_steps,
         )
+        hooks.append(early_stopping)
+        if self._debug:
+            debug = tf.train.ProfilerHook(save_steps=10,
+                                          output_dir=self._job_dir,
+                                          show_memory=True)
+            hooks.append(debug)
 
         train_spec = tf.estimator.TrainSpec(self._input_fn(train, True),
                                             max_steps=self._training_config.max_steps,
-                                            hooks=[early_stopping])
+                                            hooks=hooks)
 
         exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
                                 compare_fn=metric_compare_fn(self._training_config.metric),
@@ -304,6 +314,8 @@ def default_args():
     parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
                         choices=list(TRAINING_MODES))
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
+    parser.add_argument('--debug', action='store_true', help='Activate profiling/debug mode')
+    parser.set_defaults(debug=False)
     return parser
 
 
@@ -321,7 +333,8 @@ def cli():
     trainer = Trainer(save_dir_path=opts.save,
                       config_json_path=opts.config,
                       resources_dir_path=opts.resources,
-                      script_file_path=opts.script)
+                      script_file_path=opts.script,
+                      debug=opts.debug)
 
     mode = opts.mode
     test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None

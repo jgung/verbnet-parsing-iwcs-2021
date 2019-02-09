@@ -20,6 +20,8 @@ while [[ $# -gt 0 ]]
 do
 key="$1"
 
+debug=''
+
 case ${key} in
     -h|--help)
     usage
@@ -52,6 +54,11 @@ case ${key} in
     ;;
     --bucket)
     bucket_name=$2
+    shift
+    shift
+    ;;
+    --debug)
+    debug='--debug'
     shift
     shift
     ;;
@@ -112,4 +119,5 @@ gcloud ml-engine jobs submit training ${job_name} \
 ${test_arg_str} \
 --mode train \
 --config ${job_dir}/config.json \
+${debug} \
 --resources gs://${bucket_name}/resources/
