@@ -391,13 +391,16 @@ class HighwayLSTMCell(LayerRNNCell):
 
 
 def transformer_encoder(inputs, sequence_lengths, training, config):
+
+    # nonlinear projection of input to dimensionality of transformer (head size x num heads)
     with tf.variable_scope("encoder_input_proj"):
         inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads), alpha=0.1)
+
     with tf.variable_scope('transformer'):
         mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.int32)
-        # e.g. [0 0 0 0 -inf -inf -inf] for a sequence length of 4
+        # e.g. give attention bias [0 0 0 0 -inf -inf -inf] for a sequence length of 4 -- don't attend to padding nodes
         attention_bias = attention_bias_ignore_padding(tf.cast(1 - mask, tf.float32))
-        # add timing signal
+        # add sinusoidal timing signal to give position information to inputs
         inputs = add_timing_signal_1d(inputs)
         for i in range(config.encoder_layers):
             with tf.variable_scope('layer%d' % i):
@@ -423,7 +426,7 @@ def transformer(inputs, attention_bias, training, config):
             x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
 
         with tf.variable_scope("ffnn"):
-            x = layer_norm(x)
+            x = layer_norm(x, begin_norm_axis=-1, begin_params_axis=-1)
             y = conv_hidden_relu(x, hidden_size=config.relu_hidden_size, output_size=config.head_dim * config.num_heads,
                                  keep_prob=(1 - config.relu_dropout) if training else 1)
             x = tf.add(x, tf.layers.dropout(y, rate=config.prepost_dropout, training=training))
