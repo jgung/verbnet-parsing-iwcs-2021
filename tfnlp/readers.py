@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from tensorflow.python.lib.io import file_io
 
+from tfnlp.common import constants
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
 from tfnlp.common.constants import CHUNK_KEY, DEPREL_KEY, ENHANCED_DEPS_KEY, FEAT_KEY, HEAD_KEY, ID_KEY, INSTANCE_INDEX, \
     LABEL_KEY, LEMMA_KEY, MARKER_KEY, MISC_KEY, NAMED_ENTITY_KEY, PARSE_KEY, PDEPREL_KEY, PFEAT_KEY, PHEAD_KEY, PLEMMA_KEY, \
@@ -249,6 +250,8 @@ class ConllSrlReader(ConllReader):
             instance[SENSE_KEY] = [instance[SENSE_KEY][predicate_index] if index == predicate_index else '-'
                                    for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[PREDICATE_INDEX_KEY] = predicate_index
+            instance[constants.PREDICATE_LEMMA] = instance[self._predicate_key]
+            instance[constants.PREDICATE_FORM] = instance[WORD_KEY][predicate_index]
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
             self.prop_count += 1

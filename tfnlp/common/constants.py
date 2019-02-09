@@ -42,6 +42,8 @@ MISC_KEY = "misc"
 
 MARKER_KEY = "marker"
 TOKEN_INDEX_KEY = "token_index"
+PREDICATE_FORM = "predicate_form"
+PREDICATE_LEMMA = "predicate_lemma"
 PREDICATE_INDEX_KEY = "predicate_index"
 INSTANCE_INDEX = "instance_idx"
 SENTENCE_INDEX = "sentence_idx"
