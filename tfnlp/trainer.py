@@ -200,18 +200,15 @@ class Trainer(object):
 
     def _init_feature_extractor(self, train_path: str = None):
         self._feature_extractor = get_feature_extractor(self._training_config.features)
-        if train_path:
-            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
-            if self._feature_extractor.read_vocab(self._vocab_path):
-                tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
-            else:
-                tf.logging.info("No valid pre-existing vocabulary found at %s "
-                                "(this is normal when not loading from an existing model)", self._vocab_path)
-                self._train_vocab(train_path)
-        else:
-            tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
-            self._feature_extractor.read_vocab(self._vocab_path)
+        tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
+        if self._feature_extractor.read_vocab(self._vocab_path):
             tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
+        elif train_path:
+            tf.logging.info("No valid pre-existing vocabulary found at %s "
+                            "(this is normal when not loading from an existing model)", self._vocab_path)
+            self._train_vocab(train_path)
+        else:
+            raise ValueError('No feature vocabulary available at %s and unable to train new vocabulary' % self._vocab_path)
 
     def _extract_raw(self, path: str, test: bool = False):
         # TODO: allow for separate test reader configuration
@@ -220,13 +217,14 @@ class Trainer(object):
         raw_instances = reader.read_file(path)
 
         if not raw_instances:
-            raise ValueError("No examples provided at path given by '{}'".format(path))
+            raise ValueError("No examples provided at path given by '%s'" % path)
         return raw_instances
 
     def _train_vocab(self, train_path: str):
-        tf.logging.info("Training new vocabulary using training data at %s", train_path)
+        tf.logging.info("Creating new vocabulary using training data at %s", train_path)
         self._feature_extractor.initialize(self._resources)
         self._feature_extractor.train(self._extract_raw(train_path))
+        tf.logging.info("Writing new feature/label vocabulary to %s", self._vocab_path)
         self._feature_extractor.write_vocab(self._vocab_path, resources=self._resources, prune=True)
 
     def _extract_features(self, path: str, test: bool = False):
@@ -237,7 +235,7 @@ class Trainer(object):
     def _extract_and_write(self, path: str, test: bool = False):
         output_path = self._data_path_fn(path)
         if tf.gfile.Exists(output_path):
-            tf.logging.info("Using existing features for %s from %s", path, output_path)
+            tf.logging.info("Using pre-existing features for %s from %s", path, output_path)
             return
         examples = self._extract_features(path, test)
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)

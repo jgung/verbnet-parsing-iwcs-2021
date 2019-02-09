@@ -1,7 +1,8 @@
 from typing import List, Iterable, Union
 
 import tensorflow as tf
-from tensorflow.contrib.data import bucket_by_sequence_length, shuffle_and_repeat, AUTOTUNE
+from tensorflow.python.data.experimental import shuffle_and_repeat, bucket_by_sequence_length
+from tensorflow.python.data.experimental.ops.optimization import AUTOTUNE
 
 from tfnlp.common.constants import LENGTH_KEY
 
@@ -25,7 +26,6 @@ def make_dataset(extractor,
                  buffer_size: int = 100000,
                  batch_buffer_size: int = 512,
                  caching=True):
-
     if bucket_sizes is None:
         bucket_sizes = [5, 10, 25, 50, 100]
     if not isinstance(paths, Iterable):

@@ -720,8 +720,9 @@ class FeatureExtractor(object):
             num_vectors_to_read = initializer.include_in_vocab
             if num_vectors_to_read <= 0:
                 continue
-
             vectors_path = os.path.join(resources, initializer.embedding)
+
+            tf.logging.info("Initializing vocabulary from pre-trained embeddings at %s", vectors_path)
             vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
             tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
             for key in vectors:
@@ -759,15 +760,19 @@ class FeatureExtractor(object):
 
             vectors_path = os.path.join(resources, initializer.embedding)
             _vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
+
+            # if our feature extractor applies a mapping function (e.g. lowercase), we don't want duplicate entries
+            # by default, choose the first entry to use a the pre-trained embedding
             vectors = {}
             for key, vector in _vectors.items():
+                # apply mapping
                 key = feature.map(key)
                 if key not in vectors:
                     vectors[key] = vector
 
-            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
+            # save embeddings as a serialized numpy matrix to make deserialization faster
             feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
-            tf.logging.info("Saving %d vectors as embedding", feature.embedding.shape[0])
+            tf.logging.info("Saving %d vectors as embedding for '%s' feature", feature.embedding.shape[0], feature.name)
             serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
 
     def read_vocab(self, base_path):
