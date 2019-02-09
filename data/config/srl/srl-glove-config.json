@@ -6,6 +6,7 @@
   "max_steps": 1000000,
   "batch_size": 64,
   "ema_decay": 0.999,
+  "bucket_sizes": [20, 30, 50, 80],
   "optimizer": {
     "name": "Adadelta",
     "params": {
