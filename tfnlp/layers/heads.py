@@ -278,12 +278,10 @@ class TaggerHead(ModelHead):
             )
 
 
-class BiaffineSrlHead(ModelHead):
+class BiaffineSrlHead(TaggerHead):
 
     def __init__(self, inputs, config, features, params, training=False):
         super().__init__(inputs, config, features, params, training)
-        self._sequence_lengths = self.features[constants.LENGTH_KEY]
-        self._tag_transitions = None
         self.n_steps = None
         self.predicate_indices = None
 
@@ -341,36 +339,3 @@ class BiaffineSrlHead(ModelHead):
         self.n_tokens = tf.cast(tf.reduce_sum(self.features[constants.LENGTH_KEY]), tf.int32)
         _logits = select_logits(self.logits, self.predicate_indices, self.n_steps)  # (b x n x r)
         self.predictions = crf.crf_decode(_logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
-
-    def _evaluation(self):
-        labels_key = append_label(constants.LABEL_KEY, self.name)
-        predictions_key = append_label(constants.PREDICT_KEY, self.name)
-
-        eval_tensors = {  # tensors necessary for evaluation hooks (such as sequence length)
-            constants.LENGTH_KEY: self._sequence_lengths,
-            constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
-            labels_key: self.targets,
-            predictions_key: self.predictions,
-            constants.MARKER_KEY: self.features[constants.MARKER_KEY]
-        }
-
-        overall_score = tf.identity(self.metric)
-
-        overall_key = append_label(constants.OVERALL_KEY, self.name)
-
-        self.metric_ops = {overall_key: (overall_score, overall_score)}
-        # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
-        eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
-
-        self.evaluation_hooks = [
-            SrlEvalHook(
-                tensors=eval_tensors,
-                vocab=self.extractor,
-                label_key=labels_key,
-                predict_key=predictions_key,
-                eval_update=tf.assign(self.metric, eval_placeholder),
-                eval_placeholder=eval_placeholder,
-                output_confusions=self.params.verbose_eval,
-                output_dir=self.params.job_dir
-            )
-        ]
