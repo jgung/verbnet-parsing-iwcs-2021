@@ -45,12 +45,6 @@
         }
       },
       {
-        "name": "predicate_index",
-        "key": "predicate_index",
-        "numeric": true,
-        "rank": 1
-      },
-      {
         "name": "marker",
         "key": "marker",
         "config": {
@@ -61,6 +55,12 @@
         },
         "unknown_word": "0",
         "pad_word": "0"
+      },
+      {
+        "name": "predicate_index",
+        "key": "predicate_index",
+        "numeric": true,
+        "rank": 1
       }
     ]
   },
