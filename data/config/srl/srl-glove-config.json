@@ -77,7 +77,7 @@
       ],
       "type": "dblstm",
       "state_size": 300,
-      "encoder_output_dropout": 0.1,
+      "encoder_dropout": 0.1,
       "encoder_layers": 8
     }
   ],
