@@ -6,14 +6,22 @@
   "max_steps": 1000000,
   "batch_size": 32,
   "ema_decay": 0.999,
-  "bucket_sizes": [20, 30, 50, 80],
+  "bucket_sizes": [
+    20,
+    30,
+    50,
+    80
+  ],
   "optimizer": {
     "name": "Adadelta",
     "params": {
       "epsilon": 1e-6
     },
     "lr": 1.0,
-    "clip": 1.0
+    "clip": 1.0,
+    "l2_loss": {
+      ".*module/aggregation/weights.*": 0.001
+    }
   },
   "features": {
     "seq_feat": "gold",

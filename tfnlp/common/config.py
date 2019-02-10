@@ -224,9 +224,13 @@ def get_l2_loss(network_config, variables):
     if not isinstance(l2_loss, dict):
         raise ValueError("'l2_loss' expects a dictionary from regular expressions matching variable names to L2 terms,"
                          " e.g. {\".*scalar.*\": 0.001}, or a single L2 term to be applied globally to non-bias weights.")
+
     all_losses = []
-    for key, val in l2_loss.items():
-        all_losses.append([tf.nn.l2_loss(v) * val for v in variables if re.match(key, v.name)])
+    for var_pattern, alpha in l2_loss.items():
+        for var in [v for v in variables if re.match(var_pattern, v.name)]:
+            tf.logging.info('Adding L2 regularization with alpha=%f to %s' % (alpha, var.name))
+            all_losses.append(alpha * tf.nn.l2_loss(var))
+
     return tf.add_n(all_losses)
 
 
