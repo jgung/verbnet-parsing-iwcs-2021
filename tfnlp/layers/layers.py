@@ -87,8 +87,8 @@ def _get_embedding_input(inputs, feature, training):
                     tf.logging.info("Zero init for feature embedding: %s", feature.name)
                     initializer = tf.zeros_initializer
                 else:
-                    tf.logging.info("Gaussian init for feature embedding: %s", feature.name)
-                    initializer = tf.random_normal_initializer(0, 0.01)
+                    tf.logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
+                    initializer = tf.glorot_uniform_initializer
 
             embedding_matrix = tf.get_variable(name='parameters',
                                                shape=[feature.vocab_size(), config.dim],
