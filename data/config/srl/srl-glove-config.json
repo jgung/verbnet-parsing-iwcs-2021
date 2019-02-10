@@ -1,12 +1,11 @@
 {
-  "comments": "90,750 in CoNLL-2005 training corpus, 2800 steps w/ batch size of 32 is about 1 epoch, 70900 steps is 25 epochs",
+  "comments": "90,750 in CoNLL-2005 training corpus, 1135 steps w/ batch size of 80 is ~1 epoch",
   "reader": "conll_2005",
-  "checkpoint_steps": 1400,
-  "patience": 70000,
-  "max_steps": 1000000,
-  "batch_size": 64,
+  "checkpoint_steps": 1135,
+  "patience": 200000,
+  "max_steps": 500000,
+  "batch_size": 80,
   "ema_decay": 0.999,
-  "bucket_sizes": [20, 30, 50, 80],
   "optimizer": {
     "name": "Adadelta",
     "params": {

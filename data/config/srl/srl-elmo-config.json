@@ -6,12 +6,6 @@
   "max_steps": 500000,
   "batch_size": 80,
   "ema_decay": 0.999,
-  "bucket_sizes": [
-    20,
-    30,
-    50,
-    80
-  ],
   "optimizer": {
     "name": "Adadelta",
     "params": {
@@ -63,7 +57,6 @@
       "name": "tokens",
       "type": "concat",
       "inputs": [
-        "word",
         "elmo",
         "marker"
       ],
