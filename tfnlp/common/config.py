@@ -242,7 +242,7 @@ def train_op_from_config(config, loss):
 
     # optionally add L2 loss to specific weights, or globally
     l2_loss = get_l2_loss(config, parameters)
-    if l2_loss:
+    if l2_loss is not None:
         loss += l2_loss
 
     gradients = tf.gradients(loss, parameters)
