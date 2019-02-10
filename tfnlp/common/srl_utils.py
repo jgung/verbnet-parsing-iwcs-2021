@@ -81,20 +81,27 @@ def get_number(role: str) -> Optional[str]:
     return numbers[0].upper()
 
 
+ARG_PATTERN = r'((?:ARG|A)[\dA])'
+
+
 def apply_numbered_arg_mappings(roleset_id: str,
                                 role: str,
                                 mappings: Dict[str, Dict[str, str]],
                                 ignore_unmapped: bool = False,
+                                append: bool = False,
                                 arga_mapping: str = 'PAG') -> Optional[str]:
     """
     Apply argument mappings for a given roleset and role.
     >>> apply_numbered_arg_mappings('take.01', 'A4', mappings)
     'GOL'
+    >>> apply_numbered_arg_mappings('take.01', 'A4', mappings, append=True)
+    'A4-GOL'
 
     :param roleset_id: roleset ID, e.g. 'take.01'
     :param role: role string, e.g. 'A4'
     :param mappings: dictionary of mappings from numbered arguments by roleset
     :param ignore_unmapped: if 'True', return unmodified role string if mapping is not present
+    :param append: if 'True', append mapping with a hyphen instead of replacing
     :param arga_mapping: mapping for ARGA, if not already existing
     :return: mapped role, or 'None' if no mapping exists and ignore_unmapped is set to 'False'
     """
@@ -117,6 +124,8 @@ def apply_numbered_arg_mappings(roleset_id: str,
         if ignore_unmapped:
             return role
         return None
+    if append:
+        return re.sub(ARG_PATTERN, '\\1-' + mapped, role)
     return re.sub(NUMBER_PATTERN, mapped, role)
 
 
@@ -188,7 +197,7 @@ def main(opts):
     mappings = get_argument_function_mappings(opts.frames)
 
     def mapping_fn(rs, r):
-        return apply_numbered_arg_mappings(rs, r, mappings, ignore_unmapped=True)
+        return apply_numbered_arg_mappings(rs, r, mappings, ignore_unmapped=True, append=opts.append)
 
     map_conll_file(opts.input, opts.output, mapping_fn)
 
@@ -196,6 +205,8 @@ def main(opts):
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
     args.add_argument('--frames', type=str, required=True, help='Path to directory containing frame file XMLs')
-    args.add_argument('--input', type=str, required=True, help='Input CoNLL file')
-    args.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL fie')
+    args.add_argument('--input', type=str, required=True, help='Input CoNLL 2012 file')
+    args.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL 2012 file')
+    args.add_argument('--append', action='store_true', help='Append mappings instead of replacing original label')
+    args.set_defaults(append=False)
     main(args.parse_args())
