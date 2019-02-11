@@ -168,4 +168,4 @@ def _get_val_and_tag(label):
         return '', ''
     if label == 'O':
         return label, ''
-    return label.split('-')
+    return label.split('-', 1)

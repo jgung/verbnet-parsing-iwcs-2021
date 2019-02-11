@@ -2,9 +2,11 @@ import argparse
 import glob
 import os
 import re
-from collections import defaultdict
-from typing import Dict, Optional, Callable
+from collections import defaultdict, Counter, namedtuple
+from typing import Dict, Optional, Callable, Any, List, TextIO
 from xml.etree import ElementTree
+
+from tfnlp.common.chunk import labels_to_spans, convert_conll_to_bio
 
 _PREDICATE = 'predicate'
 _ROLESET = 'roleset'
@@ -129,68 +131,187 @@ def apply_numbered_arg_mappings(roleset_id: str,
     return re.sub(NUMBER_PATTERN, mapped, role)
 
 
-def map_conll_file(conll_file: str,
-                   out_file: str,
-                   mappings: Callable[[str, str], Optional[str]],
-                   lemma_col: int = 6,
-                   roleset_col: int = 7,
-                   arg_start: int = 11,
-                   arg_end: int = -1,
-                   ignore_fn=lambda l: l.startswith('#'),
-                   skip_rs=lambda r: r == '-'):
+class CoNllProcessor(object):
     """
-    Read a CoNLL 2012-formatted file, use a supplied mapping function to convert arguments, output mapped file.
-    :param conll_file: input CoNLL file
-    :param out_file: output CoNLL file with mapped arguments
-    :param mappings: argument mapping function, from rolesets to roleset-specific argument mappings
+    Read a CoNLL 2012-formatted file and perform some processing operation over individual sentences.
+
     :param lemma_col: column of lemma
     :param roleset_col: column for roleset ID
     :param arg_start: column of first argument
     :param arg_end: end index of arguments
-    :param ignore_fn: function to ignore commented lines
-    :param skip_rs: function to skip particular rolesets
     """
 
-    if conll_file == out_file:
-        raise ValueError('Input file cannot be the same as output file')
+    def __init__(self,
+                 lemma_col: int = 6,
+                 roleset_col: int = 7,
+                 arg_start: int = 11,
+                 arg_end: int = -1) -> None:
+        super().__init__()
+        self.lemma_col = lemma_col
+        self.roleset_col = roleset_col
+        self.arg_start = arg_start
+        self.arg_end = arg_end
+        self.ignore_fn = lambda l: l.startswith('#')
+        self.skip_rs = lambda r: r == '-'
 
-    with open(conll_file, 'r') as conll_lines, open(out_file, 'w') as conll_out:
+    def process_file(self, conll_file: str):
+        """
+        Perform processing on a single file.
+        :param conll_file: path to input file
+        """
+        context = self._open_context()
 
-        def process_lines(field_lists, roleset_list):
-            for field_list in field_lists:
-                mapped = []
-                for col, arg in enumerate(field_list[arg_start:arg_end]):
-                    if not (arg == '*' or arg == '*)' or '-V*' in arg or '(V*' in arg):
-                        arg = mappings(roleset_list[col], arg)
-                        mapped.append(arg)
-                    else:
-                        mapped.append(arg)
-                new_line = ' '.join(field_list[:arg_start] + mapped + field_list[arg_end:])
-                conll_out.write(new_line + '\n')
+        with open(conll_file, 'r') as conll_lines:
+            sentence = []
+            rolesets = []  # keep ordered list of rolesets to be processed at end of sentence
+            for line in conll_lines:
+                line = line.strip()
+                if not line or self.ignore_fn(line):
+                    if sentence:
+                        self._process_sentence(sentence, rolesets, context)
+                        sentence = []
+                        rolesets = []
+                    continue
+                fields = line.split()
 
-        sentence = []
-        rolesets = []  # keep ordered list of rolesets to be processed at end of sentence
-        for line in conll_lines:
-            line = line.strip()
-            if not line or ignore_fn(line):
-                if sentence:
-                    process_lines(sentence, rolesets)
-                    sentence = []
-                    rolesets = []
-                conll_out.write('\n')
-                continue
-            fields = line.split()
+                number = fields[self.roleset_col]  # e.g. '01'
+                roleset = fields[self.lemma_col] + '.' + number  # e.g. 'take.01;
 
-            number = fields[roleset_col]  # e.g. '01'
-            roleset = fields[lemma_col] + '.' + number  # e.g. 'take.01;
+                if not self.skip_rs(fields[self.roleset_col]):
+                    rolesets.append(roleset)
 
-            if not skip_rs(fields[roleset_col]):
-                rolesets.append(roleset)
+                sentence.append(fields)
 
-            sentence.append(fields)
+            if sentence:
+                self._process_sentence(sentence, rolesets, context)
 
-        if sentence:
-            process_lines(sentence, rolesets)
+        self._end(context)
+
+    def _open_context(self) -> Any:
+        """
+        Open a new processing context.
+        """
+        return None
+
+    def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context) -> None:
+        """
+        Perform processing on a single sentence
+        :param rows: list of CoNLL rows, each split into individual fields (e.g. path, token, pos, ...)
+        :param rolesets: list of rolesets in original order
+        :param context: processing context
+        """
+        pass
+
+    def _end(self, context) -> None:
+        """
+        Perform final processing using accumulated context.
+        :param context: processing context
+        """
+        pass
+
+
+class CoNllArgMapper(CoNllProcessor):
+    """
+    Map arguments based on their rolesets, output result to provided file path.
+    :param mapping_fn: argument mapping function, from rolesets to roleset-specific argument mappings
+    :param out_file: path to output file
+    """
+
+    def __init__(self, mapping_fn: Callable[[str, str], Optional[str]], out_file: str, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.mapping_fn = mapping_fn
+        self.out_file = out_file
+
+    def _open_context(self) -> TextIO:
+        return open(self.out_file, 'w')
+
+    def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: TextIO) -> None:
+        for field_list in rows:
+            mapped = []
+            for col, arg in enumerate(field_list[self.arg_start:self.arg_end]):
+                if not (arg == '*' or arg == '*)' or '-V*' in arg or '(V*' in arg):
+                    arg = self.mapping_fn(rolesets[col], arg)
+                    mapped.append(arg)
+                else:
+                    mapped.append(arg)
+            new_line = ' '.join(field_list[:self.arg_start] + mapped + field_list[self.arg_end:])
+            context.write(new_line + '\n')
+
+    def _end(self, context: TextIO) -> None:
+        super()._end(context)
+        context.close()
+
+
+class CoNllArgCounter(CoNllProcessor):
+    """
+    Generate counts for mappings from original arguments to mapped arguments.
+    :param mapping_fn: argument mapping function, from rolesets to roleset-specific argument mappings
+    :param out_file: path to output file
+    """
+
+    Context = namedtuple('Context', ['original_counts', 'mapped_counts'])
+
+    def __init__(self, mapping_fn, out_file, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.mapping_fn = mapping_fn
+        self.out_file = out_file
+
+    def _open_context(self) -> Context:
+        context = self.Context(defaultdict(Counter), Counter())
+        return context
+
+    def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: Context) -> None:
+        for i, rs in enumerate(rolesets):
+            original = [row[self.arg_start + i] for row in rows]
+            mapped = [self.mapping_fn(rs, arg) for arg in original]
+            spans = labels_to_spans(convert_conll_to_bio(mapped))
+            original_spans = labels_to_spans(convert_conll_to_bio(original))
+            for (label, start, end), (olabel, ostart, oend) in zip(spans, original_spans):
+                context.original_counts[olabel][label] += 1
+                context.mapped_counts[label] += 1
+
+    def _end(self, context: Context) -> None:
+        super()._end(context)
+        with open(self.out_file, 'w') as out:
+            numbers = set(context.original_counts.keys())
+            key_list = [key for key, val in sorted(context.mapped_counts.items(), key=lambda x: x[1], reverse=True)]
+            out.write('\t%s\n' % '\t'.join(key_list))
+            for number in sorted(numbers):
+                total = sum([val for key, val in context.original_counts[number].items()])
+                out.write('%s\t%s\t%d\n'
+                          % (number, '\t'.join([str(context.original_counts[number][key]) for key in key_list]), total))
+            out.write('\t%s\n' % '\t'.join([str(context.mapped_counts[key]) for key in key_list]))
+
+
+class CoNllPhraseWriter(CoNllProcessor):
+    """
+    Apply mappings to arguments in a CoNLL file, then output all mapped phrases to a file.
+    :param mapping_fn: argument mapping function, from rolesets to roleset-specific argument mappings
+    :param out_file: path to output file
+    """
+
+    def __init__(self, mapping_fn, out_file, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.mapping_fn = mapping_fn
+        self.out_file = out_file
+
+    def _open_context(self) -> defaultdict:
+        return defaultdict(Counter)
+
+    def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: defaultdict) -> None:
+        for i, rs in enumerate(rolesets):
+            original = [row[self.arg_start + i] for row in rows]
+            mapped = [self.mapping_fn(rs, arg) for arg in original]
+            spans = labels_to_spans(convert_conll_to_bio(mapped))
+            for label, start, end in spans:
+                context[label][' '.join([row[3] for row in rows[start:end]])] += 1
+
+    def _end(self, context: defaultdict) -> None:
+        super()._end(context)
+        with open(self.out_file, 'w') as out:
+            for phrase_label, phrase in context.items():
+                for span, count in phrase.items():
+                    out.write('%s\t%d\t%s\n' % (phrase_label, count, span))
 
 
 def main(opts):
@@ -199,14 +320,22 @@ def main(opts):
     def mapping_fn(rs, r):
         return apply_numbered_arg_mappings(rs, r, mappings, ignore_unmapped=True, append=opts.append)
 
-    map_conll_file(opts.input, opts.output, mapping_fn)
+    mode_map = {
+        'map': CoNllArgMapper,
+        'count': CoNllArgCounter,
+        'phrase': CoNllPhraseWriter
+    }
+
+    mode_map[opts.mode](mapping_fn, opts.output).process_file(opts.input)
 
 
 if __name__ == '__main__':
-    args = argparse.ArgumentParser()
-    args.add_argument('--frames', type=str, required=True, help='Path to directory containing frame file XMLs')
-    args.add_argument('--input', type=str, required=True, help='Input CoNLL 2012 file')
-    args.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL 2012 file')
-    args.add_argument('--append', action='store_true', help='Append mappings instead of replacing original label')
-    args.set_defaults(append=False)
-    main(args.parse_args())
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('--frames', type=str, required=True, help='Path to directory containing frame file XMLs')
+    argparser.add_argument('--input', type=str, required=True, help='Input CoNLL 2012 file')
+    argparser.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL 2012 file')
+    argparser.add_argument('--append', action='store_true', help='Append mappings instead of replacing original label')
+    argparser.add_argument('--mode', type=str, default='map', choices=['map', 'count', 'phrases'],
+                           help='Mode to apply mappings')
+    argparser.set_defaults(append=False)
+    main(argparser.parse_args())
