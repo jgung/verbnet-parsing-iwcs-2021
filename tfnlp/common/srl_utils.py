@@ -94,8 +94,8 @@ def apply_numbered_arg_mappings(roleset_id: str,
     Apply argument mappings for a given roleset and role.
     >>> apply_numbered_arg_mappings('take.01', 'A4', mappings)
     'GOL'
-    >>> apply_numbered_arg_mappings('take.01', 'A4', mappings, append=True)
-    'A4-GOL'
+    >>> apply_numbered_arg_mappings('take.01', '(A4*', mappings, append=True)
+    '(A4-GOL*'
 
     :param roleset_id: roleset ID, e.g. 'take.01'
     :param role: role string, e.g. 'A4'
