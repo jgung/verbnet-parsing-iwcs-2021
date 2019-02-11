@@ -25,6 +25,7 @@ def get_argument_function_mappings(frames_dir: str,
     Return a dictionary from roleset IDs (e.g. 'take.01') to dictionaries mapping numbered arguments to function tags.
 
     >>> mappings = get_argument_function_mappings('/path/to/frames/')
+
     >>> mappings['take.01']
     {'0': 'PAG', '1': 'PPT', '2': 'DIR', '3': 'GOL'}
     >>> mappings['take.01']['0']
@@ -236,6 +237,7 @@ class CoNllArgMapper(CoNllProcessor):
                     mapped.append(arg)
             new_line = ' '.join(field_list[:self.arg_start] + mapped + field_list[self.arg_end:])
             context.write(new_line + '\n')
+        context.write('\n')
 
     def _end(self, context: TextIO) -> None:
         super()._end(context)
