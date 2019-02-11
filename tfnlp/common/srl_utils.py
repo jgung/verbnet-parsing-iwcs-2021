@@ -85,6 +85,7 @@ def get_number(role: str) -> Optional[str]:
 
 
 ARG_PATTERN = r'((?:ARG|A)[\dA])'
+MOD_PATTERN = r'(?:ARGM|AM)-'
 
 
 def apply_numbered_arg_mappings(roleset_id: str,
@@ -92,6 +93,7 @@ def apply_numbered_arg_mappings(roleset_id: str,
                                 mappings: Dict[str, Dict[str, str]],
                                 ignore_unmapped: bool = False,
                                 append: bool = False,
+                                combine_modifiers: bool = False,
                                 arga_mapping: str = 'PAG') -> Optional[str]:
     """
     Apply argument mappings for a given roleset and role.
@@ -105,9 +107,13 @@ def apply_numbered_arg_mappings(roleset_id: str,
     :param mappings: dictionary of mappings from numbered arguments by roleset
     :param ignore_unmapped: if 'True', return unmodified role string if mapping is not present
     :param append: if 'True', append mapping with a hyphen instead of replacing
+    :param combine_modifiers: if 'True', remove "ARGM-" from modifier labels
     :param arga_mapping: mapping for ARGA, if not already existing
     :return: mapped role, or 'None' if no mapping exists and ignore_unmapped is set to 'False'
     """
+    if combine_modifiers:
+        role = re.sub(MOD_PATTERN, '', role)
+
     roleset_map = mappings.get(roleset_id)
     if roleset_map is None:
         if roleset_id.endswith('LV'):
@@ -320,7 +326,10 @@ def main(opts):
     mappings = get_argument_function_mappings(opts.frames)
 
     def mapping_fn(rs, r):
-        return apply_numbered_arg_mappings(rs, r, mappings, ignore_unmapped=True, append=opts.append)
+        return apply_numbered_arg_mappings(rs, r, mappings,
+                                           ignore_unmapped=True,
+                                           combine_modifiers=opts.combine,
+                                           append=opts.append)
 
     mode_map = {
         'map': CoNllArgMapper,
@@ -337,7 +346,9 @@ if __name__ == '__main__':
     argparser.add_argument('--input', type=str, required=True, help='Input CoNLL 2012 file')
     argparser.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL 2012 file')
     argparser.add_argument('--append', action='store_true', help='Append mappings instead of replacing original label')
+    argparser.add_argument('--combine', action='store_true', help='Combine modifiers (AM-TMP) w/ function tags (TMP)')
     argparser.add_argument('--mode', type=str, default='map', choices=['map', 'count', 'phrases'],
                            help='Mode to apply mappings')
     argparser.set_defaults(append=False)
+    argparser.set_defaults(combine=False)
     main(argparser.parse_args())
