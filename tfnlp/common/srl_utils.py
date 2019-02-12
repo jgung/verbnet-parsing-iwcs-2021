@@ -327,7 +327,7 @@ class CoNllPhraseWriter(CoNllProcessor):
             mapped = [self.mapping_fn(rs, arg) for arg in original]
             spans = labels_to_spans(convert_conll_to_bio(mapped))
             for label, start, end in spans:
-                context[label][' '.join([row[3] for row in rows[start:end]])] += 1
+                context[label][rs + ' ' + ' '.join([row[3] for row in rows[start:end]])] += 1
 
     def _end(self, context: defaultdict) -> None:
         super()._end(context)
@@ -349,7 +349,7 @@ def main(opts):
     mode_map = {
         'map': CoNllArgMapper,
         'count': CoNllArgCounter,
-        'phrase': CoNllPhraseWriter
+        'phrases': CoNllPhraseWriter
     }
 
     mode_map[opts.mode](mapping_fn, opts.output).process_file(opts.input)
