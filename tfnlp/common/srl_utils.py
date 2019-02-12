@@ -16,7 +16,13 @@ _ID = 'id'
 _NUMBER = 'n'
 _FT = 'f'
 
-VALID_NUMBERS = {'0', '1', '2', '3', '4', '5', '6', 'A', 'M'}
+_VALID_NUMBERS = {'0', '1', '2', '3', '4', '5', '6', 'A', 'M'}
+
+_ARG_PATTERN = r'(A[\dA])'
+_MOD_PATTERN = r'AM-'
+_NUMBER_PATTERN = r'(?:ARG|A)([A\d])'
+_ARG_STR = r'(\S+)?ARG(\S(?:-\S+)?)'
+_CORE_ARG_PREFIX = 'AC-'
 
 
 def get_argument_function_mappings(frames_dir: str,
@@ -50,7 +56,7 @@ def get_argument_function_mappings(frames_dir: str,
                     sorted_roles = sorted(roles.findall(_ROLE), key=lambda r: r.get(_NUMBER).upper())
                     for role in sorted_roles:
                         number = role.get(_NUMBER).upper()
-                        if number not in VALID_NUMBERS:
+                        if number not in _VALID_NUMBERS:
                             raise ValueError('Unexpected number format: %s' % number)
                         ft = role.get(_FT).upper()
                         if add_co_marker:
@@ -60,9 +66,6 @@ def get_argument_function_mappings(frames_dir: str,
                                 fts.add(ft)
                         rs_mappings[number] = ft
     return dict(mappings)
-
-
-NUMBER_PATTERN = r'(?:ARG|A)([A\d])'
 
 
 def get_number(role: str) -> Optional[str]:
@@ -78,14 +81,19 @@ def get_number(role: str) -> Optional[str]:
     :param role: role string, e.g. 'ARG4' or 'A4'
     :return: single-character role number string, e.g. '4'
     """
-    numbers = re.findall(NUMBER_PATTERN, role, re.IGNORECASE)
+    numbers = re.findall(_NUMBER_PATTERN, role, re.IGNORECASE)
     if not numbers:
         return None
     return numbers[0].upper()
 
 
-ARG_PATTERN = r'((?:ARG|A)[\dA])'
-MOD_PATTERN = r'(?:ARGM|AM)-'
+def arg_to_a(role: str):
+    """
+    Convert 'ARGM-TMP' form of role label to 'AM-TMP' form.
+    :param role: original role label
+    :return: shortened role, with 'A' instead of 'ARG'
+    """
+    return re.sub(_ARG_STR, r'\1A\2', role, re.IGNORECASE).upper()
 
 
 def apply_numbered_arg_mappings(roleset_id: str,
@@ -111,8 +119,9 @@ def apply_numbered_arg_mappings(roleset_id: str,
     :param arga_mapping: mapping for ARGA, if not already existing
     :return: mapped role, or 'None' if no mapping exists and ignore_unmapped is set to 'False'
     """
+    role = arg_to_a(role)
     if combine_modifiers:
-        role = re.sub(MOD_PATTERN, '', role)
+        role = re.sub(_MOD_PATTERN, '', role)
 
     roleset_map = mappings.get(roleset_id)
     if roleset_map is None:
@@ -134,8 +143,14 @@ def apply_numbered_arg_mappings(roleset_id: str,
             return role
         return None
     if append:
-        return re.sub(ARG_PATTERN, '\\1-' + mapped, role)
-    return re.sub(NUMBER_PATTERN, mapped, role)
+        # we're going to append the mapped label to the result, e.g. A4 -> GOL => 'A4-GOL'
+        return re.sub(_ARG_PATTERN, '\\1-' + mapped, role)
+    elif combine_modifiers:
+        # just returned the mapped role, if we are combining with modifiers
+        return re.sub(_NUMBER_PATTERN, mapped, role)
+    else:
+        # differentiate from modifiers by adding a core argument prefix to the mapped result, e.g. A4 -> GOL => 'AC-GOL'
+        return re.sub(_NUMBER_PATTERN, _CORE_ARG_PREFIX + mapped, role)
 
 
 class CoNllProcessor(object):
@@ -275,7 +290,7 @@ class CoNllArgCounter(CoNllProcessor):
             spans = labels_to_spans(convert_conll_to_bio(mapped))
             original_spans = labels_to_spans(convert_conll_to_bio(original))
             for (label, start, end), (olabel, ostart, oend) in zip(spans, original_spans):
-                context.original_counts[olabel][label] += 1
+                context.original_counts[arg_to_a(olabel)][label] += 1
                 context.mapped_counts[label] += 1
 
     def _end(self, context: Context) -> None:
@@ -319,7 +334,7 @@ class CoNllPhraseWriter(CoNllProcessor):
         with open(self.out_file, 'w') as out:
             for phrase_label, phrase in context.items():
                 for span, count in phrase.items():
-                    out.write('%s\t%d\t%s\n' % (phrase_label, count, span))
+                    out.write('%s\t%d\t%s\n' % (arg_to_a(phrase_label), count, span))
 
 
 def main(opts):

@@ -578,7 +578,7 @@ def unescape_ptb(ptb_token: str) -> str:
     """
     Convert PTB-style token back to original form.
     >>> unescape_ptb('-LRB-')
-    '(
+    '('
 
     :param ptb_token: PTB-style token
     :return: un-PTB-escaped token
