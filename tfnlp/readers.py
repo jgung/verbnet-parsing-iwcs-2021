@@ -128,7 +128,10 @@ class ConllReader(object):
         sentence = defaultdict(list)
         for row in rows:
             for index, val in self._index_field_map.items():
-                sentence[val].append(row[index])
+                value = row[index]
+                if WORD_KEY == val:
+                    value = unescape_ptb(value)
+                sentence[val].append(value)
         # noinspection PyTypeChecker
         sentence[SENTENCE_INDEX] = self._sentence_count
         self._sentence_count += 1
@@ -557,3 +560,27 @@ def conll2semlink(conll_path, out_file, reader=None):
             predicate = instance[PREDICATE_KEY][token]
             # noinspection PyStringFormat
             out.write('%s %d %d %s %s\t%s\n' % (conll_path, sentence, token, predicate, sense, text))
+
+
+PTB_MAPPINGS = {
+    '-LRB-': '(',
+    '-RRB-': ')',
+    '-LCB-': '{',
+    '-RCB-': '}',
+    '-LSB-': '[',
+    '-RSB-': ']',
+    '\'\'': '\"',
+    '``': '\"',
+}
+
+
+def unescape_ptb(ptb_token: str) -> str:
+    """
+    Convert PTB-style token back to original form.
+    >>> unescape_ptb('-LRB-')
+    '(
+
+    :param ptb_token: PTB-style token
+    :return: un-PTB-escaped token
+    """
+    return PTB_MAPPINGS.get(ptb_token, ptb_token)
