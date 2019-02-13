@@ -379,8 +379,10 @@ class AggregateProcessor(CoNllProcessor):
 def _add_c_r_mappings(mappings: Dict[str, str]) -> Dict[str, str]:
     updated = {**mappings}
     for key, val in mappings.items():
-        updated['C-' + key] = 'C-' + val
-        updated['R-' + key] = 'R-' + val
+        if 'C-' + key not in mappings:
+            updated['C-' + key] = 'C-' + val
+        if 'R-' + key not in mappings:
+            updated['R-' + key] = 'R-' + val
     return updated
 
 
@@ -412,7 +414,7 @@ def main(opts):
         mapping_function = updated_mapping_fn
 
     if opts.mappings:
-        tag = os.path.basename(opts.mappings)
+        tag = os.path.splitext(os.path.basename(opts.mappings))[0]
     elif opts.combine:
         tag = 'combined'
     elif opts.append:
