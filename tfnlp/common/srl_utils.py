@@ -24,6 +24,7 @@ _MOD_PATTERN = r'AM-'
 _NUMBER_PATTERN = r'(?:ARG|A)([A\d])'
 _ARG_STR = r'(\S+)?ARG(\S(?:-\S+)?)'
 _CORE_ARG_PREFIX = 'AC-'
+_CORE_OR_MOD_PREFIX = 'AX-'
 
 
 def get_argument_function_mappings(frames_dir: str,
@@ -123,7 +124,7 @@ def apply_numbered_arg_mappings(roleset_id: str,
     if role == 'V':
         return role
     if combine_modifiers:
-        role = re.sub(_MOD_PATTERN, '', role)
+        role = re.sub(_MOD_PATTERN, _CORE_OR_MOD_PREFIX, role)
 
     roleset_map = mappings.get(roleset_id)
     if roleset_map is None:
@@ -144,12 +145,13 @@ def apply_numbered_arg_mappings(roleset_id: str,
         if ignore_unmapped:
             return role
         return None
+
     if append:
         # we're going to append the mapped label to the result, e.g. A4 -> GOL => 'A4-GOL'
         return re.sub(_ARG_PATTERN, '\\1-' + mapped, role)
     elif combine_modifiers:
         # just returned the mapped role, if we are combining with modifiers
-        return re.sub(_NUMBER_PATTERN, mapped, role)
+        return re.sub(_NUMBER_PATTERN, _CORE_OR_MOD_PREFIX + mapped, role)
     else:
         # differentiate from modifiers by adding a core argument prefix to the mapped result, e.g. A4 -> GOL => 'AC-GOL'
         return re.sub(_NUMBER_PATTERN, _CORE_ARG_PREFIX + mapped, role)
@@ -320,6 +322,9 @@ class CoNllArgCounter(CoNllProcessor):
                 out.write('%s\t%s\t%d\n'
                           % (number, '\t'.join([str(context.original_counts[number][key]) for key in key_list]), total))
             out.write('\t%s\n' % '\t'.join([str(context.mapped_counts[key]) for key in key_list]))
+            out.write('\n')
+            for key in key_list:
+                out.write('%s\t%d\n' % (key, context.mapped_counts[key]))
 
 
 class CoNllPhraseWriter(CoNllProcessor):
@@ -407,7 +412,7 @@ def main(opts):
         mapping_function = updated_mapping_fn
 
     if opts.mappings:
-        tag = 'mappings'
+        tag = os.path.basename(opts.mappings)
     elif opts.combine:
         tag = 'combined'
     elif opts.append:
