@@ -19,7 +19,7 @@ from tfnlp.cli.evaluators import get_evaluator
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
 from tfnlp.common.eval_hooks import metric_compare_fn
-from tfnlp.common.logging import set_up_logging
+from tfnlp.common.logging_utils import set_up_logging
 from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features

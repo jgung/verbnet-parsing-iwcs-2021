@@ -40,6 +40,37 @@ def labels_to_spans(labeling: Iterable[str]) -> List[Tuple[str, int, int]]:
     return result
 
 
+def spans_to_conll_labels(spans: List[Tuple[str, int, int]], length) -> List[str]:
+    """
+    Convert from span tuples to the CoNLL-2005/2012 chunk format.
+    >>> spans_to_conll_labels([('PER', 1, 3), ('ORG', 4, 5)], length=6)
+    ['*', '(PER*', '*)', '*', '(ORG*)', '*']
+
+    :param spans: triples consisting of label, start index (inclusive), and end index (exclusive)
+    :param length: number of tokens in original sentence
+    :return: list of corresponding CoNLL-2005/2012 labels
+    """
+    result = []
+    last = 0
+    for label, start, end in spans:
+        result.extend(['*'] * (start - last))
+
+        span_len = end - start
+        first = '(' + label + '*'
+        if span_len == 1:
+            result.append(first + ')')
+        else:
+            result.append(first)
+            result.extend(['*'] * (span_len - 2))
+            result.append('*)')
+
+        last = end
+
+    result.extend(['*'] * (length - len(result)))
+
+    return result
+
+
 def chunk(labeling, besio=False, conll=False):
     """
     Convert an IO/BIO/BESIO-formatted sequence of labels to BIO, BESIO, or CoNLL-2005 formatted.

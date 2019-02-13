@@ -6,7 +6,8 @@ from collections import defaultdict, Counter, namedtuple
 from typing import Dict, Optional, Callable, Any, List, TextIO
 from xml.etree import ElementTree
 
-from tfnlp.common.chunk import labels_to_spans, convert_conll_to_bio
+from tfnlp.common.chunk import labels_to_spans, convert_conll_to_bio, spans_to_conll_labels
+from tfnlp.common.utils import read_json
 
 _PREDICATE = 'predicate'
 _ROLESET = 'roleset'
@@ -119,7 +120,8 @@ def apply_numbered_arg_mappings(roleset_id: str,
     :param arga_mapping: mapping for ARGA, if not already existing
     :return: mapped role, or 'None' if no mapping exists and ignore_unmapped is set to 'False'
     """
-    role = arg_to_a(role)
+    if role == 'V':
+        return role
     if combine_modifiers:
         role = re.sub(_MOD_PATTERN, '', role)
 
@@ -248,14 +250,16 @@ class CoNllArgMapper(CoNllProcessor):
         return open(self.out_file, 'w')
 
     def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: TextIO) -> None:
-        for field_list in rows:
-            mapped = []
-            for col, arg in enumerate(field_list[self.arg_start:self.arg_end]):
-                if not (arg == '*' or arg == '*)' or '-V*' in arg or '(V*' in arg):
-                    arg = self.mapping_fn(rolesets[col], arg)
-                    mapped.append(arg)
-                else:
-                    mapped.append(arg)
+
+        mapped_args = []
+        for i, rs in enumerate(rolesets):
+            original = [row[self.arg_start + i] for row in rows]
+            spans = labels_to_spans(convert_conll_to_bio(original))
+            mapped_spans = [(self.mapping_fn(rs, label), start, end) for (label, start, end) in spans]
+            mapped_args.append(spans_to_conll_labels(mapped_spans, len(rows)))
+
+        for i, field_list in enumerate(rows):
+            mapped = [args[i] for args in mapped_args]
             new_line = ' '.join(field_list[:self.arg_start] + mapped + field_list[self.arg_end:])
             context.write(new_line + '\n')
         context.write('\n')
@@ -286,12 +290,11 @@ class CoNllArgCounter(CoNllProcessor):
     def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: Context) -> None:
         for i, rs in enumerate(rolesets):
             original = [row[self.arg_start + i] for row in rows]
-            mapped = [self.mapping_fn(rs, arg) for arg in original]
-            spans = labels_to_spans(convert_conll_to_bio(mapped))
-            original_spans = labels_to_spans(convert_conll_to_bio(original))
-            for (label, start, end), (olabel, ostart, oend) in zip(spans, original_spans):
-                context.original_counts[arg_to_a(olabel)][label] += 1
-                context.mapped_counts[label] += 1
+            spans = labels_to_spans(convert_conll_to_bio(original))
+            for label, start, end in spans:
+                mapped = self.mapping_fn(rs, label)
+                context.original_counts[arg_to_a(label)][mapped] += 1
+                context.mapped_counts[mapped] += 1
 
     def _end(self, context: Context) -> None:
         super()._end(context)
@@ -324,10 +327,10 @@ class CoNllPhraseWriter(CoNllProcessor):
     def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: defaultdict) -> None:
         for i, rs in enumerate(rolesets):
             original = [row[self.arg_start + i] for row in rows]
-            mapped = [self.mapping_fn(rs, arg) for arg in original]
-            spans = labels_to_spans(convert_conll_to_bio(mapped))
+            spans = labels_to_spans(convert_conll_to_bio(original))
             for label, start, end in spans:
-                context[label][rs + ' ' + ' '.join([row[3] for row in rows[start:end]])] += 1
+                mapped_label = self.mapping_fn(rs, label)
+                context[mapped_label][rs + ' ' + ' '.join([row[3] for row in rows[start:end]])] += 1
 
     def _end(self, context: defaultdict) -> None:
         super()._end(context)
@@ -341,10 +344,28 @@ def main(opts):
     mappings = get_argument_function_mappings(opts.frames)
 
     def mapping_fn(rs, r):
+        r = arg_to_a(r)
         return apply_numbered_arg_mappings(rs, r, mappings,
                                            ignore_unmapped=True,
                                            combine_modifiers=opts.combine,
                                            append=opts.append)
+
+    mapping_function = mapping_fn
+    if opts.mappings:
+        # apply additional mappings to the output of the mapping function, returning original label if not mapped
+        json_mappings = read_json(opts.mappings)
+
+        def updated_mapping_fn(rs, r):
+            r = arg_to_a(r)
+
+            mapped = apply_numbered_arg_mappings(rs, r, mappings,
+                                                 ignore_unmapped=True,
+                                                 combine_modifiers=opts.combine,
+                                                 append=opts.append)
+
+            return json_mappings.get(mapped, r)
+
+        mapping_function = updated_mapping_fn
 
     mode_map = {
         'map': CoNllArgMapper,
@@ -352,7 +373,7 @@ def main(opts):
         'phrases': CoNllPhraseWriter
     }
 
-    mode_map[opts.mode](mapping_fn, opts.output).process_file(opts.input)
+    mode_map[opts.mode](mapping_function, opts.output).process_file(opts.input)
 
 
 if __name__ == '__main__':
@@ -360,10 +381,12 @@ if __name__ == '__main__':
     argparser.add_argument('--frames', type=str, required=True, help='Path to directory containing frame file XMLs')
     argparser.add_argument('--input', type=str, required=True, help='Input CoNLL 2012 file')
     argparser.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL 2012 file')
-    argparser.add_argument('--append', action='store_true', help='Append mappings instead of replacing original label')
+    argparser.add_argument('--append', action='store_true',
+                           help='Append mappings instead of replacing original label, e.g. "A0-PPT"')
     argparser.add_argument('--combine', action='store_true', help='Combine modifiers (AM-TMP) w/ function tags (TMP)')
     argparser.add_argument('--mode', type=str, default='map', choices=['map', 'count', 'phrases'],
                            help='Mode to apply mappings')
+    argparser.add_argument('--mappings', type=str, help='Path to JSON mappings file')
     argparser.set_defaults(append=False)
     argparser.set_defaults(combine=False)
     main(argparser.parse_args())
