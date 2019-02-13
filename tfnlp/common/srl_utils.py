@@ -201,7 +201,7 @@ class CoNllProcessor(object):
                         rolesets = []
                         sentence_number += 1
                         if sentence_number % 1000 == 0:
-                            print('...processed %dK sentences' % sentence_number / 1000)
+                            print('...processed %dK sentences' % (sentence_number / 1000))
                     continue
                 fields = line.split()
 
@@ -215,6 +215,8 @@ class CoNllProcessor(object):
 
             if sentence:
                 self._process_sentence(sentence, rolesets, context)
+                sentence_number += 1
+            print('...done processing %d sentences' % sentence_number)
 
         self._end(context, out_file)
 
@@ -257,7 +259,7 @@ class CoNllArgMapper(CoNllProcessor):
 
     def _open_context(self, output_file: str) -> TextIO:
         out_path = os.path.join(self.out_file, output_file + '.conll')
-        print('writing mapped props to %s' % out_path)
+        print('writing mapped props to %s...' % out_path)
         return open(out_path, 'w')
 
     def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: TextIO) -> None:
@@ -309,7 +311,7 @@ class CoNllArgCounter(CoNllProcessor):
     def _end(self, context: Context, output_file: str) -> None:
         out_path = os.path.join(self.out_file, output_file + '.counts.tsv')
         with open(out_path, 'w') as out:
-            print('writing mappings counts to %s' % out_path)
+            print('writing mappings counts to %s...' % out_path)
             numbers = set(context.original_counts.keys())
             key_list = [key for key, val in sorted(context.mapped_counts.items(), key=lambda x: x[1], reverse=True)]
             out.write('\t%s\n' % '\t'.join(key_list))
@@ -346,7 +348,7 @@ class CoNllPhraseWriter(CoNllProcessor):
     def _end(self, context: defaultdict, output_file: str) -> None:
         out_path = os.path.join(self.out_file, output_file + '.phrases.tsv')
         with open(out_path, 'w') as out:
-            print('writing phrases to %s' % out_path)
+            print('writing phrases to %s...' % out_path)
             for phrase_label, phrase in context.items():
                 for span, count in phrase.items():
                     out.write('%s\t%d\t%s\n' % (arg_to_a(phrase_label), count, span))
@@ -413,6 +415,9 @@ def main(opts):
     else:
         tag = 'core-mod'
 
+    if not os.path.exists(opts.output):
+        os.makedirs(opts.output)
+
     mode_map = {
         'map': CoNllArgMapper(mapping_function, opts.output, tag=tag),
         'count': CoNllArgCounter(mapping_function, opts.output, tag=tag),
@@ -423,7 +428,7 @@ def main(opts):
 
     processor = mode_map[opts.mode]
 
-    print('running mappings script in "%s/%s" mode...' % (tag, opts.mode))
+    print('running mappings script in %s/%s mode...' % (tag, opts.mode))
 
     for file in [f for f in opts.input.split(',') if f]:
         print('processing %s...' % file)
