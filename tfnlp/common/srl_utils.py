@@ -166,11 +166,13 @@ class CoNllProcessor(object):
     """
 
     def __init__(self,
+                 tag: str = '',
                  lemma_col: int = 6,
                  roleset_col: int = 7,
                  arg_start: int = 11,
                  arg_end: int = -1) -> None:
         super().__init__()
+        self.tag = tag
         self.lemma_col = lemma_col
         self.roleset_col = roleset_col
         self.arg_start = arg_start
@@ -183,8 +185,10 @@ class CoNllProcessor(object):
         Perform processing on a single file.
         :param conll_file: path to input file
         """
-        context = self._open_context()
+        out_file = os.path.basename(conll_file) + '.' + self.tag
+        context = self._open_context(out_file)
 
+        sentence_number = 0
         with open(conll_file, 'r') as conll_lines:
             sentence = []
             rolesets = []  # keep ordered list of rolesets to be processed at end of sentence
@@ -195,6 +199,9 @@ class CoNllProcessor(object):
                         self._process_sentence(sentence, rolesets, context)
                         sentence = []
                         rolesets = []
+                        sentence_number += 1
+                        if sentence_number % 1000 == 0:
+                            print('...processed %dK sentences' % sentence_number / 1000)
                     continue
                 fields = line.split()
 
@@ -209,11 +216,12 @@ class CoNllProcessor(object):
             if sentence:
                 self._process_sentence(sentence, rolesets, context)
 
-        self._end(context)
+        self._end(context, out_file)
 
-    def _open_context(self) -> Any:
+    def _open_context(self, output_file: str) -> Any:
         """
         Open a new processing context.
+        :param output_file: name of output file
         """
         return None
 
@@ -226,10 +234,11 @@ class CoNllProcessor(object):
         """
         pass
 
-    def _end(self, context) -> None:
+    def _end(self, context, output_file: str) -> None:
         """
         Perform final processing using accumulated context.
         :param context: processing context
+        :param output_file: name of output file
         """
         pass
 
@@ -246,8 +255,10 @@ class CoNllArgMapper(CoNllProcessor):
         self.mapping_fn = mapping_fn
         self.out_file = out_file
 
-    def _open_context(self) -> TextIO:
-        return open(self.out_file, 'w')
+    def _open_context(self, output_file: str) -> TextIO:
+        out_path = os.path.join(self.out_file, output_file + '.conll')
+        print('writing mapped props to %s' % out_path)
+        return open(out_path, 'w')
 
     def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: TextIO) -> None:
 
@@ -264,8 +275,7 @@ class CoNllArgMapper(CoNllProcessor):
             context.write(new_line + '\n')
         context.write('\n')
 
-    def _end(self, context: TextIO) -> None:
-        super()._end(context)
+    def _end(self, context: TextIO, output_file: str) -> None:
         context.close()
 
 
@@ -283,7 +293,7 @@ class CoNllArgCounter(CoNllProcessor):
         self.mapping_fn = mapping_fn
         self.out_file = out_file
 
-    def _open_context(self) -> Context:
+    def _open_context(self, output_file: str) -> Context:
         context = self.Context(defaultdict(Counter), Counter())
         return context
 
@@ -296,9 +306,10 @@ class CoNllArgCounter(CoNllProcessor):
                 context.original_counts[arg_to_a(label)][mapped] += 1
                 context.mapped_counts[mapped] += 1
 
-    def _end(self, context: Context) -> None:
-        super()._end(context)
-        with open(self.out_file, 'w') as out:
+    def _end(self, context: Context, output_file: str) -> None:
+        out_path = os.path.join(self.out_file, output_file + '.counts.tsv')
+        with open(out_path, 'w') as out:
+            print('writing mappings counts to %s' % out_path)
             numbers = set(context.original_counts.keys())
             key_list = [key for key, val in sorted(context.mapped_counts.items(), key=lambda x: x[1], reverse=True)]
             out.write('\t%s\n' % '\t'.join(key_list))
@@ -321,7 +332,7 @@ class CoNllPhraseWriter(CoNllProcessor):
         self.mapping_fn = mapping_fn
         self.out_file = out_file
 
-    def _open_context(self) -> defaultdict:
+    def _open_context(self, output_file: str) -> defaultdict:
         return defaultdict(Counter)
 
     def _process_sentence(self, rows: List[List[str]], rolesets: List[str], context: defaultdict) -> None:
@@ -332,12 +343,38 @@ class CoNllPhraseWriter(CoNllProcessor):
                 mapped_label = self.mapping_fn(rs, label)
                 context[mapped_label][rs + ' ' + ' '.join([row[3] for row in rows[start:end]])] += 1
 
-    def _end(self, context: defaultdict) -> None:
-        super()._end(context)
-        with open(self.out_file, 'w') as out:
+    def _end(self, context: defaultdict, output_file: str) -> None:
+        out_path = os.path.join(self.out_file, output_file + '.phrases.tsv')
+        with open(out_path, 'w') as out:
+            print('writing phrases to %s' % out_path)
             for phrase_label, phrase in context.items():
                 for span, count in phrase.items():
                     out.write('%s\t%d\t%s\n' % (arg_to_a(phrase_label), count, span))
+
+
+class AggregateProcessor(CoNllProcessor):
+    def __init__(self, processors: List[CoNllProcessor], *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.processors = processors
+
+    def _open_context(self, output_file: str) -> list:
+        return [processor._open_context(output_file) for processor in self.processors]
+
+    def _process_sentence(self, rows: List[List[str]], rolesets: List[str], contexts) -> None:
+        for context, processor in zip(contexts, self.processors):
+            processor._process_sentence(rows, rolesets, context)
+
+    def _end(self, contexts, output_file: str) -> None:
+        for context, processor in zip(contexts, self.processors):
+            processor._end(context, output_file)
+
+
+def _add_c_r_mappings(mappings: Dict[str, str]) -> Dict[str, str]:
+    updated = {**mappings}
+    for key, val in mappings.items():
+        updated['C-' + key] = 'C-' + val
+        updated['R-' + key] = 'R-' + val
+    return updated
 
 
 def main(opts):
@@ -353,7 +390,7 @@ def main(opts):
     mapping_function = mapping_fn
     if opts.mappings:
         # apply additional mappings to the output of the mapping function, returning original label if not mapped
-        json_mappings = read_json(opts.mappings)
+        json_mappings = _add_c_r_mappings(read_json(opts.mappings))
 
         def updated_mapping_fn(rs, r):
             r = arg_to_a(r)
@@ -367,20 +404,37 @@ def main(opts):
 
         mapping_function = updated_mapping_fn
 
+    if opts.mappings:
+        tag = 'mappings'
+    elif opts.combine:
+        tag = 'combined'
+    elif opts.append:
+        tag = 'split'
+    else:
+        tag = 'core-mod'
+
     mode_map = {
-        'map': CoNllArgMapper,
-        'count': CoNllArgCounter,
-        'phrases': CoNllPhraseWriter
+        'map': CoNllArgMapper(mapping_function, opts.output, tag=tag),
+        'count': CoNllArgCounter(mapping_function, opts.output, tag=tag),
+        'phrases': CoNllPhraseWriter(mapping_function, opts.output, tag=tag)
     }
 
-    mode_map[opts.mode](mapping_function, opts.output).process_file(opts.input)
+    mode_map['map'] = AggregateProcessor([mode_map['map'], mode_map['count']], tag=tag)
+
+    processor = mode_map[opts.mode]
+
+    print('running mappings script in "%s/%s" mode...' % (tag, opts.mode))
+
+    for file in [f for f in opts.input.split(',') if f]:
+        print('processing %s...' % file)
+        processor.process_file(file)
 
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--frames', type=str, required=True, help='Path to directory containing frame file XMLs')
     argparser.add_argument('--input', type=str, required=True, help='Input CoNLL 2012 file')
-    argparser.add_argument('--output', type=str, required=True, help='Path to output mapped CoNLL 2012 file')
+    argparser.add_argument('--output', type=str, required=True, help='Directory to store output files')
     argparser.add_argument('--append', action='store_true',
                            help='Append mappings instead of replacing original label, e.g. "A0-PPT"')
     argparser.add_argument('--combine', action='store_true', help='Combine modifiers (AM-TMP) w/ function tags (TMP)')
