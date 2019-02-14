@@ -407,6 +407,9 @@ class Feature(Extractor):
         counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)
                   if feat not in vocab and feat not in self.reserved_words]
         for feat, count in counts:
+            # TODO: this is kind of a hack to ensure that threshold applies to IOB labels properly
+            if feat.startswith('I-'):
+                count = self.counts.get('B-' + feat[2:])
             if feat not in self.indices:
                 continue
             if count < self.threshold:
