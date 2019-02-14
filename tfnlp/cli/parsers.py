@@ -4,11 +4,10 @@ from tfnlp.common import constants
 
 
 def get_parser(config):
-    head_type = [head.type for head in config.heads][0]
+    head_type = [head.task for head in config.heads][0]
     parsers = {
         constants.TAGGER_KEY: default_parser,
         constants.SRL_KEY: srl_parser,
-        constants.BIAFFINE_SRL_KEY: srl_parser,
         constants.NER_KEY: default_parser,
         constants.PARSER_KEY: dep_input_parser,
     }

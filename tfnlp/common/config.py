@@ -10,6 +10,10 @@ from tfnlp.common.utils import Params
 from tfnlp.optim.lazy_adam import LazyAdamOptimizer as LazyNadamOptimizer
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
+_TYPE_TASK_MAP = {
+    constants.BIAFFINE_SRL_KEY: constants.SRL_KEY
+}
+
 
 class BaseNetworkConfig(Params):
     def __init__(self, config, **kwargs):
@@ -113,7 +117,18 @@ class HeadConfig(Params):
         if not self.encoder:
             raise ValueError('Must specify an input "encoder" for this head')
         self.crf = config.get('crf', False)
-        self.type = config.get('type', constants.TAGGER_KEY)
+
+        self.task = config.get('task')
+        if not self.task:
+            task = constants.TAGGER_KEY
+            if 'type' in config:
+                task = _TYPE_TASK_MAP.get(config.type, config.type)
+            tf.logging.warn("No 'task' parameter provided for head %s. Using default of %s", self.name, task)
+
+        self.type = config.get('type')
+        if not self.type:
+            tf.logging.warn("No 'type' parameter provided for head %s. Using default of %s", self.name, self.task)
+
         self.zero_init = config.get('zero_init', True)
         self.metric = config.get('metric', constants.OVERALL_KEY)
         # "Rethinking the Inception Architecture for Computer Vision", Szegedy et al. 2015 -- 0.1 is default

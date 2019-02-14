@@ -23,13 +23,12 @@ def get_formatter(config):
     def _no_op_formatter(result, ignored=None):
         return str(result)
 
-    head_type = [head.type for head in config.heads][0]
+    head_type = [head.task for head in config.heads][0]
     formatters = {
         constants.CLASSIFIER_KEY: _classifier_formatter,
         constants.TAGGER_KEY: _tagger_formatter,
         constants.NER_KEY: _tagger_formatter,
         constants.SRL_KEY: _tagger_formatter,
-        constants.BIAFFINE_SRL_KEY: _tagger_formatter,
         constants.PARSER_KEY: _no_op_formatter
     }
     if head_type not in formatters:

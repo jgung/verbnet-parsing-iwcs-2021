@@ -243,7 +243,7 @@ class TaggerHead(ModelHead):
         # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
         eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 
-        if constants.SRL_KEY in self.config.type:
+        if constants.SRL_KEY in self.config.task:
             eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
 
             self.evaluation_hooks.append(
