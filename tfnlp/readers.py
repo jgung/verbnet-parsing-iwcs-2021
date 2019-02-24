@@ -447,7 +447,7 @@ def conll_2012_reader(phrase=False):
         fields, pred_start=11, pred_end=1)
 
     reader.is_predicate = lambda line: line[6] is not '-' and line[7] is not '-'
-    reader.skip_line = lambda line: line.startswith("#")  # skip comments
+    reader.line_filter = lambda line: line.startswith("#")  # skip comments
     return reader
 
 
