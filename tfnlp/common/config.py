@@ -120,10 +120,10 @@ class HeadConfig(Params):
 
         self.task = config.get('task')
         if not self.task:
-            task = constants.TAGGER_KEY
+            self.task = constants.TAGGER_KEY
             if 'type' in config:
-                task = _TYPE_TASK_MAP.get(config.type, config.type)
-            tf.logging.warn("No 'task' parameter provided for head %s. Using default of %s", self.name, task)
+                self.task = _TYPE_TASK_MAP.get(config.type, config.type)
+            tf.logging.warn("No 'task' parameter provided for head %s. Using default of %s", self.name, self.task)
 
         self.type = config.get('type')
         if not self.type:
