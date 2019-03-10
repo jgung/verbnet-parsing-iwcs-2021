@@ -1,5 +1,5 @@
 numpy
-tensorflow-gpu>=1.12.0
+tensorflow-gpu==1.13.1
 nltk
 tensorflow-hub
 tensor2tensor

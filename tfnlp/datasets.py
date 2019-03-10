@@ -3,6 +3,7 @@ from typing import List, Iterable, Union
 import tensorflow as tf
 from tensorflow.python.data.experimental import shuffle_and_repeat, bucket_by_sequence_length
 from tensorflow.python.data.experimental.ops.optimization import AUTOTUNE
+from tensorflow.python.data.ops.dataset_ops import DatasetV1Adapter
 
 from tfnlp.common.constants import LENGTH_KEY
 
@@ -57,7 +58,7 @@ def make_dataset(extractor,
     # seems to be generally set to 1 or 2
     dataset = dataset.prefetch(AUTOTUNE)
 
-    return dataset
+    return DatasetV1Adapter(dataset)
 
 
 def padded_batch(extractor, placeholder, batch_size=64):

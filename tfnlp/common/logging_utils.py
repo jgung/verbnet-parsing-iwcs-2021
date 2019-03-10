@@ -13,8 +13,7 @@ def set_up_logging(log_path=None, level=tf.logging.INFO, formatter='%(asctime)s 
             fh.setLevel(level)
             fh.setFormatter(logging.Formatter(formatter))
 
-            # noinspection PyProtectedMember
-            tf_logger = tf_logging._get_logger()
+            tf_logger = tf_logging.get_logger()
             tf_logger.addHandler(fh)
             tf_logger.info('Saving logs to "%s"' % log_path)
         except FileNotFoundError:
