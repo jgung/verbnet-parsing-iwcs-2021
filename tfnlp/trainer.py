@@ -8,7 +8,6 @@ from tensorflow.contrib.estimator import stop_if_no_increase_hook
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
 from tensorflow.python.estimator.export.export import ServingInputReceiver
-from tensorflow.python.estimator.exporter import BestExporter
 from tensorflow.python.estimator.run_config import RunConfig
 from tensorflow.python.estimator.training import train_and_evaluate
 from tensorflow.python.framework import dtypes
@@ -19,6 +18,7 @@ from tfnlp.cli.evaluators import get_evaluator
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
 from tfnlp.common.eval_hooks import metric_compare_fn
+from tfnlp.common.export import BesterExporter
 from tfnlp.common.logging_utils import set_up_logging
 from tfnlp.common.utils import read_json, write_json
 from tfnlp.datasets import make_dataset, padded_batch
@@ -115,9 +115,10 @@ class Trainer(object):
                                             max_steps=self._training_config.max_steps,
                                             hooks=hooks)
 
-        exporter = BestExporter(serving_input_receiver_fn=self._serving_input_fn,
-                                compare_fn=metric_compare_fn(self._training_config.metric),
-                                exports_to_keep=self._training_config.exports_to_keep)
+        exporter = BesterExporter(serving_input_receiver_fn=self._serving_input_fn,
+                                  compare_fn=metric_compare_fn(self._training_config.metric),
+                                  exports_to_keep=self._training_config.exports_to_keep,
+                                  strip_default_attrs=False)
 
         eval_spec = tf.estimator.EvalSpec(self._input_fn(valid, False),
                                           steps=None,  # evaluate on full validation set
