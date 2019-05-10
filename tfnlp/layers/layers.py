@@ -3,6 +3,7 @@ from collections import defaultdict
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+from common.bert import BERT_S_CASED_URL
 from tensor2tensor.layers.common_attention import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
 from tensorflow.contrib.layers import layer_norm
 from tensorflow.contrib.lookup import index_table_from_tensor
@@ -30,6 +31,17 @@ def embedding(features, feature_config, training):
                                      signature="tokens",
                                      as_dict=True)['elmo']
         return elmo_embedding
+    elif feature_config.name == constants.BERT_KEY:
+        tf.logging.info("Using ELMo module at %s", BERT_S_CASED_URL)
+        bert_module = hub.Module(BERT_S_CASED_URL, trainable=True)
+        bert_inputs = dict(
+            input_ids=features[constants.BERT_KEY],
+            input_mask=features[constants.BERT_MASK],
+            segment_ids=features[constants.BERT_SEGMENT_IDS])
+        bert_outputs = bert_module(bert_inputs, signature="tokens", as_dict=True)
+        bert_embedding = bert_outputs["sequence_output"]
+        return bert_embedding
+
     elif feature_config.has_vocab():
         feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
         return feature_embedding
