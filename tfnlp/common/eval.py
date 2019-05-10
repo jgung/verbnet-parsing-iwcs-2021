@@ -35,7 +35,11 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
             for label, prediction in zip(gold_seq, predicted_seq):
                 if label in ['X', '[CLS]', '[SEP]']:
                     continue
-                yield "_ {} {}".format(label, prev_pred if prediction == 'X' else prediction)
+                if prediction == 'X' and len(prev_pred) > 2:
+                    # carry over from dummy token
+                    prediction = "I-" + prev_pred[2:]
+                yield "_ {} {}".format(label, prediction)
+                prev_pred = prediction
             yield ""  # sentence break
 
     if output_file:

@@ -173,10 +173,11 @@ def create_transition_matrix(labels):
     labels = [labels.index_to_feat(i) for i in range(len(labels.indices))]
     num_tags = len(labels)
     transition_params = np.zeros([num_tags, num_tags], dtype=np.float32)
-    for i, prev_label in enumerate(labels):
-        for j, curr_label in enumerate(labels):
-            if i != j and curr_label[:2] == 'I-' and not prev_label == 'B' + curr_label[1:]:
-                transition_params[i, j] = np.NINF
+    if 'X' not in labels:
+        for i, prev_label in enumerate(labels):
+            for j, curr_label in enumerate(labels):
+                if i != j and curr_label[:2] == 'I-' and not prev_label == 'B' + curr_label[1:]:
+                    transition_params[i, j] = np.NINF
     return tf.initializers.constant(transition_params)
 
 
@@ -217,12 +218,20 @@ class TaggerHead(ModelHead):
                                   num_labels=num_labels,
                                   crf=self.config.crf, tag_transitions=self._tag_transitions,
                                   label_smoothing=self.config.label_smoothing,
-                                  confidence_penalty=self.config.confidence_penalty)
+                                  confidence_penalty=self.config.confidence_penalty,
+                                  mask=self.features.get(constants.SEQUENCE_MASK))
 
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
-        self.predictions = crf.crf_decode(self.logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
+        mask = self.features.get(constants.SEQUENCE_MASK)
+        if mask is None:
+            self.predictions = crf.crf_decode(self.logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
+        else:
+            self.predictions = tf.arg_max(self.logits, dimension=-1)
+            cond = tf.greater(mask, tf.zeros(tf.shape(mask)))
+            self.predictions = tf.cond(cond, self.predictions, tf.fill(tf.shape(self.predictions),
+                                                                       self.extractor.feat2index('X')))
 
     def _evaluation(self):
         self.evaluation_hooks = []
@@ -330,7 +339,8 @@ class BiaffineSrlHead(TaggerHead):
                                  crf=self.config.crf,
                                  tag_transitions=self._tag_transitions,
                                  label_smoothing=self.config.label_smoothing,
-                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss")
+                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss",
+                                 mask=self.features.get(constants.SEQUENCE_MASK))
 
         self.loss = rel_loss
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)

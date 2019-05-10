@@ -21,6 +21,7 @@ ELMO_KEY = "elmo"
 BERT_KEY = "bert"
 BERT_MASK = "bert_mask"
 BERT_SEGMENT_IDS = "bert_segment_ids"
+SEQUENCE_MASK = "sequence_mask"
 
 ID_KEY = "ID"
 LEMMA_KEY = "lemma"

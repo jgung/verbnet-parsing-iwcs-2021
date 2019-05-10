@@ -960,6 +960,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         split_labels = {
             target.name: ["[CLS]"] for target in self.targets.values()
         }
+        mask = [0]
 
         focus_index = 0
         for i, word in enumerate(words):
@@ -971,12 +972,16 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
             sub_tokens = self.tokenizer.wordpiece_tokenizer.tokenize(word)
             split_tokens.extend(sub_tokens)
+            mask.append(1)
+            mask.extend([0] * (len(sub_tokens) - 1))
+
             for target, labels in target_labels.items():
                 label = labels[i]
                 split_labels[target].append(label)
                 split_labels[target].extend((len(sub_tokens) - 1) * ["X"])
 
         split_tokens.append("[SEP]")
+        mask.append(0)
 
         for labels in split_labels.values():
             labels.append("[SEP]")
@@ -988,6 +993,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
             split_tokens.extend(predicate_subtokens)
             split_tokens.append("[SEP]")
+            mask.append(0)
+            mask.extend([0] * (len(predicate_subtokens) - 1))
             for target, labels in split_labels.items():
                 labels.extend(len(predicate_subtokens) * [self.targets[target].pad_word])
                 labels.append("[SEP]")
@@ -1013,6 +1020,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             feature=[tf.train.Feature(int64_list=tf.train.Int64List(value=[0])) for _ in ids])
         feature_list[constants.BERT_MASK] = tf.train.FeatureList(
             feature=[tf.train.Feature(int64_list=tf.train.Int64List(value=[1])) for _ in ids])
+        feature_list[constants.SEQUENCE_MASK] = tf.train.FeatureList(
+            feature=[tf.train.Feature(int64_list=tf.train.Int64List(value=[val])) for val in mask])
 
         for feature in self.extractors(False):
             if feature.rank < 0:
@@ -1033,6 +1042,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         sequence_features[constants.BERT_KEY] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
         sequence_features[constants.BERT_SEGMENT_IDS] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
         sequence_features[constants.BERT_MASK] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
+        sequence_features[constants.SEQUENCE_MASK] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
         if self.srl:
             context_features[constants.PREDICATE_INDEX_KEY] = tf.FixedLenFeature([], dtype=tf.int64)
 
@@ -1049,6 +1059,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         shapes[constants.BERT_KEY] = tf.TensorShape([None])
         shapes[constants.BERT_SEGMENT_IDS] = tf.TensorShape([None])
         shapes[constants.BERT_MASK] = tf.TensorShape([None])
+        shapes[constants.SEQUENCE_MASK] = tf.TensorShape([None])
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
         return shapes
@@ -1058,6 +1069,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         padding[constants.BERT_KEY] = tf.constant(0, dtype=tf.int64)
         padding[constants.BERT_SEGMENT_IDS] = tf.constant(0, dtype=tf.int64)
         padding[constants.BERT_MASK] = tf.constant(0, dtype=tf.int64)
+        padding[constants.SEQUENCE_MASK] = tf.constant(0, dtype=tf.int64)
         if self.srl:
             padding[constants.PREDICATE_INDEX_KEY] = tf.constant(0, dtype=tf.int64)
         return padding

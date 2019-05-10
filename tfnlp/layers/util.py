@@ -105,7 +105,7 @@ def bilinear(input1, input2, output_size, timesteps, include_bias1=True, include
 
 
 def sequence_loss(logits, targets, sequence_lengths, num_labels, crf=False, tag_transitions=None, label_smoothing=0,
-                  confidence_penalty=0, name="loss"):
+                  confidence_penalty=0, name="loss", mask=None):
     with tf.variable_scope(name):
         if crf:
             losses = -crf_log_likelihood(logits, targets,
@@ -122,8 +122,10 @@ def sequence_loss(logits, targets, sequence_lengths, num_labels, crf=False, tag_
                                                        weights=tf.to_float(tf.sequence_mask(sequence_lengths)))
             else:
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=targets)
-                losses = tf.boolean_mask(losses, tf.sequence_mask(sequence_lengths), name="mask_padding_from_loss")
-                loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
+                mask = mask if mask is not None else tf.sequence_mask(sequence_lengths)
+                losses = tf.boolean_mask(losses, mask, name="mask_padding_from_loss")
+                n_tokens = tf.cast(tf.reduce_sum(mask), tf.float32)
+                loss = tf.reduce_sum(losses) / n_tokens  # just average over batch/token-specific losses
 
         if confidence_penalty > 0:
             masked = tf.boolean_mask(logits, tf.sequence_mask(sequence_lengths))
