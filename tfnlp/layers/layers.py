@@ -3,7 +3,6 @@ from collections import defaultdict
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
-from common.bert import BERT_S_CASED_URL
 from tensor2tensor.layers.common_attention import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
 from tensorflow.contrib.layers import layer_norm
 from tensorflow.contrib.lookup import index_table_from_tensor
@@ -18,6 +17,7 @@ from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
 
 from tfnlp.common import constants
+from tfnlp.common.bert import BERT_S_CASED_URL
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
@@ -32,12 +32,12 @@ def embedding(features, feature_config, training):
                                      as_dict=True)['elmo']
         return elmo_embedding
     elif feature_config.name == constants.BERT_KEY:
-        tf.logging.info("Using ELMo module at %s", BERT_S_CASED_URL)
+        tf.logging.info("Using BERT module at %s", BERT_S_CASED_URL)
         bert_module = hub.Module(BERT_S_CASED_URL, trainable=True)
         bert_inputs = dict(
-            input_ids=features[constants.BERT_KEY],
-            input_mask=features[constants.BERT_MASK],
-            segment_ids=features[constants.BERT_SEGMENT_IDS])
+            input_ids=tf.cast(features[constants.BERT_KEY], tf.int32),
+            input_mask=tf.cast(features[constants.BERT_MASK], tf.int32),
+            segment_ids=tf.cast(features[constants.BERT_SEGMENT_IDS], tf.int32))
         bert_outputs = bert_module(bert_inputs, signature="tokens", as_dict=True)
         bert_embedding = bert_outputs["sequence_output"]
         return bert_embedding
@@ -135,7 +135,9 @@ def encoder(features, inputs, mode, config):
     sequence_lengths = features[constants.LENGTH_KEY]
 
     with tf.variable_scope("encoder"):
-        if constants.ENCODER_CONCAT == config.encoder_type:
+        if constants.ENCODER_IDENT == config.encoder_type:
+            return inputs[0], inputs[0].shape[-1]
+        elif constants.ENCODER_CONCAT == config.encoder_type:
             return concat(inputs, training, config)
         elif constants.ENCODER_SUM == config.encoder_type:
             return reduce_sum(inputs)

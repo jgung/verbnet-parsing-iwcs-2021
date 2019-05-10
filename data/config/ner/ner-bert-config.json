@@ -1,0 +1,48 @@
+{
+  "reader": "conll_2003",
+  "checkpoint_steps": 1500,
+  "batch_size": 16,
+  "optimizer": {
+    "name": "Adam",
+    "lr": 0.00003,
+    "clip": 5.0
+  },
+  "features": {
+    "targets": [
+      {
+        "name": "NE",
+        "key": "gold",
+        "indices": {
+          "O": 0,
+          "[CLS]": 1,
+          "[SEP]": 2,
+          "X": 3
+        },
+        "unknown_word": "O",
+        "pad_word": "O"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "bert"
+      }
+    ]
+  },
+  "encoders": [
+    {
+      "name": "identity",
+      "inputs": [
+        "bert"
+      ],
+      "type": "identity"
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "identity",
+      "name": "NE",
+      "type": "ner",
+      "crf": false
+    }
+  ]
+}

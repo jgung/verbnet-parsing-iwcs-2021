@@ -32,6 +32,8 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
     def get_lines():
         for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
             for label, prediction in zip(gold_seq, predicted_seq):
+                if label == 'X':
+                    continue
                 yield "_ {} {}".format(label, prediction)
             yield ""  # sentence break
 

@@ -197,20 +197,21 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
         lr = get_learning_rate(optimizer.lr, tf.train.get_global_step())
 
     name = optimizer.name
+    params = optimizer.params if optimizer.get('params') else {}
     if "Adadelta" == name:
-        opt = tf.train.AdadeltaOptimizer(lr, **optimizer.params)
+        opt = tf.train.AdadeltaOptimizer(lr, **params)
     elif "Adam" == name:
-        opt = tf.train.AdamOptimizer(lr, **optimizer.params)
+        opt = tf.train.AdamOptimizer(lr, **params)
     elif "LazyAdam" == name:
-        opt = LazyAdamOptimizer(lr, **optimizer.params)
+        opt = LazyAdamOptimizer(lr, **params)
     elif "LazyNadam" == name:
-        opt = LazyNadamOptimizer(lr, **optimizer.params)
+        opt = LazyNadamOptimizer(lr, **params)
     elif "SGD" == name:
         opt = tf.train.GradientDescentOptimizer(lr)
     elif "Momentum" == name:
-        opt = tf.train.MomentumOptimizer(lr, **optimizer.params)
+        opt = tf.train.MomentumOptimizer(lr, **params)
     elif "Nadam" == name:
-        opt = NadamOptimizerSparse(lr, **optimizer.params)
+        opt = NadamOptimizerSparse(lr, **params)
     else:
         raise ValueError("Invalid optimizer name: {}".format(name))
     return opt
