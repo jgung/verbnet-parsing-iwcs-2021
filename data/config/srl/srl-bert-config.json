@@ -1,0 +1,103 @@
+{
+  "comments": "90,750 in CoNLL-2005 training corpus, 1135 steps w/ batch size of 80 is ~1 epoch",
+  "reader": "conll_2005",
+  "checkpoint_steps": 5672,
+  "max_steps": 17016,
+  "batch_size": 16,
+  "optimizer": {
+    "name": "bert",
+    "lr": {
+      "name": "bert",
+      "rate": 0.00005,
+      "warmup_steps": 1702,
+      "num_train_steps": 17016
+    },
+    "clip": 1.0
+  },
+  "features": {
+    "seq_feat": "gold",
+    "targets": [
+      {
+        "name": "gold",
+        "key": "gold",
+        "indices": {
+          "O": 0
+        },
+        "unknown_word": "O",
+        "pad_word": "O"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "bert"
+      },
+      {
+        "name": "marker",
+        "key": "marker",
+        "config": {
+          "dim": 10
+        },
+        "indices": {
+          "0": 0
+        },
+        "unknown_word": "0",
+        "pad_word": "0"
+      }
+    ]
+  },
+  "encoders": [
+    {
+      "name": "tokens",
+      "type": "concat",
+      "inputs": [
+        "bert",
+        "marker"
+      ],
+      "input_dropout": 0.1
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "tokens"
+      ],
+      "type": "lstm",
+      "state_size": 768,
+      "encoder_dropout": 0.5,
+      "encoder_output_dropout": 0.5,
+      "encoder_layers": 1
+    },
+    {
+      "name": "predicate",
+      "type": "repeat_token",
+      "inputs": [
+        "blstm"
+      ],
+      "key": "predicate_index"
+    },
+    {
+      "name": "blstm_pred_and_word",
+      "type": "concat",
+      "inputs": [
+        "predicate",
+        "lstm"
+      ]
+    },
+    {
+      "name": "mlp",
+      "type": "mlp",
+      "inputs": [
+        "blstm_pred_and_word"
+      ],
+      "dim": 300,
+      "layers": 1,
+      "keep_prob": 0.5
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "gold",
+      "type": "srl"
+    }
+  ]
+}

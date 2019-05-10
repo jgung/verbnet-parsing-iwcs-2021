@@ -33,7 +33,10 @@ def embedding(features, feature_config, training):
         return elmo_embedding
     elif feature_config.name == constants.BERT_KEY:
         tf.logging.info("Using BERT module at %s", BERT_S_CASED_URL)
-        bert_module = hub.Module(BERT_S_CASED_URL, trainable=True)
+        tags = set()
+        if training:
+            tags.add("train")
+        bert_module = hub.Module(BERT_S_CASED_URL, tags=tags, trainable=True)
         bert_inputs = dict(
             input_ids=tf.cast(features[constants.BERT_KEY], tf.int32),
             input_mask=tf.cast(features[constants.BERT_MASK], tf.int32),
@@ -135,20 +138,50 @@ def encoder(features, inputs, mode, config):
     sequence_lengths = features[constants.LENGTH_KEY]
 
     with tf.variable_scope("encoder"):
-        if constants.ENCODER_IDENT == config.encoder_type:
-            return inputs[0], inputs[0].shape[-1]
-        elif constants.ENCODER_CONCAT == config.encoder_type:
+        encoder_type = config.encoder_type
+
+        if constants.ENCODER_IDENT == encoder_type:
+            return tf.nn.dropout(inputs[0], keep_prob=1 if training else 1 - config.dropout), inputs[0].shape[-1]
+        elif constants.ENCODER_CONCAT == encoder_type:
             return concat(inputs, training, config)
-        elif constants.ENCODER_SUM == config.encoder_type:
+        elif constants.ENCODER_REPEAT == encoder_type:
+            return repeat(inputs, features[config.key])
+        elif constants.ENCODER_SUM == encoder_type:
             return reduce_sum(inputs)
-        elif constants.ENCODER_DBLSTM == config.encoder_type:
+        elif constants.ENCODER_DBLSTM == encoder_type:
             return highway_dblstm(inputs[0], sequence_lengths, training, config)
-        elif constants.ENCODER_BLSTM == config.encoder_type:
+        elif constants.ENCODER_BLSTM == encoder_type:
             return stacked_bilstm(inputs[0], sequence_lengths, training, config)
-        elif constants.ENCODER_TRANSFORMER == config.encoder_type:
+        elif constants.ENCODER_TRANSFORMER == encoder_type:
             return transformer_encoder(inputs[0], sequence_lengths, training, config)
         else:
-            raise ValueError('No encoder of type "{}" available'.format(config.encoder_type))
+            raise ValueError('No encoder of type "{}" available'.format(encoder_type))
+
+
+def repeat(inputs, token_indices):
+    """
+    Repeat a specific token in each batch given by a batch-length vector of token indices.
+    """
+    shape = tf.shape(inputs, out_type=tf.int64)  # (b, n, d)
+    batch_indices = tf.range(shape[0])  # [0, 1, 2, ..., b]
+    full_indices = tf.stack([batch_indices, token_indices], axis=1)  # e.g [[0, 1, 2, ..., b], [3, 2, 11, ..., 4]]
+    predicates = tf.gather_nd(inputs, indices=full_indices)  # (b x d)
+    predicates = tf.expand_dims(predicates, 1)  # (b x 1 x d)
+    return tf.tile(predicates, [1, shape[1], 1])  # (b x n x d)
+
+
+def mlp(inputs, training, config):
+    with tf.variable_scope("conv_mlp", [inputs]):
+        inputs = tf.expand_dims(inputs, 1)
+        input_dim = inputs.get_shape().as_list()[-1]
+        hidden_size = config.hidden_size
+        keep_prob = config.keep_prob if training else 1
+
+        y = inputs
+        for i in range(config.layers):
+            y = _ff("ff%d" % i, y, input_dim, hidden_size, keep_prob, last=i == config.layers - 1)
+
+        return y
 
 
 def concat(inputs, training, config):
@@ -463,24 +496,25 @@ def transformer(inputs, attention_bias, training, config):
         return x
 
 
+def _ff(name, x, in_dim, out_dim, keep_prob, last=False):
+    weights = tf.get_variable(name, [1, 1, in_dim, out_dim])
+
+    h = tf.nn.conv2d(x, filter=weights, strides=[1, 1, 1, 1], padding="SAME")
+    if not last:
+        h = tf.nn.leaky_relu(h, alpha=0.1)
+        h = tf.nn.dropout(h, keep_prob)
+    else:
+        h = tf.squeeze(h, 1)
+    return h
+
+
 def _mlp(inputs, hidden_size, output_size, keep_prob):
     with tf.variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
         input_dim = inputs.get_shape().as_list()[-1]
 
-        def ff(name, x, in_dim, out_dim, last=False):
-            weights = tf.get_variable(name, [1, 1, in_dim, out_dim])
-
-            h = tf.nn.conv2d(x, filter=weights, strides=[1, 1, 1, 1], padding="SAME")
-            if not last:
-                h = tf.nn.leaky_relu(h, alpha=0.1)
-                h = tf.nn.dropout(h, keep_prob)
-            else:
-                h = tf.squeeze(h, 1)
-            return h
-
-        y = ff("ff1", inputs, input_dim, hidden_size)
-        y = ff("ff2", y, hidden_size, hidden_size)
-        y = ff("ff3", y, hidden_size, output_size, last=True)
+        y = _ff("ff1", inputs, input_dim, hidden_size, keep_prob)
+        y = _ff("ff2", y, hidden_size, hidden_size, keep_prob)
+        y = _ff("ff3", y, hidden_size, output_size, keep_prob, last=True)
 
         return y
