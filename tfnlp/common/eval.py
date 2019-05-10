@@ -9,6 +9,7 @@ from nltk import ConfusionMatrix
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.lib.io.file_io import get_matching_files
 
+from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
 from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
@@ -33,9 +34,9 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
         for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
             prev_pred = 'O'
             for label, prediction in zip(gold_seq, predicted_seq):
-                if label in ['X', '[CLS]', '[SEP]']:
+                if label in [BERT_SUBLABEL, BERT_CLS, BERT_SEP]:
                     continue
-                if prediction == 'X' and len(prev_pred) > 2:
+                if prediction == BERT_SUBLABEL and len(prev_pred) > 2:
                     # carry over from dummy token
                     prediction = "I-" + prev_pred[2:]
                 yield "_ {} {}".format(label, prediction)

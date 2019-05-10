@@ -6,6 +6,7 @@ from tensorflow.contrib.crf.python.ops import crf
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 from tfnlp.common import constants
+from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
@@ -173,7 +174,8 @@ def create_transition_matrix(labels):
     labels = [labels.index_to_feat(i) for i in range(len(labels.indices))]
     num_tags = len(labels)
     transition_params = np.zeros([num_tags, num_tags], dtype=np.float32)
-    if 'X' not in labels:
+    if BERT_SUBLABEL not in labels:
+        # constrained decoding logic not valid when using BERT-tyle sub-labels
         for i, prev_label in enumerate(labels):
             for j, curr_label in enumerate(labels):
                 if i != j and curr_label[:2] == 'I-' and not prev_label == 'B' + curr_label[1:]:
@@ -231,7 +233,7 @@ class TaggerHead(ModelHead):
             self.predictions = tf.arg_max(self.logits, dimension=-1)
             cond = tf.greater(mask, tf.zeros(tf.shape(mask)))
             self.predictions = tf.cond(cond, self.predictions, tf.fill(tf.shape(self.predictions),
-                                                                       self.extractor.feat2index('X')))
+                                                                       self.extractor.feat2index(BERT_SUBLABEL)))
 
     def _evaluation(self):
         self.evaluation_hooks = []

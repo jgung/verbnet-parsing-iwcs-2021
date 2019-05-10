@@ -9,7 +9,7 @@ from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
 from tfnlp.common import constants
-from tfnlp.common.bert import BERT_S_CASED_URL
+from tfnlp.common.bert import BERT_S_CASED_URL, BERT_CLS, BERT_SEP, BERT_SUBLABEL
 from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, \
     UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
@@ -902,17 +902,17 @@ class BertLengthFeature(Extractor):
 
     def get_values(self, sequence):
         vals = super().get_values(sequence)
-        tokens = ["[CLS]"]
+        tokens = [BERT_CLS]
         for val in vals:
             tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(val))
-        tokens.append("[SEP]")
+        tokens.append(BERT_SEP)
 
         if self.srl:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = vals[sequence[constants.PREDICATE_INDEX_KEY]]
             predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
             tokens.extend(predicate_subtokens)
-            tokens.append("[SEP]")
+            tokens.append(BERT_SEP)
 
         return tokens
 
@@ -956,9 +956,9 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         words = instance[constants.WORD_KEY]
         target_labels = {target.name: target.get_values(instance) for target in self.targets.values()}
 
-        split_tokens = ["[CLS]"]
+        split_tokens = [BERT_CLS]
         split_labels = {
-            target.name: ["[CLS]"] for target in self.targets.values()
+            target.name: [BERT_CLS] for target in self.targets.values()
         }
         mask = [0]
 
@@ -978,13 +978,13 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             for target, labels in target_labels.items():
                 label = labels[i]
                 split_labels[target].append(label)
-                split_labels[target].extend((len(sub_tokens) - 1) * ["X"])
+                split_labels[target].extend((len(sub_tokens) - 1) * [BERT_SUBLABEL])
 
-        split_tokens.append("[SEP]")
+        split_tokens.append(BERT_SEP)
         mask.append(0)
 
         for labels in split_labels.values():
-            labels.append("[SEP]")
+            labels.append(BERT_SEP)
             assert len(split_tokens) == len(labels)
 
         if self.srl:
@@ -992,12 +992,12 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             predicate_token = words[instance[constants.PREDICATE_INDEX_KEY]]
             predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
             split_tokens.extend(predicate_subtokens)
-            split_tokens.append("[SEP]")
+            split_tokens.append(BERT_SEP)
             mask.append(0)
             mask.extend([0] * (len(predicate_subtokens) - 1))
             for target, labels in split_labels.items():
                 labels.extend(len(predicate_subtokens) * [self.targets[target].pad_word])
-                labels.append("[SEP]")
+                labels.append(BERT_SEP)
                 assert len(split_tokens) == len(labels)
 
         ids = self.tokenizer.convert_tokens_to_ids(split_tokens)
