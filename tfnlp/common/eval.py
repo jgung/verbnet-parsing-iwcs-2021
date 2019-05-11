@@ -32,19 +32,13 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
 
     def get_lines():
         for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
-            prev_pred = 'O'
             for i, (label, prediction) in enumerate(zip(gold_seq, predicted_seq)):
                 if label in [BERT_SUBLABEL, BERT_CLS, BERT_SEP]:
                     continue
                 if prediction == BERT_SUBLABEL:
-                    if i < len(gold_seq) - 1 and len(prev_pred) > 2:
-                        # carry over from dummy token
-                        prediction = 'I-' + prev_pred[2:]
-                    else:
-                        prediction = 'O'
+                    prediction = 'O'
                 res = "_ {} {}".format(label, prediction)
                 yield res
-                prev_pred = prediction
             yield ""  # sentence break
 
     if output_file:
@@ -53,7 +47,7 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
                 output.write(line + '\n')
 
     result = conll_eval_lines(get_lines(), raw=True).to_conll_output()
-    return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
+    return float(re.split('\\s+', re.split('\n', result)[1].strip())[7]), result
 
 
 def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
@@ -269,7 +263,7 @@ def log_trainable_variables():
     return total_size
 
 
-CKPT_PATTERN = re.compile('(\S+\.ckpt-(\d+))\.index')
+CKPT_PATTERN = re.compile('(\\S+\\.ckpt-(\\d+))\\.index')
 
 
 def get_earliest_checkpoint(model_dir):

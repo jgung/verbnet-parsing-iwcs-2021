@@ -5,6 +5,7 @@ from itertools import chain
 import tensorflow as tf
 import tensorflow_hub as hub
 from bert.tokenization import FullTokenizer
+from common.feature_utils import int64_feature_list_fill, int64_feature_list, int64_feature, str_feature_list, sequence_example
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
@@ -288,7 +289,7 @@ class Extractor(DummyExtractor):
         :return: resulting extracted feature
         """
         value = self._extract_raw(instance)
-        return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+        return int64_feature(value)
 
     def map(self, value):
         """
@@ -479,8 +480,7 @@ class SequenceExtractor(Extractor):
 
     def extract(self, sequence):
         raw = self._extract_raw(sequence)
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[result])) for result in raw]
-        return tf.train.FeatureList(feature=input_features)
+        return int64_feature_list(raw)
 
 
 class TextExtractor(Extractor):
@@ -855,9 +855,7 @@ class FeatureExtractor(BaseFeatureExtractor):
             else:
                 features[feature.name] = feat
 
-        feature_lists = tf.train.FeatureLists(feature_list=feature_list)
-        features = tf.train.Features(feature=features)
-        return tf.train.SequenceExample(context=features, feature_lists=feature_lists)
+        return sequence_example(features, feature_list)
 
     def parse(self, example, train=True):
         context_features, sequence_features = get_feature_spec(self.extractors(train))
@@ -985,7 +983,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         for labels in split_labels.values():
             labels.append(BERT_SEP)
-            assert len(split_tokens) == len(labels)
 
         if self.srl:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
@@ -998,33 +995,27 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             for target, labels in split_labels.items():
                 labels.extend(len(predicate_subtokens) * [self.targets[target].pad_word])
                 labels.append(BERT_SEP)
-                assert len(split_tokens) == len(labels)
 
         ids = self.tokenizer.convert_tokens_to_ids(split_tokens)
 
         # (2) convert IDs to TF Record proto format -----------------------------------------------------------------------------
         feature_list = {}
         features = {}
-        if self.srl:
-            features[constants.PREDICATE_INDEX_KEY] = tf.train.Feature(int64_list=tf.train.Int64List(value=[focus_index]))
 
-        word_feats = [tf.train.Feature(int64_list=tf.train.Int64List(value=[feat_idx])) for feat_idx in ids]
-        feature_list[constants.BERT_KEY] = tf.train.FeatureList(feature=word_feats)
+        if self.srl:
+            features[constants.PREDICATE_INDEX_KEY] = int64_feature(focus_index)
 
         for name, labels in split_labels.items():
-            input_features = [tf.train.Feature(bytes_list=tf.train.BytesList(value=[bytes(result, encoding='utf-8')]))
-                              for result in labels]
-            feature_list[name] = tf.train.FeatureList(feature=input_features)
+            assert len(labels) == len(ids)
+            feature_list[name] = str_feature_list(labels)  # labels
 
-        feature_list[constants.BERT_SEGMENT_IDS] = tf.train.FeatureList(
-            feature=[tf.train.Feature(int64_list=tf.train.Int64List(value=[0])) for _ in ids])
-        feature_list[constants.BERT_MASK] = tf.train.FeatureList(
-            feature=[tf.train.Feature(int64_list=tf.train.Int64List(value=[1])) for _ in ids])
-        feature_list[constants.SEQUENCE_MASK] = tf.train.FeatureList(
-            feature=[tf.train.Feature(int64_list=tf.train.Int64List(value=[val])) for val in mask])
+        feature_list[constants.BERT_KEY] = int64_feature_list(ids)  # BERT wordpiece token indices
+        feature_list[constants.BERT_SEGMENT_IDS] = int64_feature_list_fill(len(ids), 0)
+        feature_list[constants.BERT_MASK] = int64_feature_list_fill(len(ids), 1)
+        feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
 
         for feature in self.extractors(False):
-            if feature.rank < 0:
+            if feature.rank < 0:  # dummy feature
                 continue
             feat = feature.extract(instance)
             if isinstance(feat, tf.train.FeatureList):
@@ -1032,9 +1023,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             else:
                 features[feature.name] = feat
 
-        feature_lists = tf.train.FeatureLists(feature_list=feature_list)
-        features = tf.train.Features(feature=features)
-        return tf.train.SequenceExample(context=features, feature_lists=feature_lists)
+        return sequence_example(features, feature_list)
 
     def parse(self, example, train=True):
         context_features, sequence_features = get_feature_spec(self.extractors(train))
@@ -1066,12 +1055,17 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
     def get_padding(self, train=True):
         padding = get_padding(self.extractors(train))
-        padding[constants.BERT_KEY] = tf.constant(0, dtype=tf.int64)
-        padding[constants.BERT_SEGMENT_IDS] = tf.constant(0, dtype=tf.int64)
-        padding[constants.BERT_MASK] = tf.constant(0, dtype=tf.int64)
-        padding[constants.SEQUENCE_MASK] = tf.constant(0, dtype=tf.int64)
+
+        def zero_padding():
+            return tf.constant(0, dtype=tf.int64)
+
+        padding[constants.BERT_KEY] = zero_padding()
+        padding[constants.BERT_SEGMENT_IDS] = zero_padding()
+        padding[constants.BERT_MASK] = zero_padding()
+        padding[constants.SEQUENCE_MASK] = zero_padding()
         if self.srl:
-            padding[constants.PREDICATE_INDEX_KEY] = tf.constant(0, dtype=tf.int64)
+            padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
+
         return padding
 
     def initialize(self, resources=''):
