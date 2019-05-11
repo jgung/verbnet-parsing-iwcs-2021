@@ -908,8 +908,7 @@ class BertLengthFeature(Extractor):
         if self.srl:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = vals[sequence[constants.PREDICATE_INDEX_KEY]]
-            predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
-            tokens.extend(predicate_subtokens)
+            tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
             tokens.append(BERT_SEP)
 
         return tokens
@@ -956,7 +955,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         split_tokens = [BERT_CLS]
         split_labels = {
-            target.name: [BERT_CLS] for target in self.targets.values()
+            target.name: [BERT_SUBLABEL] for target in self.targets.values()
         }
         mask = [0]
 
@@ -982,7 +981,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         mask.append(0)
 
         for labels in split_labels.values():
-            labels.append(BERT_SEP)
+            labels.append(BERT_SUBLABEL)
 
         if self.srl:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
@@ -990,11 +989,9 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
             split_tokens.extend(predicate_subtokens)
             split_tokens.append(BERT_SEP)
-            mask.append(0)
-            mask.extend([0] * (len(predicate_subtokens) - 1))
+            mask.extend((1 + len(predicate_subtokens)) * [0])
             for target, labels in split_labels.items():
-                labels.extend(len(predicate_subtokens) * [self.targets[target].pad_word])
-                labels.append(BERT_SEP)
+                labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
 
         ids = self.tokenizer.convert_tokens_to_ids(split_tokens)
 

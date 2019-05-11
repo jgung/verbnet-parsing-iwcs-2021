@@ -74,6 +74,19 @@ To train using ELMo–described in the paper
 [Deep contextualized word representations](https://arxiv.org/abs/1802.05365), 
 use `ner-elmo-config.json` instead of `ner-glove-config.json`.
 
+To train using a model with BERT, described in
+[BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)
+use `ner-bert-config.json`:
+```
+INFO:tensorflow:Evaluating on data/datasets/conll03-ner/eng.testb
+INFO:tensorflow:processed 46666 tokens with 5648 phrases; found: 5731 phrases; correct: 5208.
+accuracy:  98.29%; precision:  90.87%; recall:  92.21%; FB1:  91.54
+              LOC: precision:  93.71%; recall:  92.87%; FB1:  93.29  1653
+             MISC: precision:  79.14%; recall:  84.33%; FB1:  81.66  748
+              ORG: precision:  88.24%; recall:  91.27%; FB1:  89.73  1718
+              PER: precision:  96.22%; recall:  95.92%; FB1:  96.07  1612
+```
+
 ### Semantic Role Labeling
 To train a model based on
 [Deep Semantic Role Labeling: What works and what's next](
