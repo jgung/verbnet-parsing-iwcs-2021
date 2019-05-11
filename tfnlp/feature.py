@@ -1028,10 +1028,13 @@ class BertFeatureExtractor(BaseFeatureExtractor):
     def parse(self, example, train=True):
         context_features, sequence_features = get_feature_spec(self.extractors(train))
 
-        sequence_features[constants.BERT_KEY] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
-        sequence_features[constants.BERT_SEGMENT_IDS] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
-        sequence_features[constants.BERT_MASK] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
-        sequence_features[constants.SEQUENCE_MASK] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
+        def int64_sequence_feature():
+            return tf.FixedLenSequenceFeature([], dtype=tf.int64)
+
+        sequence_features[constants.BERT_KEY] = int64_sequence_feature()
+        sequence_features[constants.BERT_SEGMENT_IDS] = int64_sequence_feature()
+        sequence_features[constants.BERT_MASK] = int64_sequence_feature()
+        sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
         if self.srl:
             context_features[constants.PREDICATE_INDEX_KEY] = tf.FixedLenFeature([], dtype=tf.int64)
 
@@ -1045,12 +1048,17 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
     def get_shapes(self, train=True):
         shapes = get_shapes(self.extractors(train))
-        shapes[constants.BERT_KEY] = tf.TensorShape([None])
-        shapes[constants.BERT_SEGMENT_IDS] = tf.TensorShape([None])
-        shapes[constants.BERT_MASK] = tf.TensorShape([None])
-        shapes[constants.SEQUENCE_MASK] = tf.TensorShape([None])
+
+        def vector_shape():
+            return tf.TensorShape([None])
+
+        shapes[constants.BERT_KEY] = vector_shape()
+        shapes[constants.BERT_SEGMENT_IDS] = vector_shape()
+        shapes[constants.BERT_MASK] = vector_shape()
+        shapes[constants.SEQUENCE_MASK] = vector_shape()
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
+
         return shapes
 
     def get_padding(self, train=True):
