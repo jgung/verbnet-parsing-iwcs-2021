@@ -124,7 +124,7 @@ def sequence_loss(logits, targets, sequence_lengths, num_labels, crf=False, tag_
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=targets)
                 mask = mask if mask is not None else tf.sequence_mask(sequence_lengths)
                 losses = tf.boolean_mask(losses, mask, name="mask_padding_from_loss")
-                n_tokens = tf.cast(tf.reduce_sum(mask), tf.float32)
+                n_tokens = tf.cast(tf.reduce_sum(tf.cast(mask, tf.int32)), tf.float32)
                 loss = tf.reduce_sum(losses) / n_tokens  # just average over batch/token-specific losses
 
         if confidence_penalty > 0:
