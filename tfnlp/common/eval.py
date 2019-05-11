@@ -33,13 +33,17 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
     def get_lines():
         for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
             prev_pred = 'O'
-            for label, prediction in zip(gold_seq, predicted_seq):
+            for i, (label, prediction) in enumerate(zip(gold_seq, predicted_seq)):
                 if label in [BERT_SUBLABEL, BERT_CLS, BERT_SEP]:
                     continue
-                if prediction == BERT_SUBLABEL and len(prev_pred) > 2:
-                    # carry over from dummy token
-                    prediction = "I-" + prev_pred[2:]
-                yield "_ {} {}".format(label, prediction)
+                if prediction == BERT_SUBLABEL:
+                    if i < len(gold_seq) - 1 and len(prev_pred) > 2:
+                        # carry over from dummy token
+                        prediction = 'I-' + prev_pred[2:]
+                    else:
+                        prediction = 'O'
+                res = "_ {} {}".format(label, prediction)
+                yield res
                 prev_pred = prediction
             yield ""  # sentence break
 

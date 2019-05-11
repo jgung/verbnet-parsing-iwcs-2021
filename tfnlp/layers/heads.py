@@ -231,9 +231,11 @@ class TaggerHead(ModelHead):
             self.predictions = crf.crf_decode(self.logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
         else:
             self.predictions = tf.arg_max(self.logits, dimension=-1)
-            cond = tf.greater(mask, tf.zeros(tf.shape(mask)))
-            self.predictions = tf.cond(cond, self.predictions, tf.fill(tf.shape(self.predictions),
-                                                                       self.extractor.feat2index(BERT_SUBLABEL)))
+            cond = tf.greater(mask, tf.zeros(tf.shape(mask), tf.int64))
+            ignore = self.extractor.feat2index(BERT_SUBLABEL)
+            self.predictions = tf.where(cond,
+                                        tf.cast(self.predictions, tf.int64),
+                                        tf.cast(tf.fill(tf.shape(self.predictions), ignore), tf.int64))
 
     def _evaluation(self):
         self.evaluation_hooks = []
