@@ -79,16 +79,24 @@ def _convert_to_sentences(ys, indices, ids):
     predicates = []
     props_by_predicate = []
     for labels, markers, curr_sent_idx in zip(ys, indices, ids):
+        filtered_labels = []
+        filtered_markers = []
+        for label, marker in zip(labels, markers):
+            if label == BERT_SUBLABEL:
+                continue
+            filtered_labels.append(label)
+            filtered_markers.append(marker)
+
         if prev_sent_idx != curr_sent_idx:
             prev_sent_idx = curr_sent_idx
             if predicates:
                 _add_sentence(props_by_predicate, predicates)
-            predicates = ["-"] * len(markers)
+            predicates = ["-"] * len(filtered_markers)
             props_by_predicate = []
 
-        predicate_idx = markers.index('1')
+        predicate_idx = filtered_markers.index('1')
         predicates[predicate_idx] = 'x'
-        props_by_predicate.append(chunk(labels, conll=True))
+        props_by_predicate.append(chunk(filtered_labels, conll=True))
 
     if predicates:
         _add_sentence(props_by_predicate, predicates)
@@ -118,18 +126,26 @@ def write_props_to_file(output_file, labels, markers, sentence_ids):
         props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
         for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
 
+            filtered_labels = []
+            filtered_markers = []
+            for label, marker in zip(labels, markers):
+                if label == BERT_SUBLABEL:
+                    continue
+                filtered_labels.append(label)
+                filtered_markers.append(marker)
+
             if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
                 prev_sent_idx = curr_sent_idx
 
                 if predicates:
                     _write_props(props_by_predicate, predicates)
 
-                predicates = ["-"] * len(markers)
+                predicates = ["-"] * len(filtered_markers)
                 props_by_predicate = {}
 
-            predicate_idx = markers.index('1')  # index of predicate in tokens
+            predicate_idx = filtered_markers.index('1')  # index of predicate in tokens
             predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
-            props_by_predicate[predicate_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
+            props_by_predicate[predicate_idx] = (chunk(filtered_labels, conll=True))  # assign SRL labels for this predicate
 
         if predicates:
             _write_props(props_by_predicate, predicates)

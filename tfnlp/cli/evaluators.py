@@ -109,7 +109,7 @@ def srl_evaluator(labeled_instances, results, output_path=None, target_key=None)
     markers = []
     indices = []
     for instance, result in zip(labeled_instances, results):
-        labels.append(binary_np_array_to_unicode(result[target_key]))
+        labels.append([label for label in binary_np_array_to_unicode(result[target_key]) if label != BERT_SUBLABEL])
         gold.append(instance[constants.LABEL_KEY])
         markers.append(instance[constants.MARKER_KEY])
         indices.append(instance[constants.SENTENCE_INDEX])

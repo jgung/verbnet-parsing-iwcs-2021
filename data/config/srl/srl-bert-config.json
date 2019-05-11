@@ -21,7 +21,8 @@
         "name": "gold",
         "key": "gold",
         "indices": {
-          "O": 0
+          "O": 0,
+          "X": 1
         },
         "unknown_word": "O",
         "pad_word": "O"

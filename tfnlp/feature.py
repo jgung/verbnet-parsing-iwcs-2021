@@ -224,7 +224,8 @@ def get_feature_extractor(config):
 
     if constants.BERT_KEY in [inp.name for inp in config.inputs]:
         tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
-        return BertFeatureExtractor(targets=config.targets)
+        feats = [feat for feat in config.inputs if feat.name == constants.MARKER_KEY]
+        return BertFeatureExtractor(targets=config.targets, features=feats, srl=len(feats) > 0)
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
@@ -915,7 +916,7 @@ class BertLengthFeature(Extractor):
 
 
 class BertFeatureExtractor(BaseFeatureExtractor):
-    def __init__(self, targets, srl=False, model=BERT_S_CASED_URL) -> None:
+    def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL) -> None:
         super().__init__()
         self.srl = srl
         bert_module = hub.Module(model)
@@ -929,7 +930,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         self.features = {
             LENGTH_KEY: BertLengthFeature(self.tokenizer, srl=srl),
             SENTENCE_INDEX: index_feature(),
-            constants.BERT_KEY: DummyExtractor(constants.BERT_KEY)
+            constants.BERT_KEY: DummyExtractor(constants.BERT_KEY),
+            **{feature.name: feature for feature in features}
         }
 
     def extractors(self, train=True):
@@ -959,7 +961,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         }
         mask = [0]
 
-        focus_index = 0
+        focus_index = 0  # SRL-specific
+
         for i, word in enumerate(words):
             if self.srl:
                 # get index of predicate
@@ -999,9 +1002,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         feature_list = {}
         features = {}
 
-        if self.srl:
-            features[constants.PREDICATE_INDEX_KEY] = int64_feature(focus_index)
-
         for name, labels in split_labels.items():
             assert len(labels) == len(ids)
             feature_list[name] = str_feature_list(labels)  # labels
@@ -1011,8 +1011,12 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         feature_list[constants.BERT_MASK] = int64_feature_list_fill(len(ids), 1)
         feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
 
+        if self.srl:
+            features[constants.PREDICATE_INDEX_KEY] = int64_feature(focus_index)
+            feature_list[constants.MARKER_KEY] = str_feature_list(['1' if i == focus_index else '0' for i in range(len(ids))])
+
         for feature in self.extractors(False):
-            if feature.rank < 0:  # dummy feature
+            if feature.rank < 0 or feature.name == constants.MARKER_KEY:  # dummy feature
                 continue
             feat = feature.extract(instance)
             if isinstance(feat, tf.train.FeatureList):
