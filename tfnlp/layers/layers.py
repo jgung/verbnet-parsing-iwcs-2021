@@ -191,7 +191,8 @@ def mlp(inputs, training, config):
 
         y = inputs
         for i in range(config.layers):
-            y = _ff("ff%d" % i, y, input_dim, hidden_size, keep_prob, last=i == config.layers - 1)
+            y = _ff("ff%d" % i, y, input_dim, hidden_size, keep_prob, last=False)
+        y = tf.squeeze(y, 1)
 
         return y, hidden_size, y
 
