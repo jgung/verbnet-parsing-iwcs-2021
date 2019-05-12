@@ -148,6 +148,8 @@ def encoder(features, inputs, mode, config):
             return repeat(inputs, features[config.key])
         elif constants.ENCODER_SUM == encoder_type:
             return reduce_sum(inputs)
+        elif constants.ENCODER_MLP == encoder_type:
+            return mlp(inputs, training, config)
         elif constants.ENCODER_DBLSTM == encoder_type:
             return highway_dblstm(inputs[0], sequence_lengths, training, config)
         elif constants.ENCODER_BLSTM == encoder_type:
@@ -162,29 +164,44 @@ def repeat(inputs, token_indices):
     """
     Repeat a specific token in each batch given by a batch-length vector of token indices.
     """
+    if len(inputs) != 1:
+        raise AssertionError("'repeat' cannot have multiple inputs")
+    inputs = _get_encoder_input(inputs[0])
+
     shape = tf.shape(inputs, out_type=tf.int64)  # (b, n, d)
     batch_indices = tf.range(shape[0])  # [0, 1, 2, ..., b]
-    full_indices = tf.stack([batch_indices, token_indices], axis=1)  # e.g [[0, 1, 2, ..., b], [3, 2, 11, ..., 4]]
+    full_indices = tf.stack([batch_indices, token_indices], axis=1)  # e.g [[0, 1, 2, ..., b], [3, 5, 11, ..., 4]]
     predicates = tf.gather_nd(inputs, indices=full_indices)  # (b x d)
     predicates = tf.expand_dims(predicates, 1)  # (b x 1 x d)
     return tf.tile(predicates, [1, shape[1], 1])  # (b x n x d)
 
 
 def mlp(inputs, training, config):
+    if len(inputs) != 1:
+        raise AssertionError("'repeat' cannot have multiple inputs")
+    inputs = _get_encoder_input(inputs[0])
+
     with tf.variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
         input_dim = inputs.get_shape().as_list()[-1]
-        hidden_size = config.hidden_size
+        hidden_size = config.dim
         keep_prob = config.keep_prob if training else 1
 
         y = inputs
         for i in range(config.layers):
             y = _ff("ff%d" % i, y, input_dim, hidden_size, keep_prob, last=i == config.layers - 1)
 
-        return y
+        return y, hidden_size, y
+
+
+def _get_encoder_input(encoder_input):
+    if isinstance(encoder_input, tuple):
+        encoder_input = encoder_input[0]
+    return encoder_input
 
 
 def concat(inputs, training, config):
+    inputs = [_get_encoder_input(encoder_input) for encoder_input in inputs]
     result = tf.concat(inputs, -1, name="inputs")
     # apply dropout across entire layer
     result = tf.layers.dropout(result, rate=config.input_dropout, training=training, name='input_layer_dropout')

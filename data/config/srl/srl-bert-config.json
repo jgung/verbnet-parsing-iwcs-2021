@@ -80,7 +80,7 @@
       "type": "concat",
       "inputs": [
         "predicate",
-        "lstm"
+        "blstm"
       ]
     },
     {
@@ -96,7 +96,7 @@
   ],
   "heads": [
     {
-      "encoder": "blstm",
+      "encoder": "mlp",
       "name": "gold",
       "type": "srl"
     }
