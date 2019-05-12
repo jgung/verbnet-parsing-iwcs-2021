@@ -22,6 +22,3 @@ def str_feature(val):
 def int64_feature(val):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[val]))
 
-
-def int64_feature_list_fill(length, value):
-    return tf.train.FeatureList(feature=[int64_feature(value) for _ in range(length)])

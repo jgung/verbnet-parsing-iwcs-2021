@@ -5,7 +5,7 @@ from itertools import chain
 import tensorflow as tf
 import tensorflow_hub as hub
 from bert.tokenization import FullTokenizer
-from common.feature_utils import int64_feature_list_fill, int64_feature_list, int64_feature, str_feature_list, sequence_example
+from common.feature_utils import int64_feature_list, int64_feature, str_feature_list, sequence_example
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
@@ -1007,8 +1007,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             feature_list[name] = str_feature_list(labels)  # labels
 
         feature_list[constants.BERT_KEY] = int64_feature_list(ids)  # BERT wordpiece token indices
-        feature_list[constants.BERT_SEGMENT_IDS] = int64_feature_list_fill(len(ids), 0)
-        feature_list[constants.BERT_MASK] = int64_feature_list_fill(len(ids), 1)
         feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
 
         if self.srl:
@@ -1033,8 +1031,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             return tf.FixedLenSequenceFeature([], dtype=tf.int64)
 
         sequence_features[constants.BERT_KEY] = int64_sequence_feature()
-        sequence_features[constants.BERT_SEGMENT_IDS] = int64_sequence_feature()
-        sequence_features[constants.BERT_MASK] = int64_sequence_feature()
         sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
         if self.srl:
             context_features[constants.PREDICATE_INDEX_KEY] = tf.FixedLenFeature([], dtype=tf.int64)
@@ -1054,8 +1050,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             return tf.TensorShape([None])
 
         shapes[constants.BERT_KEY] = vector_shape()
-        shapes[constants.BERT_SEGMENT_IDS] = vector_shape()
-        shapes[constants.BERT_MASK] = vector_shape()
         shapes[constants.SEQUENCE_MASK] = vector_shape()
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
@@ -1069,8 +1063,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             return tf.constant(0, dtype=tf.int64)
 
         padding[constants.BERT_KEY] = zero_padding()
-        padding[constants.BERT_SEGMENT_IDS] = zero_padding()
-        padding[constants.BERT_MASK] = zero_padding()
         padding[constants.SEQUENCE_MASK] = zero_padding()
         if self.srl:
             padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
