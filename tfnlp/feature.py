@@ -961,7 +961,9 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         }
         mask = [0]
 
-        focus_index = 0  # SRL-specific
+        # SRL-specific
+        focus_index = 0
+        segment_index = 0
 
         for i, word in enumerate(words):
             if self.srl:
@@ -987,6 +989,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             labels.append(BERT_SUBLABEL)
 
         if self.srl:
+            segment_index = len(split_tokens)
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = words[instance[constants.PREDICATE_INDEX_KEY]]
             predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
@@ -1011,6 +1014,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         if self.srl:
             features[constants.PREDICATE_INDEX_KEY] = int64_feature(focus_index)
+            features[constants.BERT_SPLIT_INDEX] = int64_feature(segment_index)
             feature_list[constants.MARKER_KEY] = str_feature_list(['1' if i == focus_index else '0' for i in range(len(ids))])
 
         for feature in self.extractors(False):
@@ -1034,6 +1038,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
         if self.srl:
             context_features[constants.PREDICATE_INDEX_KEY] = tf.FixedLenFeature([], dtype=tf.int64)
+            context_features[constants.BERT_SPLIT_INDEX] = tf.FixedLenFeature([], dtype=tf.int64)
 
         context_parsed, sequence_parsed = tf.parse_single_sequence_example(
             serialized=example,
@@ -1053,6 +1058,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         shapes[constants.SEQUENCE_MASK] = vector_shape()
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
+            shapes[constants.BERT_SPLIT_INDEX] = tf.TensorShape([])
 
         return shapes
 
@@ -1066,6 +1072,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         padding[constants.SEQUENCE_MASK] = zero_padding()
         if self.srl:
             padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
+            padding[constants.BERT_SPLIT_INDEX] = zero_padding()
 
         return padding
 

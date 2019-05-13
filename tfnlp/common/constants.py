@@ -20,6 +20,7 @@ CHAR_KEY = "char"
 ELMO_KEY = "elmo"
 BERT_KEY = "bert"
 SEQUENCE_MASK = "sequence_mask"
+BERT_SPLIT_INDEX = "bert_split_idx"
 
 ID_KEY = "ID"
 LEMMA_KEY = "lemma"

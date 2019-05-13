@@ -37,12 +37,21 @@ def embedding(features, feature_config, training):
         if training:
             tags.add("train")
         bert_module = hub.Module(BERT_S_CASED_URL, tags=tags, trainable=True)
+
+        if constants.BERT_SPLIT_INDEX in features:
+            max_sequence_length = tf.reduce_max(features[constants.LENGTH_KEY])
+            mask = tf.sequence_mask(features[constants.BERT_SPLIT_INDEX], maxlen=max_sequence_length)  # e.g. [1, 1, ..., 0, 0]
+            segment_ids = tf.cast(tf.math.logical_not(mask), dtype=tf.int32)  # e.g. [0, 0, ..., 1, 1]
+        else:
+            segment_ids = tf.zeros(tf.shape(features[constants.BERT_KEY]), dtype=tf.int32)
+
         bert_inputs = dict(
             input_ids=tf.cast(features[constants.BERT_KEY], tf.int32),
             # mask over the sequence lengths, which extend over all BERT tokens in input_ids for each seq in the batch
             input_mask=tf.cast(tf.sequence_mask(features[constants.LENGTH_KEY]), dtype=tf.int32),
             # we don't care about segment_ids since we're not supporting sentence pair tasks for now
-            segment_ids=tf.zeros(tf.shape(features[constants.BERT_KEY]), dtype=tf.int32))
+            segment_ids=segment_ids)
+
         bert_outputs = bert_module(bert_inputs, signature="tokens", as_dict=True)
         bert_embedding = bert_outputs["sequence_output"]
         return bert_embedding
