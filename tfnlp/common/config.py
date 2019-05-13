@@ -100,6 +100,7 @@ class EncoderConfig(Params):
         self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
+        self.sequence_length_key = config.get('sequence_length_key', constants.LENGTH_KEY)
 
         # transformer encoder settings
         self.num_heads = config.get('num_heads', 8)

@@ -146,7 +146,6 @@ def _get_embedding_input(inputs, feature, training):
 
 def encoder(features, inputs, mode, config):
     training = mode == tf.estimator.ModeKeys.TRAIN
-    sequence_lengths = features[constants.LENGTH_KEY]
 
     with tf.variable_scope("encoder"):
         encoder_type = config.encoder_type
@@ -162,11 +161,11 @@ def encoder(features, inputs, mode, config):
         elif constants.ENCODER_MLP == encoder_type:
             return mlp(inputs, training, config)
         elif constants.ENCODER_DBLSTM == encoder_type:
-            return highway_dblstm(inputs[0], sequence_lengths, training, config)
+            return highway_dblstm(inputs[0], features[config.sequence_length_key], training, config)
         elif constants.ENCODER_BLSTM == encoder_type:
-            return stacked_bilstm(inputs[0], sequence_lengths, training, config)
+            return stacked_bilstm(inputs[0], features[config.sequence_length_key], training, config)
         elif constants.ENCODER_TRANSFORMER == encoder_type:
-            return transformer_encoder(inputs[0], sequence_lengths, training, config)
+            return transformer_encoder(inputs[0], features[config.sequence_length_key], training, config)
         else:
             raise ValueError('No encoder of type "{}" available'.format(encoder_type))
 
