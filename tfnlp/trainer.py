@@ -21,6 +21,7 @@ from tfnlp.common.eval_hooks import metric_compare_fn
 from tfnlp.common.export import BesterExporter
 from tfnlp.common.logging_utils import set_up_logging
 from tfnlp.common.utils import read_json, write_json
+from tfnlp.config_builder import read_config
 from tfnlp.datasets import make_dataset, padded_batch
 from tfnlp.feature import get_default_buckets, get_feature_extractor, write_features
 from tfnlp.model.model import multi_head_model_fn
@@ -35,7 +36,7 @@ class Trainer(object):
     Model trainer, used to train and evaluate models using the TF Estimator API.
 
     :param save_dir_path: directory from which to save/load model, metadata, logs, and other training files
-    :param config_json_path: path to training configuration file
+    :param config: training configuration JSON
     :param resources_dir_path: path to base directory of resources, such as for pre-trained weights
     :param script_file_path: path to official evaluation scripts
     :param model_fn: TF model function ([features, mode, params] -> EstimatorSpec)
@@ -44,7 +45,7 @@ class Trainer(object):
 
     def __init__(self,
                  save_dir_path: str,
-                 config_json_path: Optional[str] = None,
+                 config: Optional[dict] = None,
                  resources_dir_path: Optional[str] = '',
                  script_file_path: Optional[str] = None,
                  model_fn: Optional[TF_MODEL_FN] = multi_head_model_fn,
@@ -52,21 +53,19 @@ class Trainer(object):
         super().__init__()
         self._job_dir = save_dir_path
 
+        config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
+        if not tf.gfile.Exists(config_path):
+            write_json(config, config_path)
+        if not config:
+            config = read_json(config_path)
+        self._training_config = get_network_config(config)
+
         self._model_path = os.path.join(self._job_dir, constants.MODEL_PATH)
         self._vocab_path = os.path.join(self._job_dir, constants.VOCAB_PATH)
         self._resources = resources_dir_path
         self._eval_script_path = script_file_path
         self._model_fn = model_fn
         self._debug = debug
-
-        # read configuration file
-        self.config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
-        if not tf.gfile.Exists(self.config_path):
-            if not config_json_path:
-                raise AssertionError('trainer configuration is required when training for the first time')
-            tf.gfile.MakeDirs(self._job_dir)
-            tf.gfile.Copy(config_json_path, self.config_path, overwrite=True)
-        self._training_config = get_network_config(read_json(self.config_path))
 
         self._data_path_fn = lambda orig: os.path.join(self._job_dir, os.path.basename(orig) + ".tfrecords")
 
@@ -329,7 +328,7 @@ class Trainer(object):
             else:
                 # persist dynamically computed bucket sizes
                 self._training_config.bucket_sizes = bucket_sizes
-                write_json(self._training_config, self.config_path)
+                write_json(self._training_config, os.path.join(self._job_dir, constants.CONFIG_PATH))
 
         return lambda: make_dataset(self._feature_extractor,
                                     paths=self._data_path_fn(dataset),
@@ -358,6 +357,11 @@ def default_args():
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
     parser.add_argument('--debug', action='store_true', help='Activate profiling/debug mode')
     parser.set_defaults(debug=False)
+
+    parser.add_argument('--config_overrides', nargs="*", type=str,
+                        help='space-separated list of keys and corresponding JSON configuration files')
+    parser.add_argument('--param_overrides', type=str,
+                        help='comma-separated list of parameters with subfields separated by periods, e.g. "optimizer.lr=0.1"')
     return parser
 
 
@@ -372,8 +376,16 @@ def _validate_and_parse_args():
 def cli():
     opts = _validate_and_parse_args()
 
+    # write configuration file to model path, applying any updates/overrides if this is the first time training
+    config_path = os.path.join(opts.save, constants.CONFIG_PATH)
+    if not tf.gfile.Exists(config_path):
+        if not opts.config:
+            raise AssertionError('trainer configuration is required when training for the first time')
+        config = read_config(opts.config, opts.config_overrides, opts.param_overrides)
+        tf.gfile.MakeDirs(opts.save)
+        write_json(config, config_path)
+
     trainer = Trainer(save_dir_path=opts.save,
-                      config_json_path=opts.config,
                       resources_dir_path=opts.resources,
                       script_file_path=opts.script,
                       debug=opts.debug)

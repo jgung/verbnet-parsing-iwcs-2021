@@ -97,7 +97,15 @@ echo "Setting output directory to $job_dir"
 
 python setup.py sdist
 gsutil cp dist/tfnlp-1.0.tar.gz ${job_dir}/app.tar.gz
+
+# resolve any local configuration references by building the config locally first
+export PYTHONPATH=${PYTHONPATH}:/`pwd`
+mkdir /tmp/${job_name}
+python tfnlp/config_builder.py --base ${config} --output /tmp/${job_name}/config.json
+config=/tmp/${job_name}/config.json
 gsutil cp ${config} ${job_dir}/config.json
+rm ${config}
+
 gsutil cp ${train_file} ${job_dir}/train.txt
 gsutil cp ${valid_file} ${job_dir}/valid.txt
 
