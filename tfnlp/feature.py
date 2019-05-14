@@ -5,7 +5,6 @@ from itertools import chain
 import tensorflow as tf
 import tensorflow_hub as hub
 from bert.tokenization import FullTokenizer
-from common.feature_utils import int64_feature_list, int64_feature, str_feature_list, sequence_example
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
@@ -14,6 +13,7 @@ from tfnlp.common.bert import BERT_S_CASED_URL, BERT_CLS, BERT_SEP, BERT_SUBLABE
 from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, \
     UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
+from tfnlp.common.feature_utils import int64_feature_list, int64_feature, str_feature_list, sequence_example
 from tfnlp.common.utils import Params, deserialize, serialize
 from tfnlp.layers.reduce import ConvNet
 
@@ -919,6 +919,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
     def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL) -> None:
         super().__init__()
         self.srl = srl
+        self.label_subtokens = True
         bert_module = hub.Module(model)
         tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
         with tf.Session() as sess:

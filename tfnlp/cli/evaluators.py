@@ -1,7 +1,7 @@
 import os
 
 import tensorflow as tf
-from common.bert import BERT_SUBLABEL
+from tfnlp.common.bert import BERT_SUBLABEL
 
 from tfnlp.common import constants
 from tfnlp.common.eval import append_srl_prediction_output, write_props_to_file
