@@ -1,6 +1,5 @@
 {
   "reader": "tsv",
-  "checkpoint_steps": 1024,
   "batch_size": 10,
   "optimizer": {
     "name": "LazyAdam",

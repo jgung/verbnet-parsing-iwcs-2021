@@ -5,7 +5,6 @@
       "gold": 3
     }
   },
-  "checkpoint_steps": 3822,
   "batch_size": 10,
   "optimizer": {
     "name": "Momentum",

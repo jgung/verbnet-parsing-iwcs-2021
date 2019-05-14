@@ -102,9 +102,8 @@
       }
     }
   },
-  "checkpoint_steps": 2000,
-  "patience": 500000,
-  "max_steps": 500000,
+  "max_epochs": 500,
+  "patience_epochs": 200,
   "batch_size": 80,
   "optimizer": {
     "name": "Adadelta",

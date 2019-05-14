@@ -1,6 +1,5 @@
 {
   "reader": "ptb_pos",
-  "checkpoint_steps": 3822,
   "batch_size": 10,
   "optimizer": {
     "name": "Momentum",
