@@ -81,49 +81,20 @@ class Trainer(object):
         """
         if not self._feature_extractor:
             self._init_feature_extractor(train_path=train)
-        estimator = self._init_estimator(test=False)
-
-        tf.logging.info('Training on %s, validating on %s' % (train, valid))
 
         # read and extract features from training/validation data, serialize to disk
         self._extract_and_write(train)
         self._extract_and_write(valid)
 
+        # compute steps per epoch/checkpoint and early stopping steps
+        max_steps, patience, checkpoint_steps = self._compute_steps(train, valid)
+        self._training_config.max_steps = max_steps  # update config value for learning rate calculation
+
         # train and evaluate using Estimator API
-        # TODO: fixes issue https://github.com/tensorflow/tensorflow/issues/18394
-        if not os.path.exists(estimator.eval_dir()):
-            os.makedirs(estimator.eval_dir())
+        estimator = self._init_estimator(checkpoint_steps)
 
-        hooks = []
-        early_stopping = stop_if_no_increase_hook(
-            estimator,
-            metric_name=self._training_config.metric,
-            max_steps_without_increase=self._training_config.patience,
-            min_steps=self._training_config.checkpoint_steps,
-            run_every_secs=None,
-            # reduce how often we check if we should stop to when it makes sense--when we evaluate
-            run_every_steps=self._training_config.checkpoint_steps,
-        )
-        hooks.append(early_stopping)
-        if self._debug:
-            debug = tf.train.ProfilerHook(save_steps=10,
-                                          output_dir=self._job_dir,
-                                          show_memory=True)
-            hooks.append(debug)
-
-        train_spec = tf.estimator.TrainSpec(self._input_fn(train, True),
-                                            max_steps=self._training_config.max_steps,
-                                            hooks=hooks)
-
-        exporter = BesterExporter(serving_input_receiver_fn=self._serving_input_fn,
-                                  compare_fn=metric_compare_fn(self._training_config.metric),
-                                  exports_to_keep=self._training_config.exports_to_keep,
-                                  strip_default_attrs=False)
-
-        eval_spec = tf.estimator.EvalSpec(self._input_fn(valid, False),
-                                          steps=None,  # evaluate on full validation set
-                                          exporters=[exporter],
-                                          throttle_secs=0)
+        train_spec = self._train_spec(train, max_steps, self._training_hooks(estimator, patience, checkpoint_steps))
+        eval_spec = self._eval_spec(valid)
 
         train_and_evaluate(estimator, train_spec=train_spec, eval_spec=eval_spec)
 
@@ -252,15 +223,85 @@ class Trainer(object):
         tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
-    def _init_estimator(self, test: bool = False):
+    def _compute_steps(self, train, valid):
+        train_count = sum(1 for _ in tf.python_io.tf_record_iterator(self._data_path_fn(train)))
+        valid_count = sum(1 for _ in tf.python_io.tf_record_iterator(self._data_path_fn(valid)))
+
+        steps_per_epoch = train_count / self._training_config.batch_size
+        if not self._training_config.max_epochs:
+            if not self._training_config.max_steps:
+                self._training_config.max_epochs = 100
+            else:
+                self._training_config.max_epochs = self._training_config.max_steps / steps_per_epoch
+        if not self._training_config.patience_epochs:
+            if not self._training_config.patience:
+                self._training_config.patience_epochs = 5
+            else:
+                self._training_config.patience_epochs = self._training_config.patience / steps_per_epoch
+        if not self._training_config.checkpoint_epochs:
+            if not self._training_config.checkpoint_steps:
+                self._training_config.checkpoint_epochs = 1
+            else:
+                self._training_config.checkpoint_epochs = self._training_config.checkpoint_steps / steps_per_epoch
+
+        max_steps = self._training_config.max_epochs * steps_per_epoch
+        patience = self._training_config.patience_epochs * steps_per_epoch
+        checkpoint_steps = self._training_config.checkpoint_epochs * steps_per_epoch
+
+        tf.logging.info('Training on %d instances at %s, validating on %d instances at %s'
+                        % (train_count, train, valid_count, valid))
+        tf.logging.info('Training for a maximum of %d epoch(s) (%d steps w/ batch_size=%d)'
+                        % (self._training_config.max_epochs, max_steps, self._training_config.batch_size))
+        tf.logging.info('Early stopping after %d epoch(s) (%d steps) with no improvement on validation set'
+                        % (self._training_config.patience_epochs, patience))
+        tf.logging.info('Evaluating every %d steps, %d epoch(s)' % (checkpoint_steps, self._training_config.checkpoint_epochs))
+
+        return max_steps, patience, checkpoint_steps
+
+    def _init_estimator(self, checkpoint_steps):
         return tf.estimator.Estimator(model_fn=self._model_fn,
                                       model_dir=self._model_path,
                                       config=RunConfig(
-                                          log_step_count_steps=self._training_config.checkpoint_steps / 10,
-                                          save_summary_steps=self._training_config.checkpoint_steps,
+                                          log_step_count_steps=checkpoint_steps / 10,
+                                          save_summary_steps=checkpoint_steps,
                                           keep_checkpoint_max=self._training_config.keep_checkpoints,
-                                          save_checkpoints_steps=self._training_config.checkpoint_steps),
-                                      params=self._params(test=test))
+                                          save_checkpoints_steps=checkpoint_steps),
+                                      params=self._params(test=False))
+
+    def _training_hooks(self, estimator, patience, checkpoint_steps):
+        early_stopping = stop_if_no_increase_hook(
+            estimator,
+            metric_name=self._training_config.metric,
+            max_steps_without_increase=patience,
+            min_steps=checkpoint_steps,
+            run_every_secs=None,
+            # reduce how often we check if we should stop to when it makes sense--when we evaluate
+            run_every_steps=checkpoint_steps,
+        )
+
+        hooks = [early_stopping]
+
+        if self._debug:
+            hooks.append(tf.train.ProfilerHook(save_steps=10,
+                                               output_dir=self._job_dir,
+                                               show_memory=True))
+        return hooks
+
+    def _train_spec(self, train, max_steps, hooks):
+        return tf.estimator.TrainSpec(self._input_fn(train, True),
+                                      max_steps=max_steps,
+                                      hooks=hooks)
+
+    def _eval_spec(self, valid):
+        exporter = BesterExporter(serving_input_receiver_fn=self._serving_input_fn,
+                                  compare_fn=metric_compare_fn(self._training_config.metric),
+                                  exports_to_keep=self._training_config.exports_to_keep,
+                                  strip_default_attrs=False)
+
+        return tf.estimator.EvalSpec(self._input_fn(valid, False),
+                                     steps=None,  # evaluate on full validation set
+                                     exporters=[exporter],
+                                     throttle_secs=0)
 
     def _serving_input_fn(self):
         # input has been serialized to a TFRecord string (variable batch size)

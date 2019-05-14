@@ -32,17 +32,13 @@ class BaseNetworkConfig(Params):
         self.dataset_caching = config.get('dataset_caching', True)
 
         self.checkpoint_steps = config.get('checkpoint_steps')
-        if not self.checkpoint_steps:
-            self.checkpoint_steps = self.batch_size * 100
-            tf.logging.warn("No 'checkpoint_steps' parameter provided. Using default value of %d", self.checkpoint_steps)
         self.patience = config.get('patience')
-        if not self.patience:
-            self.patience = self.checkpoint_steps * 5
-            tf.logging.warn("No 'patience' parameter provided. Using default value of %d", self.patience)
         self.max_steps = config.get('max_steps')
-        if not self.max_steps:
-            self.max_steps = self.checkpoint_steps * 100
-            tf.logging.warn("No 'max_steps' parameter provided. Using default value of %d", self.max_steps)
+
+        self.max_epochs = config.get('max_epochs')
+        self.patience_epochs = config.get('patience_epochs')
+        self.checkpoint_epochs = config.get('checkpoint_epochs')
+
         self.exports_to_keep = config.get('exports_to_keep', 1)
         self.keep_checkpoints = config.get('checkpoints_to_keep', 1)
 
@@ -80,13 +76,12 @@ class BaseNetworkConfig(Params):
 
         optimizer_config = config.get('optimizer')
         if optimizer_config:
-            self.optimizer = OptimizerConfig(optimizer_config, num_train_steps=self.max_steps)
+            self.optimizer = OptimizerConfig(optimizer_config)
 
 
 class OptimizerConfig(Params):
-    def __init__(self, optimizer_config, num_train_steps, **kwargs):
+    def __init__(self, optimizer_config, **kwargs):
         super().__init__(**optimizer_config, **kwargs)
-        self.num_train_steps = num_train_steps
         self.name = optimizer_config.name
         self.params = optimizer_config.params if optimizer_config.get('params') else {}
 
