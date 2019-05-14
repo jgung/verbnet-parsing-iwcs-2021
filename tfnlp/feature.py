@@ -981,7 +981,13 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             for target, labels in target_labels.items():
                 label = labels[i]
                 split_labels[target].append(label)
-                split_labels[target].extend((len(sub_tokens) - 1) * [BERT_SUBLABEL])
+                if self.label_subtokens:
+                    if len(label) > 2 and label[:2] == 'B-':
+                        label = 'I-' + label[2:]
+                    # else label = label
+                else:
+                    label = BERT_SUBLABEL
+                split_labels[target].extend((len(sub_tokens) - 1) * [label])
 
         split_tokens.append(BERT_SEP)
         mask.append(0)
