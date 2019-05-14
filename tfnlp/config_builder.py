@@ -19,15 +19,42 @@ def build_config(base_config: dict, override_configs: dict = None, override_para
     """
     result = copy.deepcopy(base_config)
 
+    def _sub_str(value):
+        if value.endswith(JSON_EXT):
+            if value.startswith("."):
+                value = os.path.join(config_dir, value)
+            return read_json(value)
+        return value
+
+    def _sub_values_list(_params):
+        res = []
+        for value in _params:
+            if isinstance(value, dict):
+                value = _sub_dict(value)
+            elif isinstance(value, str):
+                value = _sub_str(value)
+            elif isinstance(value, list):
+                value = _sub_values_list(value)
+            res.append(value)
+        return res
+
+    def _sub_dict(_params):
+        res = {}
+        for key, val in _params.items():
+            if isinstance(val, str):
+                val = _sub_str(val)
+            elif isinstance(val, list):
+                val = _sub_values_list(val)
+            elif isinstance(val, dict):
+                val = _sub_dict(val)
+            res[key] = val
+        return res
+
     # resolve config references
     if config_dir:
         if os.path.isfile(config_dir):
             config_dir = os.path.abspath(os.path.join(config_dir, os.pardir))
-        for key, val in result.items():
-            if isinstance(val, str) and val.endswith(JSON_EXT):
-                if val.startswith("."):
-                    val = os.path.join(config_dir, val)
-                result[key] = read_json(val)
+        result = _sub_dict(result)
 
     # add separate top-level configs provided as parameters
     if override_configs:

@@ -99,7 +99,6 @@
       "type": "lstm",
       "state_size": 300,
       "encoder_dropout": 0.5,
-      "encoder_dropout": 0.5,
       "encoder_layers": 1
     }
   ],
