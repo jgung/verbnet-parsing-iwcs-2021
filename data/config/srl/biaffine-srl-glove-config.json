@@ -26,23 +26,7 @@
       }
     ],
     "inputs": [
-      {
-        "name": "word",
-        "key": "word",
-        "mapping_funcs": [
-          "lower",
-          "digit_norm"
-        ],
-        "config": {
-          "dim": 100,
-          "initializer": {
-            "embedding": "vectors/glove.6B.100d.txt",
-            "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
-            "restrict_vocab": true
-          }
-        }
-      },
+      "../shared/feats/glove-100d.json",
       {
         "name": "predicate_index",
         "key": "predicate_index",

@@ -35,44 +35,8 @@
       }
     ],
     "inputs": [
-      {
-        "name": "word",
-        "key": "word",
-        "mapping_funcs": [
-          "lower",
-          "digit_norm"
-        ],
-        "config": {
-          "dim": 100,
-          "initializer": {
-            "embedding": "vectors/glove.6B.100d.txt",
-            "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
-            "zero_init": true,
-            "restrict_vocab": true
-          }
-        }
-      },
-      {
-        "name": "char",
-        "key": "word",
-        "rank": 3,
-        "left_padding": 2,
-        "right_padding": 2,
-        "max_len": 30,
-        "mapping_funcs": [
-          "chars"
-        ],
-        "config": {
-          "dim": 30,
-          "dropout": 0.5,
-          "function": {
-            "name": "ConvNet",
-            "kernel_size": 3,
-            "num_filters": 30
-          }
-        }
-      }
+      "../shared/feats/glove-100d.json",
+      "../shared/feats/char-conv.json"
     ]
   },
   "encoders": [

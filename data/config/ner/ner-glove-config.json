@@ -23,8 +23,8 @@
       "./feats/targets-feat.json"
     ],
     "inputs": [
-      "./feats/glove-feat.json",
-      "./feats/chars-feat.json"
+      "../shared/feats/glove-100d.json",
+      "../shared/feats/char-conv.json"
     ]
   },
   "encoders": [
