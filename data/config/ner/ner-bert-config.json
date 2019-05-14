@@ -9,8 +9,7 @@
     "lr": {
       "name": "bert",
       "rate": 0.00003,
-      "warmup_proportion": 0.1,
-      "num_train_steps": 3748
+      "warmup_proportion": 0.1
     },
     "clip": 1.0
   },
