@@ -1,4 +1,5 @@
 from tfnlp.common import constants
+from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.constants import WORD_KEY
 from tfnlp.common.utils import binary_np_array_to_unicode
 
@@ -7,7 +8,7 @@ def get_formatter(config):
     def _tagger_formatter(result, original_input=None):
         target = config.features.targets[0].name
 
-        labels = binary_np_array_to_unicode(result[target])
+        labels = [res for res in binary_np_array_to_unicode(result[target]) if res != BERT_SUBLABEL]
         if not original_input or WORD_KEY not in original_input:
             return '\n'.join(labels)
         result = []
