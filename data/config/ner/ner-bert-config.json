@@ -1,0 +1,53 @@
+{
+  "comments": "14,987 sentences in CoNLL-2003 training corpus, 937 steps w/ batch size of 16 is ~1 epoch",
+  "reader": "conll_2003",
+  "checkpoint_steps": 937,
+  "max_steps": 3748,
+  "batch_size": 16,
+  "optimizer": {
+    "name": "bert",
+    "lr": {
+      "name": "bert",
+      "rate": 0.00003,
+      "warmup_proportion": 0.1
+    },
+    "clip": 1.0
+  },
+  "features": {
+    "targets": [
+      {
+        "name": "NE",
+        "key": "gold",
+        "indices": {
+          "O": 0,
+          "X": 1
+        },
+        "unknown_word": "O",
+        "pad_word": "O"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "bert"
+      }
+    ]
+  },
+  "encoders": [
+    {
+      "name": "identity",
+      "inputs": [
+        "bert"
+      ],
+      "dropout": 0.1,
+      "type": "identity"
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "identity",
+      "name": "NE",
+      "type": "ner",
+      "crf": false
+    }
+  ]
+}

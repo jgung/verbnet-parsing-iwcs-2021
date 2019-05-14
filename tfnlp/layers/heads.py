@@ -6,6 +6,7 @@ from tensorflow.contrib.crf.python.ops import crf
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 
 from tfnlp.common import constants
+from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
 from tfnlp.common.metrics import tagger_metrics
@@ -175,7 +176,9 @@ def create_transition_matrix(labels):
     transition_params = np.zeros([num_tags, num_tags], dtype=np.float32)
     for i, prev_label in enumerate(labels):
         for j, curr_label in enumerate(labels):
-            if i != j and curr_label[:2] == 'I-' and not prev_label == 'B' + curr_label[1:]:
+            if i == j:
+                continue
+            if curr_label[:2] == 'I-' and prev_label not in ['B' + curr_label[1:], BERT_SUBLABEL]:
                 transition_params[i, j] = np.NINF
     return tf.initializers.constant(transition_params)
 
@@ -217,12 +220,15 @@ class TaggerHead(ModelHead):
                                   num_labels=num_labels,
                                   crf=self.config.crf, tag_transitions=self._tag_transitions,
                                   label_smoothing=self.config.label_smoothing,
-                                  confidence_penalty=self.config.confidence_penalty)
+                                  confidence_penalty=self.config.confidence_penalty,
+                                  mask=self.features.get(constants.SEQUENCE_MASK))
 
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
-        self.predictions = crf.crf_decode(self.logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
+        predictions = crf.crf_decode(self.logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
+        # optionally mask intermediate subtokens from prediction results
+        self.predictions = self._mask_subtokens(predictions)
 
     def _evaluation(self):
         self.evaluation_hooks = []
@@ -233,7 +239,7 @@ class TaggerHead(ModelHead):
         eval_tensors = {  # tensors necessary for evaluation hooks (such as sequence length)
             constants.LENGTH_KEY: self._sequence_lengths,
             constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
-            labels_key: self.targets,
+            labels_key: self._mask_subtokens(self.targets),
             predictions_key: self.predictions,
         }
 
@@ -276,6 +282,17 @@ class TaggerHead(ModelHead):
                     output_dir=self.params.job_dir
                 )
             )
+
+    def _mask_subtokens(self, tensor_with_subtokens):
+        mask = self.features.get(constants.SEQUENCE_MASK)
+        if mask is not None:
+            cond = tf.greater(mask, tf.zeros(tf.shape(mask), tf.int64))
+            ignore = self.extractor.feat2index(BERT_SUBLABEL)
+            tensor_with_subtokens = tf.where(cond,
+                                             tf.cast(tensor_with_subtokens, tf.int64),
+                                             tf.cast(tf.fill(tf.shape(tensor_with_subtokens), ignore), tf.int64))
+            return tensor_with_subtokens
+        return tensor_with_subtokens
 
 
 class BiaffineSrlHead(TaggerHead):
@@ -325,12 +342,13 @@ class BiaffineSrlHead(TaggerHead):
 
         rel_loss = sequence_loss(logits=_logits,
                                  targets=self.targets,
-                                 sequence_lengths=self._sequence_lengths,
+                                 sequece_lengths=self._sequence_lengths,
                                  num_labels=num_labels,
                                  crf=self.config.crf,
                                  tag_transitions=self._tag_transitions,
                                  label_smoothing=self.config.label_smoothing,
-                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss")
+                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss",
+                                 mask=self.features.get(constants.SEQUENCE_MASK))
 
         self.loss = rel_loss
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)

@@ -2,6 +2,7 @@ import numbers
 import re
 
 import tensorflow as tf
+from bert.optimization import AdamWeightDecayOptimizer
 from tensorflow.contrib.opt import LazyAdamOptimizer
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
@@ -99,6 +100,7 @@ class EncoderConfig(Params):
         self.encoder_output_dropout = config.get('encoder_output_dropout', 0)
         self.encoder_layers = config.get('encoder_layers', 1)
         self.state_size = config.get('state_size', 100)
+        self.sequence_length_key = config.get('sequence_length_key', constants.LENGTH_KEY)
 
         # transformer encoder settings
         self.num_heads = config.get('num_heads', 8)
@@ -156,9 +158,41 @@ def get_learning_rate(lr_config, global_step):
         decay = inverse_time_decay(lr, global_step, **lr_config.params)
     elif "vaswani" == name:
         decay = _transformer_learning_rate(lr_config, global_step)
+    elif "bert" == name:
+        decay = _bert_learning_rate(lr_config, global_step)
     else:
         raise ValueError("Unknown learning rate schedule: {}".format(name))
     return decay
+
+
+def _bert_learning_rate(lr_config, global_step):
+    # adapted from https://github.com/google-research/bert/blob/master/optimization.py
+    init_lr = lr_config.rate
+    warmup_steps = int(lr_config.warmup_proportion * lr_config.num_train_steps)
+    learning_rate = tf.constant(value=init_lr, shape=[], dtype=tf.float32)
+    # Implements linear decay of the learning rate.
+    learning_rate = tf.train.polynomial_decay(
+        learning_rate,
+        global_step,
+        lr_config.num_train_steps,
+        end_learning_rate=0.0,
+        power=1.0,
+        cycle=False)
+    # Implements linear warmup. I.e., if global_step < num_warmup_steps, the
+    # learning rate will be `global_step/num_warmup_steps * init_lr`.
+    if warmup_steps:
+        global_steps_int = tf.cast(global_step, tf.int32)
+        warmup_steps_int = tf.constant(warmup_steps, dtype=tf.int32)
+
+        global_steps_float = tf.cast(global_steps_int, tf.float32)
+        warmup_steps_float = tf.cast(warmup_steps_int, tf.float32)
+
+        warmup_percent_done = global_steps_float / warmup_steps_float
+        warmup_learning_rate = init_lr * warmup_percent_done
+
+        is_warmup = tf.cast(global_steps_int < warmup_steps_int, tf.float32)
+        learning_rate = ((1.0 - is_warmup) * learning_rate + is_warmup * warmup_learning_rate)
+    return learning_rate
 
 
 def _transformer_learning_rate(lr_config, global_step):
@@ -188,6 +222,7 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
     """
     try:
         optimizer = network_config.optimizer
+        optimizer.num_train_steps = network_config.max_steps
     except KeyError:
         tf.logging.info("Using Adadelta as default optimizer.")
         return default_optimizer
@@ -197,20 +232,24 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
         lr = get_learning_rate(optimizer.lr, tf.train.get_global_step())
 
     name = optimizer.name
+    params = optimizer.params if optimizer.get('params') else {}
     if "Adadelta" == name:
-        opt = tf.train.AdadeltaOptimizer(lr, **optimizer.params)
+        opt = tf.train.AdadeltaOptimizer(lr, **params)
     elif "Adam" == name:
-        opt = tf.train.AdamOptimizer(lr, **optimizer.params)
+        opt = tf.train.AdamOptimizer(lr, **params)
     elif "LazyAdam" == name:
-        opt = LazyAdamOptimizer(lr, **optimizer.params)
+        opt = LazyAdamOptimizer(lr, **params)
     elif "LazyNadam" == name:
-        opt = LazyNadamOptimizer(lr, **optimizer.params)
+        opt = LazyNadamOptimizer(lr, **params)
     elif "SGD" == name:
         opt = tf.train.GradientDescentOptimizer(lr)
     elif "Momentum" == name:
-        opt = tf.train.MomentumOptimizer(lr, **optimizer.params)
+        opt = tf.train.MomentumOptimizer(lr, **params)
     elif "Nadam" == name:
-        opt = NadamOptimizerSparse(lr, **optimizer.params)
+        opt = NadamOptimizerSparse(lr, **params)
+    elif "bert" == name:
+        opt = AdamWeightDecayOptimizer(lr, weight_decay_rate=0.01, beta_1=0.9, beta_2=0.999, epsilon=1e-6,
+                                       exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
     else:
         raise ValueError("Invalid optimizer name: {}".format(name))
     return opt
@@ -263,7 +302,14 @@ def train_op_from_config(config, loss):
     gradients = tf.gradients(loss, parameters)
     gradients = tf.clip_by_global_norm(gradients, clip_norm=clip_norm)[0]
 
-    return optimizer.apply_gradients(grads_and_vars=zip(gradients, parameters), global_step=tf.train.get_global_step())
+    global_step = tf.train.get_global_step()
+    result = optimizer.apply_gradients(grads_and_vars=zip(gradients, parameters), global_step=global_step)
+    if isinstance(optimizer, AdamWeightDecayOptimizer):
+        # AdamWeightDecayOptimizer does not update the global step, unlike other optimizers
+        new_global_step = global_step + 1
+        train_op = tf.group(result, [global_step.assign(new_global_step)])
+        return train_op
+    return result
 
 
 def append_label(metric_key, target_key, default_val=None):

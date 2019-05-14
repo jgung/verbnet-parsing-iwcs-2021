@@ -9,6 +9,7 @@ from nltk import ConfusionMatrix
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.lib.io.file_io import get_matching_files
 
+from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
 from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
@@ -31,8 +32,13 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
 
     def get_lines():
         for gold_seq, predicted_seq, index in sorted(zip(gold_batches, predicted_batches, indices), key=lambda k: k[2]):
-            for label, prediction in zip(gold_seq, predicted_seq):
-                yield "_ {} {}".format(label, prediction)
+            for i, (label, prediction) in enumerate(zip(gold_seq, predicted_seq)):
+                if label in [BERT_SUBLABEL, BERT_CLS, BERT_SEP]:
+                    continue
+                if prediction == BERT_SUBLABEL:
+                    prediction = 'O'
+                res = "_ {} {}".format(label, prediction)
+                yield res
             yield ""  # sentence break
 
     if output_file:
@@ -41,7 +47,7 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
                 output.write(line + '\n')
 
     result = conll_eval_lines(get_lines(), raw=True).to_conll_output()
-    return float(re.split('\s+', re.split('\n', result)[1].strip())[7]), result
+    return float(re.split('\\s+', re.split('\n', result)[1].strip())[7]), result
 
 
 def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
@@ -73,16 +79,24 @@ def _convert_to_sentences(ys, indices, ids):
     predicates = []
     props_by_predicate = []
     for labels, markers, curr_sent_idx in zip(ys, indices, ids):
+        filtered_labels = []
+        filtered_markers = []
+        for label, marker in zip(labels, markers):
+            if label == BERT_SUBLABEL:
+                continue
+            filtered_labels.append(label)
+            filtered_markers.append(marker)
+
         if prev_sent_idx != curr_sent_idx:
             prev_sent_idx = curr_sent_idx
             if predicates:
                 _add_sentence(props_by_predicate, predicates)
-            predicates = ["-"] * len(markers)
+            predicates = ["-"] * len(filtered_markers)
             props_by_predicate = []
 
-        predicate_idx = markers.index('1')
+        predicate_idx = filtered_markers.index('1')
         predicates[predicate_idx] = 'x'
-        props_by_predicate.append(chunk(labels, conll=True))
+        props_by_predicate.append(chunk(filtered_labels, conll=True))
 
     if predicates:
         _add_sentence(props_by_predicate, predicates)
@@ -112,18 +126,26 @@ def write_props_to_file(output_file, labels, markers, sentence_ids):
         props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
         for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
 
+            filtered_labels = []
+            filtered_markers = []
+            for label, marker in zip(labels, markers):
+                if label == BERT_SUBLABEL:
+                    continue
+                filtered_labels.append(label)
+                filtered_markers.append(marker)
+
             if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
                 prev_sent_idx = curr_sent_idx
 
                 if predicates:
                     _write_props(props_by_predicate, predicates)
 
-                predicates = ["-"] * len(markers)
+                predicates = ["-"] * len(filtered_markers)
                 props_by_predicate = {}
 
-            predicate_idx = markers.index('1')  # index of predicate in tokens
+            predicate_idx = filtered_markers.index('1')  # index of predicate in tokens
             predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
-            props_by_predicate[predicate_idx] = (chunk(labels, conll=True))  # assign SRL labels for this predicate
+            props_by_predicate[predicate_idx] = (chunk(filtered_labels, conll=True))  # assign SRL labels for this predicate
 
         if predicates:
             _write_props(props_by_predicate, predicates)
@@ -257,7 +279,7 @@ def log_trainable_variables():
     return total_size
 
 
-CKPT_PATTERN = re.compile('(\S+\.ckpt-(\d+))\.index')
+CKPT_PATTERN = re.compile('(\\S+\\.ckpt-(\\d+))\\.index')
 
 
 def get_earliest_checkpoint(model_dir):

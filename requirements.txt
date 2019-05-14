@@ -3,3 +3,4 @@ tensorflow-gpu==1.13.1
 nltk
 tensorflow-hub
 tensor2tensor
+bert-tensorflow

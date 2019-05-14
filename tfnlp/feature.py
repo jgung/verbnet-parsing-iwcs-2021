@@ -3,11 +3,17 @@ import re
 from itertools import chain
 
 import tensorflow as tf
+import tensorflow_hub as hub
+from bert.tokenization import FullTokenizer
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 
-from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, UNKNOWN_WORD
+from tfnlp.common import constants
+from tfnlp.common.bert import BERT_S_CASED_URL, BERT_CLS, BERT_SEP, BERT_SUBLABEL
+from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, \
+    UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
+from tfnlp.common.feature_utils import int64_feature_list, int64_feature, str_feature_list, sequence_example
 from tfnlp.common.utils import Params, deserialize, serialize
 from tfnlp.layers.reduce import ConvNet
 
@@ -194,6 +200,8 @@ def _get_feature(feature):
     feature = FeatureConfig(feature)
     if feature.name == ELMO_KEY:
         feat = TextExtractor
+    elif feature.name == constants.BERT_KEY:
+        feat = DummyExtractor
     elif feature.rank == 3:
         feat = SequenceListFeature
     elif feature.rank == 2:
@@ -214,6 +222,11 @@ def get_feature_extractor(config):
     # load default configurations
     config = FeaturesConfig(config)
 
+    if constants.BERT_KEY in [inp.name for inp in config.inputs]:
+        tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
+        feats = [feat for feat in config.inputs if feat.name == constants.MARKER_KEY]
+        return BertFeatureExtractor(targets=config.targets, features=feats, srl=len(feats) > 0)
+
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
     # used to establish sequence length for bucketed batching
@@ -226,7 +239,22 @@ def get_feature_extractor(config):
     return FeatureExtractor(features=config.inputs, targets=config.targets)
 
 
-class Extractor(object):
+class DummyExtractor(object):
+    def __init__(self, name, rank=-1, **kwargs) -> None:
+        self.name = name
+        self.rank = rank
+
+    def has_vocab(self):
+        return False
+
+    def train(self, instance):
+        """
+        Update feature extractors for a given instance. Only applies to extractors with vocabularies.
+        """
+        pass
+
+
+class Extractor(DummyExtractor):
     """
     This class encompasses features that do not use vocabularies. This includes non-categorical features as well as
     metadata such as sequence lengths and identifiers.
@@ -242,9 +270,8 @@ class Extractor(object):
         :param mapping_funcs: list of functions mapping features to new values (e.g. converting to lowercase, normalizing digits)
         :param padding_funcs: list of padding functions
         """
-        self.name = name
+        super().__init__(name=name, rank=1)
         self.key = key
-        self.rank = 1
         self.config = config if config else FeatureHyperparameters(Params(), None)
         self.mapping_funcs = mapping_funcs if mapping_funcs else []
         self.padding_funcs = padding_funcs if padding_funcs else []
@@ -256,12 +283,6 @@ class Extractor(object):
         value = self.map(value)
         return value
 
-    def train(self, instance):
-        """
-        Update feature extractors for a given instance. Only applies to extractors with vocabularies.
-        """
-        pass
-
     def extract(self, instance):
         """
         Extracts a feature for a given instance.
@@ -269,7 +290,7 @@ class Extractor(object):
         :return: resulting extracted feature
         """
         value = self._extract_raw(instance)
-        return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+        return int64_feature(value)
 
     def map(self, value):
         """
@@ -290,9 +311,6 @@ class Extractor(object):
         for func in self.padding_funcs:
             val = func(val)
         return val
-
-    def has_vocab(self):
-        return False
 
 
 class Feature(Extractor):
@@ -463,8 +481,7 @@ class SequenceExtractor(Extractor):
 
     def extract(self, sequence):
         raw = self._extract_raw(sequence)
-        input_features = [tf.train.Feature(int64_list=tf.train.Int64List(value=[result])) for result in raw]
-        return tf.train.FeatureList(feature=input_features)
+        return int64_feature_list(raw)
 
 
 class TextExtractor(Extractor):
@@ -595,7 +612,211 @@ def index_feature():
     return Extractor(name=SENTENCE_INDEX, key=SENTENCE_INDEX, default_val=0)
 
 
-class FeatureExtractor(object):
+class BaseFeatureExtractor:
+    def extractors(self, train=True):
+        return []
+
+    def feature(self, name):
+        return None
+
+    def target(self, name):
+        return None
+
+    def train(self, instances):
+        pass
+
+    def extract_all(self, instances, train=True):
+        return [self.extract(instance, train) for instance in instances]
+
+    def extract(self, instance, train=True):
+        """
+        Extract features for a single instance as a SequenceExample.
+        :param instance: input instance dictionary
+        :param train: extract targets if `True`
+        :return: TF SequenceExample
+        """
+        return None
+
+    def parse(self, example, train=True):
+        """
+        Parse a single TFRecord example into a dictionary from feature names onto corresponding Tensors.
+        :param example: serialized TFRecord example
+        :param train: parse targets if `True`
+        :return: dictionary of Tensors
+        """
+        return {}
+
+    def get_shapes(self, train=True):
+        """
+        Create a dictionary of TensorShapes corresponding to features. Used primarily for TF Dataset API.
+        :param train: include target shapes if `True`
+        :return: dict from feature names to TensorShapes
+        """
+        return {}
+
+    def get_padding(self, train=True):
+        """
+        Create a dictionary of default padding values for each feature. Used primarily for TF Dataset API.
+        :param train: include target padding if `True`
+        :return: dict from feature names to padding Tensors
+        """
+        return {}
+
+    def initialize(self, resources=''):
+        """
+        Initialize feature vocabularies from pre-trained vectors if available.
+        """
+        pass
+
+    def write_vocab(self, base_path, resources='', prune=False):
+        """
+        Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
+        Creates pickled embeddings if explicit initializers are provided.
+        :param base_path: base directory for vocabulary files
+        :param resources: optional base path for embedding resources
+        :param prune: if `True`, prune feature vocabularies based on counts
+        """
+        pass
+
+    def read_vocab(self, base_path):
+        """
+        Read vocabulary from vocabulary files in directory given by `base_path`. Loads any pickled embeddings.
+        :param base_path: base directory for vocabulary files
+        :return: `True` if vocabulary was successfully read
+        """
+        return False
+
+
+def get_feature_spec(extractors):
+    context_features = {}
+    sequence_features = {}
+    for feature in extractors:
+        if feature.rank == 1:
+            context_features[feature.name] = tf.FixedLenFeature([], dtype=feature.dtype)
+        elif feature.rank == 2:
+            sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=feature.dtype)
+        elif feature.rank == 3:
+            sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=feature.dtype)
+        elif feature.rank < 0:
+            continue  # dummy feature
+        else:
+            raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
+
+    return context_features, sequence_features
+
+
+def get_shapes(extractors):
+    shapes = {}
+    for feature in extractors:
+        if feature.rank == 3:
+            shapes[feature.name] = tf.TensorShape([None, feature.max_len])
+        elif feature.rank == 2:
+            shapes[feature.name] = tf.TensorShape([None])
+        elif feature.rank == 1:
+            shapes[feature.name] = tf.TensorShape([])
+        elif feature.rank < 0:
+            continue  # dummy feature
+        else:
+            raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
+
+    return shapes
+
+
+def get_padding(extractors):
+    padding = {}
+    for feature in extractors:
+        if feature.rank < 0:
+            continue  # dummy feature
+        if feature.dtype == tf.string:
+            if feature.has_vocab():
+                padding[feature.name] = tf.constant(feature.pad_word, dtype=tf.string)
+            else:
+                padding[feature.name] = tf.constant(b"<S>", dtype=tf.string)
+        else:
+            padding[feature.name] = tf.constant(0, dtype=tf.int64)
+    return padding
+
+
+def initialize(extractors, resources=''):
+    for feature in extractors:
+        if not feature.has_vocab():
+            continue
+        feature.initialize()
+
+        initializer = feature.config.initializer
+        if not initializer.embedding:
+            continue
+        num_vectors_to_read = initializer.include_in_vocab
+        if num_vectors_to_read <= 0:
+            continue
+        vectors_path = os.path.join(resources, initializer.embedding)
+
+        tf.logging.info("Initializing vocabulary from pre-trained embeddings at %s", vectors_path)
+        vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
+        tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
+        for key in vectors:
+            feature.feat2index(feature.map(key), count=False)
+        if initializer.restrict_vocab:
+            feature.frozen = True
+
+
+def write_vocab(extractors, base_path, resources='', prune=False):
+    for feature in extractors:
+        if not feature.has_vocab():
+            continue
+        path = os.path.join(base_path, feature.name)
+        parent_path = os.path.abspath(os.path.join(path, os.path.pardir))
+        try:
+            os.makedirs(parent_path)
+        except OSError:
+            if not os.path.isdir(parent_path):
+                raise
+
+        feature.write_vocab(path, prune=prune)
+
+        initializer = feature.config.initializer
+        if not initializer.embedding:
+            continue
+        num_vectors_to_read = initializer.include_in_vocab
+        if num_vectors_to_read <= 0:
+            continue
+
+        vectors_path = os.path.join(resources, initializer.embedding)
+        _vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
+
+        # if our feature extractor applies a mapping function (e.g. lowercase), we don't want duplicate entries
+        # by default, choose the first entry to use a the pre-trained embedding
+        vectors = {}
+        for key, vector in _vectors.items():
+            # apply mapping
+            key = feature.map(key)
+            if key not in vectors:
+                vectors[key] = vector
+
+        # save embeddings as a serialized numpy matrix to make deserialization faster
+        feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
+        tf.logging.info("Saving %d vectors as embedding for '%s' feature", feature.embedding.shape[0], feature.name)
+        serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
+
+
+def read_vocab(extractors, base_path):
+    for feature in extractors:
+        if not feature.has_vocab():
+            continue
+        path = os.path.join(base_path, feature.name)
+        success = feature.read_vocab(path)
+        if not success:
+            return False
+        initializer = feature.config.initializer
+        try:
+            if initializer.embedding:
+                feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
+        except NotFoundError:
+            return False
+    return True
+
+
+class FeatureExtractor(BaseFeatureExtractor):
     def __init__(self, features, targets=None):
         """
         This class encompasses multiple Feature objects, creating TFRecord-formatted instances.
@@ -622,47 +843,23 @@ class FeatureExtractor(object):
             for feature in self.extractors(train=True):
                 feature.train(instance)
 
-    def extract_all(self, instances, train=True):
-        return [self.extract(instance, train) for instance in instances]
-
     def extract(self, instance, train=True):
-        """
-        Extract features for a single instance as a SequenceExample.
-        :param instance: input instance dictionary
-        :param train: extract targets if `True`
-        :return: TF SequenceExample
-        """
         feature_list = {}
         features = {}
         for feature in self.extractors(train):
+            if feature.rank < 0:
+                # dummy feature
+                continue
             feat = feature.extract(instance)
             if isinstance(feat, tf.train.FeatureList):
                 feature_list[feature.name] = feat
             else:
                 features[feature.name] = feat
 
-        feature_lists = tf.train.FeatureLists(feature_list=feature_list)
-        features = tf.train.Features(feature=features)
-        return tf.train.SequenceExample(context=features, feature_lists=feature_lists)
+        return sequence_example(features, feature_list)
 
     def parse(self, example, train=True):
-        """
-        Parse a single TFRecord example into a dictionary from feature names onto corresponding Tensors.
-        :param example: serialized TFRecord example
-        :param train: parse targets if `True`
-        :return: dictionary of Tensors
-        """
-        context_features = {}
-        sequence_features = {}
-        for feature in self.extractors(train):
-            if feature.rank == 1:
-                context_features[feature.name] = tf.FixedLenFeature([], dtype=feature.dtype)
-            elif feature.rank == 2:
-                sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=feature.dtype)
-            elif feature.rank == 3:
-                sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=feature.dtype)
-            else:
-                raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
+        context_features, sequence_features = get_feature_spec(self.extractors(train))
 
         context_parsed, sequence_parsed = tf.parse_single_sequence_example(
             serialized=example,
@@ -673,131 +870,227 @@ class FeatureExtractor(object):
         return {**sequence_parsed, **context_parsed}
 
     def get_shapes(self, train=True):
-        """
-        Create a dictionary of TensorShapes corresponding to features. Used primarily for TF Dataset API.
-        :param train: include target shapes if `True`
-        :return: dict from feature names to TensorShapes
-        """
-        shapes = {}
-        for feature in self.extractors(train):
-            if feature.rank == 3:
-                shapes[feature.name] = tf.TensorShape([None, feature.max_len])
-            elif feature.rank == 2:
-                shapes[feature.name] = tf.TensorShape([None])
-            elif feature.rank == 1:
-                shapes[feature.name] = tf.TensorShape([])
+        shapes = get_shapes(self.extractors(train))
+        return shapes
+
+    def get_padding(self, train=True):
+        padding = get_padding(self.extractors(train))
+        return padding
+
+    def initialize(self, resources=''):
+        initialize(self.extractors(train=True), resources)
+
+    def write_vocab(self, base_path, resources='', prune=False):
+        write_vocab(self.extractors(train=True), base_path, resources, prune)
+
+    def read_vocab(self, base_path):
+        return read_vocab(self.extractors(train=True), base_path)
+
+
+class BertLengthFeature(Extractor):
+    def __init__(self, tokenizer, srl=False, name=LENGTH_KEY):
+        super().__init__(name=name, key=constants.WORD_KEY)
+        self.srl = srl
+        self.tokenizer = tokenizer
+        self.counts = {}
+
+    def map(self, value):
+        length = len(value)
+        self.counts[length] = self.counts.get(length, 0) + 1
+        return length
+
+    def get_values(self, sequence):
+        vals = super().get_values(sequence)
+        tokens = [BERT_CLS]
+        for val in vals:
+            tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(val))
+        tokens.append(BERT_SEP)
+
+        if self.srl:
+            # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
+            predicate_token = vals[sequence[constants.PREDICATE_INDEX_KEY]]
+            tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
+            tokens.append(BERT_SEP)
+
+        return tokens
+
+
+class BertFeatureExtractor(BaseFeatureExtractor):
+    def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL) -> None:
+        super().__init__()
+        self.srl = srl
+        self.label_subtokens = True
+        bert_module = hub.Module(model)
+        tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
+        with tf.Session() as sess:
+            vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
+                                                  tokenization_info["do_lower_case"]])
+
+        self.tokenizer = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+        self.targets = {target.name: target for target in targets}
+        self.features = {
+            LENGTH_KEY: BertLengthFeature(self.tokenizer, srl=srl),
+            SENTENCE_INDEX: index_feature(),
+            constants.BERT_KEY: DummyExtractor(constants.BERT_KEY),
+            **{feature.name: feature for feature in features}
+        }
+
+    def extractors(self, train=True):
+        if train:
+            return chain(self.features.values(), self.targets.values())
+        return self.features.values()
+
+    def feature(self, name):
+        return self.features[name]
+
+    def target(self, name):
+        return self.targets[name]
+
+    def train(self, instances):
+        for instance in instances:
+            for extractor in self.extractors():
+                extractor.train(instance)
+
+    def extract(self, instance, train=True):
+        # (1) split up labels and words by subtokens generated by wordpiece_tokenizer -------------------------------------------
+        words = instance[constants.WORD_KEY]
+        target_labels = {target.name: target.get_values(instance) for target in self.targets.values()}
+
+        split_tokens = [BERT_CLS]
+        split_labels = {
+            target.name: [BERT_SUBLABEL] for target in self.targets.values()
+        }
+        mask = [0]
+
+        # SRL-specific
+        focus_index = 0
+        segment_index = 0
+
+        for i, word in enumerate(words):
+            if self.srl:
+                # get index of predicate
+                predicate_index = instance[constants.PREDICATE_INDEX_KEY]
+                if i == predicate_index:
+                    focus_index = len(split_tokens)
+
+            sub_tokens = self.tokenizer.wordpiece_tokenizer.tokenize(word)
+            split_tokens.extend(sub_tokens)
+            mask.append(1)
+            mask.extend([0] * (len(sub_tokens) - 1))
+
+            for target, labels in target_labels.items():
+                label = labels[i]
+                split_labels[target].append(label)
+                if self.label_subtokens:
+                    if len(label) > 2 and label[:2] == 'B-':
+                        label = 'I-' + label[2:]
+                    # else label = label
+                else:
+                    label = BERT_SUBLABEL
+                split_labels[target].extend((len(sub_tokens) - 1) * [label])
+
+        split_tokens.append(BERT_SEP)
+        mask.append(0)
+
+        for labels in split_labels.values():
+            labels.append(BERT_SUBLABEL)
+
+        if self.srl:
+            segment_index = len(split_tokens)
+            # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
+            predicate_token = words[instance[constants.PREDICATE_INDEX_KEY]]
+            predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
+            split_tokens.extend(predicate_subtokens)
+            split_tokens.append(BERT_SEP)
+            mask.extend((1 + len(predicate_subtokens)) * [0])
+            for target, labels in split_labels.items():
+                labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
+
+        ids = self.tokenizer.convert_tokens_to_ids(split_tokens)
+
+        # (2) convert IDs to TF Record proto format -----------------------------------------------------------------------------
+        feature_list = {}
+        features = {}
+
+        for name, labels in split_labels.items():
+            assert len(labels) == len(ids)
+            feature_list[name] = str_feature_list(labels)  # labels
+
+        feature_list[constants.BERT_KEY] = int64_feature_list(ids)  # BERT wordpiece token indices
+        feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
+
+        if self.srl:
+            features[constants.PREDICATE_INDEX_KEY] = int64_feature(focus_index)
+            features[constants.BERT_SPLIT_INDEX] = int64_feature(segment_index)
+            feature_list[constants.MARKER_KEY] = str_feature_list(['1' if i == focus_index else '0' for i in range(len(ids))])
+
+        for feature in self.extractors(False):
+            if feature.rank < 0 or feature.name == constants.MARKER_KEY:  # dummy feature
+                continue
+            feat = feature.extract(instance)
+            if isinstance(feat, tf.train.FeatureList):
+                feature_list[feature.name] = feat
             else:
-                raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
+                features[feature.name] = feat
+
+        return sequence_example(features, feature_list)
+
+    def parse(self, example, train=True):
+        context_features, sequence_features = get_feature_spec(self.extractors(train))
+
+        def int64_sequence_feature():
+            return tf.FixedLenSequenceFeature([], dtype=tf.int64)
+
+        sequence_features[constants.BERT_KEY] = int64_sequence_feature()
+        sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
+        if self.srl:
+            context_features[constants.PREDICATE_INDEX_KEY] = tf.FixedLenFeature([], dtype=tf.int64)
+            context_features[constants.BERT_SPLIT_INDEX] = tf.FixedLenFeature([], dtype=tf.int64)
+
+        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+            serialized=example,
+            context_features=context_features,
+            sequence_features=sequence_features
+        )
+
+        return {**sequence_parsed, **context_parsed}
+
+    def get_shapes(self, train=True):
+        shapes = get_shapes(self.extractors(train))
+
+        def vector_shape():
+            return tf.TensorShape([None])
+
+        shapes[constants.BERT_KEY] = vector_shape()
+        shapes[constants.SEQUENCE_MASK] = vector_shape()
+        if self.srl:
+            shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
+            shapes[constants.BERT_SPLIT_INDEX] = tf.TensorShape([])
 
         return shapes
 
     def get_padding(self, train=True):
-        """
-        Create a dictionary of default padding values for each feature. Used primarily for TF Dataset API.
-        :param train: include target padding if `True`
-        :return: dict from feature names to padding Tensors
-        """
-        padding = {}
-        for feature in self.extractors(train):
-            if feature.dtype == tf.string:
-                if feature.has_vocab():
-                    padding[feature.name] = tf.constant(feature.pad_word, dtype=tf.string)
-                else:
-                    padding[feature.name] = tf.constant(b"<S>", dtype=tf.string)
-            else:
-                padding[feature.name] = tf.constant(0, dtype=tf.int64)
+        padding = get_padding(self.extractors(train))
+
+        def zero_padding():
+            return tf.constant(0, dtype=tf.int64)
+
+        padding[constants.BERT_KEY] = zero_padding()
+        padding[constants.SEQUENCE_MASK] = zero_padding()
+        if self.srl:
+            padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
+            padding[constants.BERT_SPLIT_INDEX] = zero_padding()
+
         return padding
 
     def initialize(self, resources=''):
-        """
-        Initialize feature vocabularies from pre-trained vectors if available.
-        """
-        for feature in self.extractors():
-            if not feature.has_vocab():
-                continue
-            feature.initialize()
-
-            initializer = feature.config.initializer
-            if not initializer.embedding:
-                continue
-            num_vectors_to_read = initializer.include_in_vocab
-            if num_vectors_to_read <= 0:
-                continue
-            vectors_path = os.path.join(resources, initializer.embedding)
-
-            tf.logging.info("Initializing vocabulary from pre-trained embeddings at %s", vectors_path)
-            vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
-            tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
-            for key in vectors:
-                feature.feat2index(feature.map(key), count=False)
-            if initializer.restrict_vocab:
-                feature.frozen = True
+        initialize(self.extractors(train=True), resources)
 
     def write_vocab(self, base_path, resources='', prune=False):
-        """
-        Write vocabulary files to directory given by `base_path`. Creates base_path if it doesn't exist.
-        Creates pickled embeddings if explicit initializers are provided.
-        :param base_path: base directory for vocabulary files
-        :param resources: optional base path for embedding resources
-        :param prune: if `True`, prune feature vocabularies based on counts
-        """
-        for feature in self.extractors():
-            if not feature.has_vocab():
-                continue
-            path = os.path.join(base_path, feature.name)
-            parent_path = os.path.abspath(os.path.join(path, os.path.pardir))
-            try:
-                os.makedirs(parent_path)
-            except OSError:
-                if not os.path.isdir(parent_path):
-                    raise
-
-            feature.write_vocab(path, prune=prune)
-
-            initializer = feature.config.initializer
-            if not initializer.embedding:
-                continue
-            num_vectors_to_read = initializer.include_in_vocab
-            if num_vectors_to_read <= 0:
-                continue
-
-            vectors_path = os.path.join(resources, initializer.embedding)
-            _vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
-
-            # if our feature extractor applies a mapping function (e.g. lowercase), we don't want duplicate entries
-            # by default, choose the first entry to use a the pre-trained embedding
-            vectors = {}
-            for key, vector in _vectors.items():
-                # apply mapping
-                key = feature.map(key)
-                if key not in vectors:
-                    vectors[key] = vector
-
-            # save embeddings as a serialized numpy matrix to make deserialization faster
-            feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
-            tf.logging.info("Saving %d vectors as embedding for '%s' feature", feature.embedding.shape[0], feature.name)
-            serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
+        write_vocab(self.extractors(train=True), base_path, resources, prune)
 
     def read_vocab(self, base_path):
-        """
-        Read vocabulary from vocabulary files in directory given by `base_path`. Loads any pickled embeddings.
-        :param base_path: base directory for vocabulary files
-        :return: `True` if vocabulary was successfully read
-        """
-        for feature in self.extractors():
-            if not feature.has_vocab():
-                continue
-            path = os.path.join(base_path, feature.name)
-            success = feature.read_vocab(path)
-            if not success:
-                return False
-            initializer = feature.config.initializer
-            try:
-                if initializer.embedding:
-                    feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
-            except NotFoundError:
-                return False
-        return True
+        return read_vocab(self.extractors(train=True), base_path)
 
 
 def write_features(examples, out_path):
