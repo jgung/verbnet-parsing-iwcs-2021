@@ -23,7 +23,6 @@ class BaseNetworkConfig(Params):
         self.reader = config.get('reader')
 
         # training hyperparameters
-        self.optimizer = config.get('optimizer')
         self.batch_size = config.get('batch_size')
         if not self.batch_size:
             self.batch_size = 10
@@ -78,6 +77,24 @@ class BaseNetworkConfig(Params):
         if not self.metric:
             metrics = [append_label(head.metric, head.name) for head in self.heads]
             self.metric = metrics[0]
+
+        optimizer_config = config.get('optimizer')
+        if optimizer_config:
+            self.optimizer = OptimizerConfig(optimizer_config, num_train_steps=self.max_steps)
+
+
+class OptimizerConfig(Params):
+    def __init__(self, optimizer_config, num_train_steps, **kwargs):
+        super().__init__(**optimizer_config, **kwargs)
+        self.num_train_steps = num_train_steps
+        self.name = optimizer_config.name
+        self.params = optimizer_config.params if optimizer_config.get('params') else {}
+
+        clip = optimizer_config.get('clip')
+        if not clip:
+            clip = 5.0
+            tf.logging.info("Using default global norm of gradient clipping threshold of %f", clip)
+        self.clip = clip
 
 
 class EncoderConfig(Params):
@@ -232,7 +249,7 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
         lr = get_learning_rate(optimizer.lr, tf.train.get_global_step())
 
     name = optimizer.name
-    params = optimizer.params if optimizer.get('params') else {}
+    params = optimizer.params
     if "Adadelta" == name:
         opt = tf.train.AdadeltaOptimizer(lr, **params)
     elif "Adam" == name:
@@ -253,19 +270,6 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
     else:
         raise ValueError("Invalid optimizer name: {}".format(name))
     return opt
-
-
-def get_gradient_clip(network_config, default_val=5.0):
-    """
-    Given a configuration, return the clip norm, or a given default value.
-    :param network_config: network configuration
-    :param default_val: default clip norm
-    :return: clip norm
-    """
-    if not network_config.optimizer or not network_config.optimizer.get('clip'):
-        tf.logging.info("Using default global norm of gradient clipping threshold of %f", default_val)
-        return default_val
-    return network_config.optimizer.get('clip')
 
 
 def get_l2_loss(network_config, variables):
@@ -290,7 +294,7 @@ def get_l2_loss(network_config, variables):
 
 def train_op_from_config(config, loss):
     optimizer = get_optimizer(config)
-    clip_norm = get_gradient_clip(config)
+    clip_norm = config.optimizer.clip
 
     parameters = tf.trainable_variables()
 
