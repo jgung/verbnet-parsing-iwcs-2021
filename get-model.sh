@@ -12,6 +12,4 @@ gsutil cp ${jobpath}/predictions.* ${outpath}
 gsutil cp -R ${jobpath}/vocab ${outpath}
 
 mkdir -p ${outpath}/model
-gsutil cp ${jobpath}/model/checkpoint ${outpath}/model
-gsutil cp ${jobpath}/model/graph.pbtxt ${outpath}/model
-gsutil -m cp ${jobpath}/model/model.ckpt* ${outpath}/model
+gsutil -m cp -R ${jobpath}/model/export ${outpath}/model/

@@ -3,26 +3,11 @@
   "max_epochs": 500,
   "patience_epochs": 200,
   "batch_size": 80,
-  "optimizer": {
-    "name": "Adadelta",
-    "params": {
-      "epsilon": 1e-6
-    },
-    "lr": 1.0,
-    "clip": 1.0
-  },
+  "optimizer": "../srl/optim/adadelta.json",
   "features": {
     "seq_feat": "word",
     "targets": [
-      {
-        "name": "gold",
-        "key": "gold",
-        "indices": {
-          "O": 0
-        },
-        "unknown_word": "O",
-        "pad_word": "O"
-      }
+      "../srl/feats/gold.json"
     ],
     "inputs": [
       {
@@ -51,18 +36,7 @@
           }
         }
       },
-      {
-        "name": "marker",
-        "key": "marker",
-        "config": {
-          "dim": 100
-        },
-        "indices": {
-          "0": 0
-        },
-        "unknown_word": "0",
-        "pad_word": "0"
-      }
+      "../srl/feats/marker.json"
     ]
   },
   "encoders": [

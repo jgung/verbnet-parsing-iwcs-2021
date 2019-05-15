@@ -11,7 +11,7 @@
       "./feats/gold.json"
     ],
     "inputs": [
-      "./feats/elmo.json",
+      "../shared/feats/elmo.json",
       "./feats/marker.json"
     ]
   },

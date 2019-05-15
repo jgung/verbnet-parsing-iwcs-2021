@@ -19,15 +19,7 @@
   "features": {
     "seq_feat": "word",
     "targets": [
-      {
-        "name": "gold",
-        "key": "gold",
-        "indices": {
-          "FW": 0
-        },
-        "unknown_word": "FW",
-        "pad_word": "FW"
-      }
+      "./feats/gold.json"
     ],
     "inputs": [
       "../shared/feats/glove-100d.json",
