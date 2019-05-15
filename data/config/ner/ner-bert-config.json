@@ -1,6 +1,6 @@
 {
   "reader": "conll_2003",
-  "max_epochs": 4,
+  "max_epochs": 8,
   "batch_size": 16,
   "optimizer": {
     "name": "bert",
