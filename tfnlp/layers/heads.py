@@ -225,7 +225,8 @@ class TaggerHead(ModelHead):
                                   num_labels=num_labels,
                                   crf=self.config.crf, tag_transitions=self._tag_transitions,
                                   label_smoothing=self.config.label_smoothing,
-                                  confidence_penalty=self.config.confidence_penalty)
+                                  confidence_penalty=self.config.confidence_penalty,
+                                  mask=self.features.get(constants.SEQUENCE_MASK))
 
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
@@ -351,7 +352,8 @@ class BiaffineSrlHead(TaggerHead):
                                  crf=self.config.crf,
                                  tag_transitions=self._tag_transitions,
                                  label_smoothing=self.config.label_smoothing,
-                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss")
+                                 confidence_penalty=self.config.confidence_penalty, name="bilinear_loss",
+                                 mask=self.features.get(constants.SEQUENCE_MASK))
 
         self.loss = rel_loss
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
