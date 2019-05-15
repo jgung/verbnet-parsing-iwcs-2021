@@ -4,50 +4,15 @@
   "patience_epochs": 200,
   "batch_size": 80,
   "ema_decay": 0.999,
-  "optimizer": {
-    "name": "Adadelta",
-    "params": {
-      "epsilon": 1e-6
-    },
-    "lr": 1.0,
-    "clip": 1.0,
-    "l2_loss": {
-      ".*module/aggregation/weights.*": 0.001
-    }
-  },
+  "optimizer": "./optim/adadelta-elmo-l2.json",
   "features": {
     "seq_feat": "gold",
     "targets": [
-      {
-        "name": "gold",
-        "key": "gold",
-        "indices": {
-          "O": 0
-        },
-        "unknown_word": "O",
-        "pad_word": "O"
-      }
+      "./feats/gold.json"
     ],
     "inputs": [
-      {
-        "name": "elmo",
-        "key": "word",
-        "config": {
-          "dropout": 0.1
-        }
-      },
-      {
-        "name": "marker",
-        "key": "marker",
-        "config": {
-          "dim": 100
-        },
-        "indices": {
-          "0": 0
-        },
-        "unknown_word": "0",
-        "pad_word": "0"
-      }
+      "./feats/elmo.json",
+      "./feats/marker.json"
     ]
   },
   "encoders": [

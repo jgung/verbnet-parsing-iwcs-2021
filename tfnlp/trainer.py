@@ -251,8 +251,9 @@ class Trainer(object):
                         % (train_count, train, valid_count, valid))
         tf.logging.info('Training for a maximum of %d epoch(s) (%d steps w/ batch_size=%d)'
                         % (self._training_config.max_epochs, max_steps, self._training_config.batch_size))
-        tf.logging.info('Early stopping after %d epoch(s) (%d steps) with no improvement on validation set'
-                        % (self._training_config.patience_epochs, patience))
+        if patience < max_steps:
+            tf.logging.info('Early stopping after %d epoch(s) (%d steps) with no improvement on validation set'
+                            % (self._training_config.patience_epochs, patience))
         tf.logging.info('Evaluating every %d steps, %d epoch(s)' % (checkpoint_steps, self._training_config.checkpoint_epochs))
 
         return max_steps, patience, checkpoint_steps
