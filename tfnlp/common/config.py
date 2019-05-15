@@ -234,13 +234,13 @@ def get_optimizer(network_config, default_optimizer=tf.train.AdadeltaOptimizer(l
     """
     try:
         optimizer = network_config.optimizer
-        optimizer.num_train_steps = network_config.max_steps
     except KeyError:
         tf.logging.info("Using Adadelta as default optimizer.")
         return default_optimizer
     if isinstance(optimizer.lr, numbers.Number):
         lr = optimizer.lr
     else:
+        optimizer.lr.num_train_steps = network_config.max_steps
         lr = get_learning_rate(optimizer.lr, tf.train.get_global_step())
 
     name = optimizer.name
