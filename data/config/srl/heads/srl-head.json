@@ -1,0 +1,6 @@
+{
+  "encoder": "alternating_lstm",
+  "name": "gold",
+  "type": "srl",
+  "label_smoothing": 0.1
+}

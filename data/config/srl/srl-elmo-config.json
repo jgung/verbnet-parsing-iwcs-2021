@@ -22,26 +22,11 @@
       "inputs": [
         "elmo",
         "marker"
-      ],
-      "input_dropout": 0.0
+      ]
     },
-    {
-      "name": "alternating_lstm",
-      "inputs": [
-        "tokens"
-      ],
-      "type": "dblstm",
-      "state_size": 300,
-      "encoder_dropout": 0.1,
-      "encoder_layers": 8
-    }
+    "./encoder/alternating-lstm.json"
   ],
   "heads": [
-    {
-      "encoder": "alternating_lstm",
-      "name": "gold",
-      "type": "srl",
-      "label_smoothing": 0.1
-    }
+    "./heads/srl-head.json"
   ]
 }
