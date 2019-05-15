@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_estimator as tfe
 import tensorflow_hub as hub
 from tensor2tensor.layers.common_attention import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
 from tensorflow.contrib.layers import layer_norm
@@ -145,7 +146,7 @@ def _get_embedding_input(inputs, feature, training):
 
 
 def encoder(features, inputs, mode, config):
-    training = mode == tf.estimator.ModeKeys.TRAIN
+    training = mode == tfe.estimator.ModeKeys.TRAIN
 
     with tf.variable_scope("encoder"):
         encoder_type = config.encoder_type

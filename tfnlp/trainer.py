@@ -4,6 +4,7 @@ import sys
 from typing import Union, Iterable, Callable, Optional
 
 import tensorflow as tf
+import tensorflow_estimator as tfe
 from tensorflow.contrib.estimator import stop_if_no_increase_hook
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
@@ -28,7 +29,7 @@ from tfnlp.model.model import multi_head_model_fn
 from tfnlp.predictor import get_latest_savedmodel_from_jobdir, from_job_dir
 from tfnlp.readers import get_reader
 
-TF_MODEL_FN = Callable[[dict, str, type(HParams)], type(tf.estimator.EstimatorSpec)]
+TF_MODEL_FN = Callable[[dict, str, type(HParams)], type(tfe.estimator.EstimatorSpec)]
 
 
 class Trainer(object):
@@ -259,14 +260,14 @@ class Trainer(object):
         return max_steps, patience, checkpoint_steps
 
     def _init_estimator(self, checkpoint_steps):
-        return tf.estimator.Estimator(model_fn=self._model_fn,
-                                      model_dir=self._model_path,
-                                      config=RunConfig(
-                                          log_step_count_steps=checkpoint_steps / 10,
-                                          save_summary_steps=checkpoint_steps,
-                                          keep_checkpoint_max=self._training_config.keep_checkpoints,
-                                          save_checkpoints_steps=checkpoint_steps),
-                                      params=self._params(test=False))
+        return tfe.estimator.Estimator(model_fn=self._model_fn,
+                                       model_dir=self._model_path,
+                                       config=RunConfig(
+                                           log_step_count_steps=checkpoint_steps / 10,
+                                           save_summary_steps=checkpoint_steps,
+                                           keep_checkpoint_max=self._training_config.keep_checkpoints,
+                                           save_checkpoints_steps=checkpoint_steps),
+                                       params=self._params(test=False))
 
     def _training_hooks(self, estimator, patience, checkpoint_steps):
         early_stopping = stop_if_no_increase_hook(
@@ -288,9 +289,9 @@ class Trainer(object):
         return hooks
 
     def _train_spec(self, train, max_steps, hooks):
-        return tf.estimator.TrainSpec(self._input_fn(train, True),
-                                      max_steps=max_steps,
-                                      hooks=hooks)
+        return tfe.estimator.TrainSpec(self._input_fn(train, True),
+                                       max_steps=max_steps,
+                                       hooks=hooks)
 
     def _eval_spec(self, valid):
         exporter = BesterExporter(serving_input_receiver_fn=self._serving_input_fn,
@@ -298,10 +299,10 @@ class Trainer(object):
                                   exports_to_keep=self._training_config.exports_to_keep,
                                   strip_default_attrs=False)
 
-        return tf.estimator.EvalSpec(self._input_fn(valid, False),
-                                     steps=None,  # evaluate on full validation set
-                                     exporters=[exporter],
-                                     throttle_secs=0)
+        return tfe.estimator.EvalSpec(self._input_fn(valid, False),
+                                      steps=None,  # evaluate on full validation set
+                                      exporters=[exporter],
+                                      throttle_secs=0)
 
     def _serving_input_fn(self):
         # input has been serialized to a TFRecord string (variable batch size)
