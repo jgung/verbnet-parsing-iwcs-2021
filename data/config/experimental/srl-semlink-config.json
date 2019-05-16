@@ -1,11 +1,6 @@
 {
   "reader": {
-    "field_index_map": {
-      "word": 2,
-      "pos": 3,
-      "sense": 4,
-      "predicate": 5
-    },
+    "field_index_map": "./reader/semlink-fields.json",
     "pred_start": 6
   },
   "max_epochs": 500,

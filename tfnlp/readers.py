@@ -208,9 +208,10 @@ class ConllSrlReader(ConllReader):
                  pred_end=0,
                  pred_key=PREDICATE_KEY,
                  chunk_func=lambda x: x,
-                 line_filter=lambda line: False,
+                 line_filter=lambda line: line.startswith("#"),  # skip comments
                  label_mappings=None,
-                 regex_mapping=False):
+                 regex_mapping=False,
+                 sense_mappings=None):
         """
         Construct an CoNLL reader for SRL.
         :param index_field_map: map from indices to corresponding fields
@@ -221,6 +222,7 @@ class ConllSrlReader(ConllReader):
         :param line_filter: predicate used to identify lines in input which should not be processed
         :param label_mappings: dict of label key onto a dictionary of mappings from input to output labels
         :param regex_mapping: if `True`, treat mappings as regular expressions, e.g. {"^([RC]-)?(\\S+)\\$(\\S+)$": "\\1\\3"}
+        :param sense_mappings: dict of original sense key (with lemma) to mapped sense keys
         """
         super(ConllSrlReader, self).__init__(index_field_map,
                                              line_filter=line_filter,
@@ -241,6 +243,7 @@ class ConllSrlReader(ConllReader):
                 _target_mappings.update(c_mappings)
                 _target_mappings.update(r_mappings)
         self._regex_mapping = regex_mapping
+        self._sense_mappings = sense_mappings
 
     def read_instances(self, rows):
         instances = []
@@ -250,14 +253,22 @@ class ConllSrlReader(ConllReader):
             for label_key, labels in all_labels.items():
                 instance[label_key] = labels
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
-            instance[SENSE_KEY] = [instance[SENSE_KEY][predicate_index] if index == predicate_index else '-'
-                                   for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[PREDICATE_INDEX_KEY] = predicate_index
             instance[constants.PREDICATE_LEMMA] = instance[self._predicate_key]
             instance[constants.PREDICATE_FORM] = instance[WORD_KEY][predicate_index]
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
             self.prop_count += 1
+
+            if SENSE_KEY in instance:
+                instance[SENSE_KEY] = str(instance[SENSE_KEY][predicate_index])
+
+                sense = instance[SENSE_KEY]
+                if self._sense_mappings:
+                    if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
+                        sense = instance[constants.PREDICATE_LEMMA][predicate_index] + '.' + sense  # e.g. swim.01
+                    instance[SENSE_KEY] = self._sense_mappings.get(sense, [constants.UNKNOWN_WORD])
+
         return instances
 
     def read_predicates(self, rows):
@@ -447,7 +458,6 @@ def conll_2012_reader(phrase=False):
         fields, pred_start=11, pred_end=1)
 
     reader.is_predicate = lambda line: line[6] is not '-' and line[7] is not '-'
-    reader.line_filter = lambda line: line.startswith("#")  # skip comments
     return reader
 
 
@@ -499,9 +509,12 @@ def get_reader(reader_config, training_config=None):
         if reader_config.get('field_index_map'):
             index_field_map = {val: key for key, val in reader_config.field_index_map.items()}
             if reader_config.get('pred_start'):
-                reader = ConllSrlReader(index_field_map=index_field_map, pred_start=reader_config.get('pred_start'),
+                reader = ConllSrlReader(index_field_map=index_field_map,
+                                        pred_start=reader_config.get('pred_start'),
+                                        pred_end=reader_config.get('pred_end'),
                                         label_mappings=reader_config.get('label_mappings'),
-                                        regex_mapping=reader_config.get('map_with_regex', False))
+                                        regex_mapping=reader_config.get('map_with_regex', False),
+                                        sense_mappings=reader_config.get('sense_mappings'))
             else:
                 reader = ConllReader(index_field_map)
         elif reader_config.get('readers'):

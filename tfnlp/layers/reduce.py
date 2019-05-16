@@ -3,7 +3,19 @@ import math
 import tensorflow as tf
 
 
-class ConvNet(object):
+class ReduceFunc(object):
+
+    def apply(self, tensor):
+        pass
+
+
+class Mean(ReduceFunc):
+
+    def apply(self, tensor):
+        return tf.reduce_mean(tensor, axis=-2)  # reduce along sequence dimension
+
+
+class ConvNet(ReduceFunc):
     def __init__(self, input_size, kernel_size, num_filters, max_length):
         """
         Initialize 1D CNN with max-over-time pooling reduction op.

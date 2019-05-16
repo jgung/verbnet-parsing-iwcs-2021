@@ -130,7 +130,7 @@ def _get_embedding_input(inputs, feature, training):
                                            training=training,
                                            name='dropout')
 
-        if feature.rank == 3:  # reduce multiple vectors per token to a single vector
+        if 'func' in config:  # reduce multiple vectors per token to a single vector
             with tf.name_scope('reduce'):
                 result = config.func.apply(result)
 
@@ -157,6 +157,8 @@ def encoder(features, inputs, mode, config):
             return concat(inputs, training, config)
         elif constants.ENCODER_REPEAT == encoder_type:
             return repeat(inputs, features[config.key])
+        elif constants.ENCODER_REPEAT_AND_CONCAT == encoder_type:
+            return concat_single_to_sequence(inputs)
         elif constants.ENCODER_SUM == encoder_type:
             return reduce_sum(inputs)
         elif constants.ENCODER_MLP == encoder_type:
@@ -176,7 +178,7 @@ def repeat(inputs, token_indices):
     Repeat a specific token in each batch given by a batch-length vector of token indices.
     """
     if len(inputs) != 1:
-        raise AssertionError("'repeat' cannot have multiple inputs")
+        raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_REPEAT)
     inputs = _get_encoder_input(inputs[0])
 
     shape = tf.shape(inputs, out_type=tf.int64)  # (b, n, d)
@@ -187,9 +189,20 @@ def repeat(inputs, token_indices):
     return tf.tile(predicates, [1, shape[1], 1])  # (b x n x d)
 
 
+def concat_single_to_sequence(inputs):
+    """
+    Tile and concatenate a single vector (such as for an individual token) with each element in a given sequence.
+    """
+    if len(inputs) != 2:
+        raise AssertionError("'%s' must have exactly 2 inputs" % constants.ENCODER_REPEAT_AND_CONCAT)
+    single, sequence = inputs
+    tiled = tf.tile(tf.expand_dims(single, 1), [1, tf.shape(sequence)[1], 1])
+    return tf.concat([tiled, sequence], axis=-1)
+
+
 def mlp(inputs, training, config):
     if len(inputs) != 1:
-        raise AssertionError("'repeat' cannot have multiple inputs")
+        raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_MLP)
     inputs = _get_encoder_input(inputs[0])
 
     with tf.variable_scope("conv_mlp", [inputs]):

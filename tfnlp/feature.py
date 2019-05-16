@@ -15,7 +15,7 @@ from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, 
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.feature_utils import int64_feature_list, int64_feature, str_feature_list, sequence_example
 from tfnlp.common.utils import Params, deserialize, serialize
-from tfnlp.layers.reduce import ConvNet
+from tfnlp.layers.reduce import ConvNet, Mean
 
 LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"
@@ -35,6 +35,8 @@ def _get_reduce_function(config, dim, length):
     """
     if config.name == "ConvNet":
         return ConvNet(input_size=dim, kernel_size=config.kernel_size, num_filters=config.num_filters, max_length=length)
+    elif config.name == "Mean":
+        return Mean()
     else:
         raise AssertionError("Unexpected feature function: {}".format(config.name))
 
@@ -49,10 +51,10 @@ def lower(raw):
 
 def normalize_digits(raw):
     if isinstance(raw, str):
-        return re.sub("\d", "#", raw)
+        return re.sub("\\d", "#", raw)
     if isinstance(raw, list):
         return [normalize_digits(l) for l in raw]
-    return [re.sub("\d", "#", word) for word in raw]
+    return [re.sub("\\d", "#", word) for word in raw]
 
 
 def characters(value):
@@ -224,8 +226,9 @@ def get_feature_extractor(config):
 
     if constants.BERT_KEY in [inp.name for inp in config.inputs]:
         tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
-        feats = [feat for feat in config.inputs if feat.name == constants.MARKER_KEY]
-        return BertFeatureExtractor(targets=config.targets, features=feats, srl=len(feats) > 0)
+        feats = [feat for feat in config.inputs if feat.name != constants.BERT_KEY]
+        contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
+        return BertFeatureExtractor(targets=config.targets, features=feats, srl=contains_marker)
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
