@@ -1,0 +1,11 @@
+{
+  "name": "Adadelta",
+  "params": {
+    "epsilon": 1e-6
+  },
+  "lr": 1.0,
+  "clip": 1.0,
+  "l2_loss": {
+    ".*module/aggregation/weights.*": 0.001
+  }
+}

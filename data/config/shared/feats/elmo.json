@@ -1,0 +1,7 @@
+{
+  "name": "elmo",
+  "key": "word",
+  "config": {
+    "dropout": 0.1
+  }
+}

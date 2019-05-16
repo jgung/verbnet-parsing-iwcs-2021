@@ -1,8 +1,7 @@
 {
-  "comments": "90,750 in CoNLL-2005 training corpus, 1135 steps w/ batch size of 80 is ~1 epoch",
   "reader": "conll_2005",
-  "checkpoint_steps": 2836,
-  "max_steps": 45376,
+  "checkpoint_epochs": 0.5,
+  "max_epochs": 8,
   "batch_size": 16,
   "optimizer": {
     "name": "bert",

@@ -1,6 +1,5 @@
 {
   "reader": "conll_2003",
-  "checkpoint_steps": 1500,
   "batch_size": 10,
   "optimizer": {
     "name": "LazyAdam",
@@ -99,7 +98,6 @@
       ],
       "type": "lstm",
       "state_size": 300,
-      "encoder_dropout": 0.5,
       "encoder_dropout": 0.5,
       "encoder_layers": 1
     }

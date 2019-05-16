@@ -1,62 +1,18 @@
 {
-  "comments": "90,750 in CoNLL-2005 training corpus, 1135 steps w/ batch size of 80 is ~1 epoch",
   "reader": "conll_2005",
-  "checkpoint_steps": 1135,
-  "patience": 200000,
-  "max_steps": 500000,
+  "max_epochs": 500,
+  "patience_epochs": 200,
   "batch_size": 80,
   "ema_decay": 0.999,
-  "optimizer": {
-    "name": "Adadelta",
-    "params": {
-      "epsilon": 1e-6
-    },
-    "lr": 1.0,
-    "clip": 1.0
-  },
+  "optimizer": "./optim/adadelta.json",
   "features": {
     "seq_feat": "word",
     "targets": [
-      {
-        "name": "gold",
-        "key": "gold",
-        "indices": {
-          "O": 0
-        },
-        "unknown_word": "O",
-        "pad_word": "O"
-      }
+      "./feats/gold.json"
     ],
     "inputs": [
-      {
-        "name": "word",
-        "key": "word",
-        "mapping_funcs": [
-          "lower",
-          "digit_norm"
-        ],
-        "config": {
-          "dim": 100,
-          "initializer": {
-            "embedding": "vectors/glove.6B.100d.txt",
-            "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
-            "restrict_vocab": true
-          }
-        }
-      },
-      {
-        "name": "marker",
-        "key": "marker",
-        "config": {
-          "dim": 100
-        },
-        "indices": {
-          "0": 0
-        },
-        "unknown_word": "0",
-        "pad_word": "0"
-      }
+      "../shared/feats/glove-100d.json",
+      "./feats/marker.json"
     ]
   },
   "encoders": [
@@ -66,26 +22,11 @@
       "inputs": [
         "word",
         "marker"
-      ],
-      "input_dropout": 0.0
+      ]
     },
-    {
-      "name": "alternating_lstm",
-      "inputs": [
-        "tokens"
-      ],
-      "type": "dblstm",
-      "state_size": 300,
-      "encoder_dropout": 0.1,
-      "encoder_layers": 8
-    }
+    "./encoder/alternating-lstm.json"
   ],
   "heads": [
-    {
-      "encoder": "alternating_lstm",
-      "name": "gold",
-      "type": "srl",
-      "label_smoothing": 0.1
-    }
+    "./heads/srl-head.json"
   ]
 }

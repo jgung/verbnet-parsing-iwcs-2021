@@ -1,6 +1,5 @@
 {
   "reader": "conll_2003",
-  "checkpoint_steps": 1500,
   "batch_size": 10,
   "optimizer": {
     "name": "LazyAdam",
@@ -21,55 +20,11 @@
   "features": {
     "seq_feat": "word",
     "targets": [
-      {
-        "name": "NE",
-        "key": "gold",
-        "indices": {
-          "O": 0
-        },
-        "unknown_word": "O",
-        "pad_word": "O"
-      }
+      "./feats/targets-feat.json"
     ],
     "inputs": [
-      {
-        "name": "word",
-        "key": "word",
-        "mapping_funcs": [
-          "lower",
-          "digit_norm"
-        ],
-        "config": {
-          "dim": 100,
-          "initializer": {
-            "embedding": "vectors/glove.6B.100d.txt",
-            "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
-            "zero_init": true,
-            "restrict_vocab": true
-          }
-        }
-      },
-      {
-        "name": "char",
-        "key": "word",
-        "rank": 3,
-        "left_padding": 2,
-        "right_padding": 2,
-        "max_len": 30,
-        "mapping_funcs": [
-          "chars"
-        ],
-        "config": {
-          "dim": 30,
-          "dropout": 0.5,
-          "function": {
-            "name": "ConvNet",
-            "kernel_size": 3,
-            "num_filters": 30
-          }
-        }
-      }
+      "../shared/feats/glove-100d.json",
+      "../shared/feats/char-conv.json"
     ]
   },
   "encoders": [
@@ -82,24 +37,9 @@
       ],
       "input_dropout": 0.5
     },
-    {
-      "name": "blstm",
-      "inputs": [
-        "words_and_chars"
-      ],
-      "type": "lstm",
-      "state_size": 300,
-      "encoder_dropout": 0.5,
-      "encoder_output_dropout": 0.5,
-      "encoder_layers": 1
-    }
+    "./encoder/blstm.json"
   ],
   "heads": [
-    {
-      "encoder": "blstm",
-      "name": "NE",
-      "type": "ner",
-      "crf": true
-    }
+    "./heads/crf-head.json"
   ]
 }

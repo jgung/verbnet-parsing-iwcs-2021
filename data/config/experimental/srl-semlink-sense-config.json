@@ -7,53 +7,18 @@
     },
     "pred_start": 6
   },
-  "checkpoint_steps": 2000,
-  "patience": 500000,
-  "max_steps": 500000,
+  "max_epochs": 500,
+  "patience_epochs": 200,
   "batch_size": 80,
-  "optimizer": {
-    "name": "Adadelta",
-    "params": {
-      "epsilon": 1e-6
-    },
-    "lr": 1.0,
-    "clip": 1.0
-  },
+  "optimizer": "../srl/optim/adadelta.json",
   "features": {
     "seq_feat": "word",
     "targets": [
-      {
-        "name": "gold",
-        "key": "gold",
-        "indices": {
-          "O": 0
-        },
-        "unknown_word": "O",
-        "pad_word": "O"
-      }
+      "../srl/feats/gold.json"
     ],
     "inputs": [
-      {
-        "name": "elmo",
-        "key": "word"
-      },
-      {
-        "name": "word",
-        "key": "word",
-        "mapping_funcs": [
-          "lower",
-          "digit_norm"
-        ],
-        "config": {
-          "dim": 100,
-          "initializer": {
-            "embedding": "vectors/glove.6B.100d.txt",
-            "pkl_path": "word-vectors.pkl",
-            "include_in_vocab": 400000,
-            "restrict_vocab": true
-          }
-        }
-      },
+      "../shared/feats/elmo.json",
+      "../shared/feats/glove-100d.json",
       {
         "name": "marker",
         "key": "marker",
