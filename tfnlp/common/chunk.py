@@ -71,7 +71,7 @@ def spans_to_conll_labels(spans: List[Tuple[str, int, int]], length) -> List[str
     return result
 
 
-def chunk(labeling, besio=False, conll=False):
+def chunk(labeling: Iterable[str], besio=False, conll=False) -> List[str]:
     """
     Convert an IO/BIO/BESIO-formatted sequence of labels to BIO, BESIO, or CoNLL-2005 formatted.
     :param labeling: original labels

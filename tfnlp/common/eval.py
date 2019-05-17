@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 from collections import defaultdict
+from typing import Iterable, Tuple, Generator, Dict, List
 
 import numpy as np
 import tensorflow as tf
@@ -59,51 +60,32 @@ def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
     :param ids: list of sentence indices
     :return: tuple of (overall F-score, script_output, confusion_matrix)
     """
-    gold_props = _convert_to_sentences(ys=gold_batches, indices=markers, ids=ids)
-    pred_props = _convert_to_sentences(ys=predicted_batches, indices=markers, ids=ids)
+    gold_props = _convert_to_sentences(labels=gold_batches, markers=markers, sentence_ids=ids)
+    pred_props = _convert_to_sentences(labels=predicted_batches, markers=markers, sentence_ids=ids)
     return evaluate(gold_props, pred_props)
 
 
-def _convert_to_sentences(ys, indices, ids):
+def _convert_to_sentences(labels: Iterable[Iterable[str]],
+                          markers: Iterable[Iterable[str]],
+                          sentence_ids: Iterable[int]) -> List[Dict[int, List[str]]]:
     sentences = []
 
-    def _add_sentence(_props_by_predicate, _predicates):
+    for predicates, props_by_predicate in _get_predicates_and_props(labels, markers, sentence_ids):
         current_sentence = defaultdict(list)
-        for tok, predicate in enumerate(_predicates):
+        props = list(props_by_predicate.values())
+        for tok, predicate in enumerate(predicates):
             current_sentence[0].append(predicate)
-            for i, prop in enumerate(_props_by_predicate):
+            for i, prop in enumerate(props):
                 current_sentence[i + 1].append(prop[tok])
         sentences.append(current_sentence)
 
-    prev_sent_idx = -1
-    predicates = []
-    props_by_predicate = []
-    for labels, markers, curr_sent_idx in zip(ys, indices, ids):
-        filtered_labels = []
-        filtered_markers = []
-        for label, marker in zip(labels, markers):
-            if label == BERT_SUBLABEL:
-                continue
-            filtered_labels.append(label)
-            filtered_markers.append(marker)
-
-        if prev_sent_idx != curr_sent_idx:
-            prev_sent_idx = curr_sent_idx
-            if predicates:
-                _add_sentence(props_by_predicate, predicates)
-            predicates = ["-"] * len(filtered_markers)
-            props_by_predicate = []
-
-        predicate_idx = filtered_markers.index('1')
-        predicates[predicate_idx] = 'x'
-        props_by_predicate.append(chunk(filtered_labels, conll=True))
-
-    if predicates:
-        _add_sentence(props_by_predicate, predicates)
     return sentences
 
 
-def write_props_to_file(output_file, labels, markers, sentence_ids):
+def write_props_to_file(output_file,
+                        labels: Iterable[Iterable[str]],
+                        markers: Iterable[Iterable[str]],
+                        sentence_ids: Iterable[int]):
     """
     Write PropBank predictions to a file.
     :param output_file: output file
@@ -112,43 +94,46 @@ def write_props_to_file(output_file, labels, markers, sentence_ids):
     :param sentence_ids: sentence indices
     """
     with file_io.FileIO(output_file, 'w') as output_file:
-
-        def _write_props(_props_by_predicate, _predicates):
-            # used to ensure proposition columns are in correct order (by appearance of predicate in sentence)
-            prop_list = [arg for _, arg in sorted(_props_by_predicate.items(), key=lambda item: item[0])]
+        for predicates, props_by_predicate in _get_predicates_and_props(labels, markers, sentence_ids):
+            # sorting to ensure proposition columns are in correct order (by appearance of predicate in sentence)
+            prop_list = [arg for _, arg in sorted(props_by_predicate.items(), key=lambda item: item[0])]
             line = ''
-            for tok, predicate in enumerate(_predicates):
+            for tok, predicate in enumerate(predicates):
                 line += '%s %s\n' % (predicate, ' '.join([prop[tok] for prop in prop_list]))
             output_file.write(line + '\n')
 
-        prev_sent_idx = -1  # previous sentence's index
-        predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
-        props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
-        for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
 
-            filtered_labels = []
-            filtered_markers = []
-            for label, marker in zip(labels, markers):
-                if label == BERT_SUBLABEL:
-                    continue
-                filtered_labels.append(label)
-                filtered_markers.append(marker)
+def _get_predicates_and_props(labels: Iterable[Iterable[str]],
+                              markers: Iterable[Iterable[str]],
+                              sentence_ids: Iterable[int]) -> Generator[Tuple[Iterable[str], Dict[int, List[str]]]]:
+    prev_sent_idx = -1  # previous sentence's index
+    predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
+    props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
+    for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
 
-            if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
-                prev_sent_idx = curr_sent_idx
+        filtered_labels = []
+        filtered_markers = []
+        for label, marker in zip(labels, markers):
+            if label == BERT_SUBLABEL:
+                continue
+            filtered_labels.append(label)
+            filtered_markers.append(marker)
 
-                if predicates:
-                    _write_props(props_by_predicate, predicates)
+        if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
+            prev_sent_idx = curr_sent_idx
 
-                predicates = ["-"] * len(filtered_markers)
-                props_by_predicate = {}
+            if predicates:
+                yield predicates, props_by_predicate
 
-            predicate_idx = filtered_markers.index('1')  # index of predicate in tokens
-            predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
-            props_by_predicate[predicate_idx] = (chunk(filtered_labels, conll=True))  # assign SRL labels for this predicate
+            predicates = ["-"] * len(filtered_markers)
+            props_by_predicate = {}
 
-        if predicates:
-            _write_props(props_by_predicate, predicates)
+        predicate_idx = filtered_markers.index('1')  # index of predicate in tokens
+        predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
+        props_by_predicate[predicate_idx] = chunk(filtered_labels, conll=True)  # assign SRL labels for this predicate
+
+    if predicates:
+        yield predicates, props_by_predicate
 
 
 def append_srl_prediction_output(identifier, result, output_dir, output_confusions=False):
@@ -177,28 +162,21 @@ def append_srl_prediction_output(identifier, result, output_dir, output_confusio
             eval_log.write('\n%s\n\n' % result.confusion_matrix())
 
 
-def accuracy_eval(gold_batches, predicted_batches, indices, output_file=None):
-    gold = []
-    test = []
-
+def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
     if output_file:
         with file_io.FileIO(output_file, 'w') as _out_file:
             # sort by sentence index to maintain original order of instances
-            for predicted_seq, index in sorted(zip(predicted_batches, indices), key=lambda k: k[1]):
-                for prediction in predicted_seq:
-                    _out_file.write("{}\n".format(prediction))
+            for predicted, index in sorted(zip(predicted_labels, indices), key=lambda k: k[1]):
+                _out_file.write("{}\t{}\n".format(index, predicted))
                 _out_file.write("\n")  # sentence break
 
-    for gold_seq, predicted_seq in zip(gold_batches, predicted_batches):
-        gold.extend(gold_seq)
-        test.extend(predicted_seq)
-    cm = ConfusionMatrix(gold, test)
+    cm = ConfusionMatrix(gold_labels, predicted_labels)
     tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
 
-    if len(gold) != len(test):
+    if len(gold_labels) != len(predicted_labels):
         raise ValueError("Predictions and gold labels must have the same length.")
-    correct = sum(x == y for x, y in zip(gold, test))
-    total = len(test)
+    correct = sum(x == y for x, y in zip(gold_labels, predicted_labels))
+    total = len(predicted_labels)
     accuracy = correct / total
     tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
     return accuracy

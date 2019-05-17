@@ -49,8 +49,8 @@ class ClassifierEvalHook(EvalHook):
 
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
-        self._gold.append((self._vocab.index_to_feat(gold) for gold in run_values.results[self._label_key]))
-        self._predictions.append((self._vocab.index_to_feat(prediction) for prediction in run_values.results[self._predict_key]))
+        self._gold.extend([self._vocab.index_to_feat(gold) for gold in run_values.results[self._label_key]])
+        self._predictions.extend([self._vocab.index_to_feat(prediction) for prediction in run_values.results[self._predict_key]])
 
     def end(self, session):
         accuracy_eval(self._gold, self._predictions, self._indices, output_file=os.path.join(self._output_dir, PREDICTIONS_FILE))
