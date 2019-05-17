@@ -2,7 +2,7 @@ import os
 import re
 import subprocess
 from collections import defaultdict
-from typing import Iterable, Tuple, Generator, Dict, List
+from typing import Iterable, Tuple, Dict, List
 
 import numpy as np
 import tensorflow as tf
@@ -105,7 +105,7 @@ def write_props_to_file(output_file,
 
 def _get_predicates_and_props(labels: Iterable[Iterable[str]],
                               markers: Iterable[Iterable[str]],
-                              sentence_ids: Iterable[int]) -> Generator[Tuple[Iterable[str], Dict[int, List[str]]]]:
+                              sentence_ids: Iterable[int]) -> Iterable[Tuple[Iterable[str], Dict[int, List[str]]]]:
     prev_sent_idx = -1  # previous sentence's index
     predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
     props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
