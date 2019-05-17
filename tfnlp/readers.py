@@ -507,7 +507,8 @@ def get_reader(reader_config, training_config=None):
         reader = reader_from_name(reader_config)
     else:
         if reader_config.get('field_index_map'):
-            index_field_map = {val: key for key, val in reader_config.field_index_map.items()}
+            field_index_map = reader_config.field_index_map
+            index_field_map = {val: key for key, val in field_index_map.items()}
             if reader_config.get('pred_start'):
                 reader = ConllSrlReader(index_field_map=index_field_map,
                                         pred_start=reader_config.get('pred_start'),
@@ -515,6 +516,10 @@ def get_reader(reader_config, training_config=None):
                                         label_mappings=reader_config.get('label_mappings'),
                                         regex_mapping=reader_config.get('map_with_regex', False),
                                         sense_mappings=reader_config.get('sense_mappings'))
+                if SENSE_KEY in field_index_map and PREDICATE_KEY in field_index_map:
+                    def is_predicate(line):
+                        return line[field_index_map[PREDICATE_KEY]] is not '-' and line[field_index_map[SENSE_KEY]] is not '-'
+                    reader.is_predicate = is_predicate
             else:
                 reader = ConllReader(index_field_map)
         elif reader_config.get('readers'):
