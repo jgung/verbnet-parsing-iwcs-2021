@@ -511,7 +511,7 @@ def get_reader(reader_config, training_config=None):
             if reader_config.get('pred_start'):
                 reader = ConllSrlReader(index_field_map=index_field_map,
                                         pred_start=reader_config.get('pred_start'),
-                                        pred_end=reader_config.get('pred_end'),
+                                        pred_end=reader_config.get('pred_end', 0),
                                         label_mappings=reader_config.get('label_mappings'),
                                         regex_mapping=reader_config.get('map_with_regex', False),
                                         sense_mappings=reader_config.get('sense_mappings'))

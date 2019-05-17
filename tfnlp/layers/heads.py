@@ -158,7 +158,11 @@ class TokenClassifierHead(ClassifierHead):
 
     def _all(self):
         inputs = self.inputs[0]
-        inputs = select_by_token_index(inputs, self.features[constants.TOKEN_INDEX_KEY])
+        if constants.TOKEN_INDEX_KEY in self.features:
+            targets = self.features[constants.TOKEN_INDEX_KEY]
+        else:
+            targets = self.features[constants.PREDICATE_INDEX_KEY]
+        inputs = select_by_token_index(inputs, targets)
 
         with tf.variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
