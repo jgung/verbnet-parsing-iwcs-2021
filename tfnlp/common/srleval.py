@@ -1,14 +1,15 @@
 import argparse
 import re
 from collections import Counter, defaultdict
+from typing import Dict, List, Iterable
 
 NON_TARGET_TOKEN = '-'
 SE_START = "("
 SE_CONT = "*"
 SE_END = ")"
 CONTINUATION_PATTERN = re.compile("^C-")
-START_TAG_PATTERN = re.compile("^\(([^*(]+)")
-END_TAG_PATTERN = re.compile("^([^)]*)\)")
+START_TAG_PATTERN = re.compile("^\\(([^*(]+)")
+END_TAG_PATTERN = re.compile("^([^)]*)\\)")
 OKAY_KEY = "ok"
 EXCESS_KEY = "op"
 MISS_KEY = "ms"
@@ -484,7 +485,7 @@ class SrlArg(SrlPhrase):
         return len(self.phrases) == 0
 
 
-def conll_iterator(conll_path):
+def conll_iterator(conll_path: str) -> Iterable[Dict[int, List[str]]]:
     """
     Generator-based iterator over a CoNLL formatted file (line per token, blank lines separating sentences).
     :param conll_path:  CoNLL formatted file
@@ -531,7 +532,7 @@ def _evaluate_proposition(gprop, pprop, exclusions=None):
     return e
 
 
-def evaluate(gold, pred):
+def evaluate(gold: Iterable[Dict[int, List[str]]], pred: Iterable[Dict[int, List[str]]]):
     """
     Produce CoNLL 2005 SRL evaluation results for a provided sentences given as lists of tags, with the first list being a
     list of targets. For example, [['-', 'love', '-'], ['(A0*)', '(V*)', '(A1*)']].

@@ -31,12 +31,18 @@
       {
         "name": "vn",
         "key": "sense",
-        "rank": 1
+        "rank": 1,
+        "constraint_key": "predicate_lemma"
       }
     ],
     "inputs": [
       {
         "name": "bert"
+      },
+      {
+        "name": "predicate_lemma",
+        "key": "predicate_lemma",
+        "rank": 1
       },
       {
         "name": "marker",

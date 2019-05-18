@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 
-from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS
+from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
 from tfnlp.common.eval import PREDICTIONS_FILE, append_srl_prediction_output
 from tfnlp.common.eval import accuracy_eval, conll_eval, conll_srl_eval, write_props_to_file, parser_write_and_eval
@@ -46,14 +46,37 @@ class EvalHook(session_run_hook.SessionRunHook):
 class ClassifierEvalHook(EvalHook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._scores = None
+        self._constraint_keys = None
+
+    def begin(self):
+        super().begin()
+        if self._vocab.constraints:
+            self._scores = []
+            self._constraint_keys = []
 
     def after_run(self, run_context, run_values):
         super().after_run(run_context, run_values)
         self._gold.extend([self._vocab.index_to_feat(gold) for gold in run_values.results[self._label_key]])
         self._predictions.extend([self._vocab.index_to_feat(prediction) for prediction in run_values.results[self._predict_key]])
 
+        if self._vocab.constraints:
+            for scoring in run_values.results[LABEL_SCORES]:
+                self._scores.append({self._vocab.index_to_feat(i): score for i, score in enumerate(scoring)})
+            self._constraint_keys.extend(binary_np_array_to_unicode(run_values.results[self._vocab.constraint_key]))
+
     def end(self, session):
-        accuracy_eval(self._gold, self._predictions, self._indices, output_file=os.path.join(self._output_dir, PREDICTIONS_FILE))
+        if self._vocab.constraints:
+            self._predictions = []
+            for scoring, ck in zip(self._scores, self._constraint_keys):
+                valid_scores = {label: score for label, score in scoring.items() if label in self._vocab.constraints.get(ck, [])}
+                label = max(valid_scores.items(), key=lambda x: x[1], default=('<UNK>', 0))[0]
+                self._predictions.append(label)
+
+        accuracy_eval(self._gold,
+                      self._predictions,
+                      self._indices,
+                      output_file=os.path.join(self._output_dir, PREDICTIONS_FILE))
 
 
 class SequenceEvalHook(EvalHook):

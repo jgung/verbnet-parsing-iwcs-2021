@@ -103,6 +103,7 @@ class ClassifierHead(ModelHead):
     def __init__(self, inputs, config, features, params, training):
         super().__init__(inputs, config, features, params, training)
         self._sequence_lengths = self.features[constants.LENGTH_KEY]
+        self.scores = None
 
     def _all(self):
         inputs = self.inputs[2]
@@ -122,6 +123,7 @@ class ClassifierHead(ModelHead):
             self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))
 
     def _eval_predict(self):
+        self.scores = tf.nn.softmax(self.logits)  # (b x n)
         self.predictions = tf.argmax(self.logits, axis=1)
 
     def _evaluation(self):
@@ -137,6 +139,7 @@ class ClassifierHead(ModelHead):
                 tensors={
                     labels_key: self.targets,
                     predictions_key: self.predictions,
+                    constants.LABEL_SCORES: self.scores,
                     constants.LENGTH_KEY: self._sequence_lengths,
                     constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
                 },

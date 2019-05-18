@@ -1,5 +1,6 @@
 import os
 import re
+from collections import defaultdict
 from itertools import chain
 
 import tensorflow as tf
@@ -14,7 +15,7 @@ from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, 
     UNKNOWN_WORD
 from tfnlp.common.embedding import initialize_embedding_from_dict, read_vectors
 from tfnlp.common.feature_utils import int64_feature_list, int64_feature, str_feature_list, sequence_example, str_feature
-from tfnlp.common.utils import Params, deserialize, serialize
+from tfnlp.common.utils import Params, deserialize, serialize, write_json, read_json
 from tfnlp.layers.reduce import ConvNet, Mean
 
 LOWER = "lower"
@@ -173,6 +174,7 @@ class FeatureConfig(Params):
         # hyperparameters related to this feature
         config = feature.get('config', Params())
         self.config = FeatureHyperparameters(config, self)
+        self.constraint_key = feature.get('constraint_key')
 
 
 class FeaturesConfig(object):
@@ -318,7 +320,7 @@ class Extractor(DummyExtractor):
 
 class Feature(Extractor):
     def __init__(self, name, key, indices=None, pad_word=PAD_WORD, unknown_word=UNKNOWN_WORD,
-                 threshold=0, **kwargs):
+                 threshold=0, constraint_key=None, **kwargs):
         """
         This class serves as a single feature extractor and manages the associated feature vocabulary.
         :param name: unique identifier for this feature
@@ -341,6 +343,9 @@ class Feature(Extractor):
         self.embedding = None
         self.frozen = False
         self.dtype = tf.string
+        self.constraint_key = constraint_key
+
+        self.constraints = defaultdict(list)
 
     def initialize(self, indices=None, train=True):
         self.indices = indices if indices is not None else {}
@@ -355,6 +360,11 @@ class Feature(Extractor):
 
     def train(self, instance):
         value = self._extract_raw(instance)
+        if self.constraint_key:
+            ck = instance[self.constraint_key]
+            if value not in self.constraints[ck]:
+                self.constraints[ck].append(value)
+
         self.feat2index(value)
 
     def extract(self, instance):
@@ -404,6 +414,8 @@ class Feature(Extractor):
         with file_io.FileIO(path, mode='w') as vocab:
             for feat in self.ordered_feats():
                 vocab.write('{}\n'.format(feat))
+        if self.constraint_key:
+            write_json(self.constraints, path + '.constraints.txt')
 
     def ordered_feats(self):
         for i in range(len(self.indices)):
@@ -459,6 +471,13 @@ class Feature(Extractor):
                     indices[line] = len(indices)
         # re-initialize with vocabulary read from file
         self.initialize(indices, train=False)
+
+        if self.constraint_key:
+            constraint_path = path + ".constraints.txt"
+            if not file_io.file_exists(constraint_path):
+                return False
+            self.constraints = read_json(constraint_path)
+
         return True
 
     def vocab_size(self):

@@ -9,6 +9,7 @@ START_INDEX = 2
 END_INDEX = 3
 
 LABEL_KEY = "gold"
+LABEL_SCORES = "scores"
 PREDICT_KEY = "pred"
 WORD_KEY = "word"
 POS_KEY = "pos"
