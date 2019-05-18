@@ -132,17 +132,24 @@ class ClassifierHead(ModelHead):
         acc_key = append_label(constants.ACCURACY_METRIC_KEY, self.name)
 
         self.metric_ops = {acc_key: tf.metrics.accuracy(labels=self.targets, predictions=self.predictions, name=acc_key)}
+
+        tensors = {
+            labels_key: self.targets,
+            predictions_key: self.predictions,
+            constants.LABEL_SCORES: self.scores,
+            constants.LENGTH_KEY: self._sequence_lengths,
+            constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
+        }
+
+        constraint_key = self.extractor.constraint_key
+        if constraint_key:
+            tensors[constraint_key] = self.features[constraint_key]
+
         self.evaluation_hooks = [
             ClassifierEvalHook(
                 label_key=labels_key,
                 predict_key=predictions_key,
-                tensors={
-                    labels_key: self.targets,
-                    predictions_key: self.predictions,
-                    constants.LABEL_SCORES: self.scores,
-                    constants.LENGTH_KEY: self._sequence_lengths,
-                    constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX],
-                },
+                tensors=tensors,
                 vocab=self.extractor,
                 output_dir=self.params.job_dir
             )
