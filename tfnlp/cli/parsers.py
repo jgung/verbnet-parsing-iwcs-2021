@@ -40,10 +40,11 @@ def srl_parser(sentence):
     results = []
     for sent in sentences:
         tokens = word_tokenize(sent)
+        words = [token[1:] if token[0] == '+' else token for token in tokens]
         for index, token in enumerate(tokens):
             if token.startswith('+'):
                 markers = ['1' if i == index else '0' for i in range(0, len(tokens))]
-                feats = {constants.WORD_KEY: tokens,
+                feats = {constants.WORD_KEY: words,
                          constants.LABEL_KEY: ['O'] * len(tokens),
                          constants.MARKER_KEY: markers,
                          constants.PREDICATE_INDEX_KEY: index}

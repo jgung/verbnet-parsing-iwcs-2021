@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import numpy as np
 import tensorflow as tf
 import tensorflow_estimator as tfe
@@ -58,32 +56,8 @@ def embedding(features, feature_config, training):
         return bert_embedding
 
     elif feature_config.has_vocab():
-        feature_embedding = _get_embedding_input(features[feature_config.name], feature_config, training)
+        feature_embedding = get_embedding_input(features[feature_config.name], feature_config, training)
         return feature_embedding
-
-
-def input_layer(features, params, training):
-    """
-    Declare an input layers that compose multiple features into a single tensor across multiple time steps.
-    :param features: input dictionary from feature names to 3D/4D Tensors
-    :param params: feature/network configurations/metadata
-    :param training: true if training
-    :return: 3D tensor ([batch_size, time_steps, input_dim])
-    """
-    add_group_feats = defaultdict(list)
-    inputs = []
-    for feature_config in params.extractor.features.values():
-        feature_embedding = embedding(features, feature_config, training)
-        if feature_config.config.add_group:
-            add_group_feats[feature_config.config.add_group].append(feature_embedding)
-            continue
-        inputs.append(feature_embedding)
-
-    # add together any reduce sum feats (such as adding different encodings of the same word)
-    for feature_list in add_group_feats.values():
-        inputs.append(reduce_sum(feature_list))
-
-    return concat(inputs, training, params.config)
 
 
 def string2index(feature_strings, feature):
@@ -99,7 +73,7 @@ def string2index(feature_strings, feature):
         return lookup.lookup(feature_strings)
 
 
-def _get_embedding_input(inputs, feature, training):
+def get_embedding_input(inputs, feature, training):
     config = feature.config
 
     with tf.variable_scope(feature.name):

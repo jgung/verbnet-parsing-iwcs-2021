@@ -10,7 +10,7 @@ from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables
 from tfnlp.common.training_utils import assign_ema_weights
 from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead, BiaffineSrlHead
-from tfnlp.layers.layers import encoder, embedding
+from tfnlp.layers.layers import encoder, embedding, get_embedding_input
 from tfnlp.model.parser import ParserHead
 
 
@@ -52,7 +52,8 @@ def build(features, mode, params):
             elif encoder_input in head_configs:
                 # input from a model head
                 head_config = head_configs[encoder_input]
-                encoder_features[encoder_input] = get_head(head_config).predictions
+                head = get_head(head_config)
+                encoder_features[encoder_input] = get_embedding_input(head.predictions, head.extractor, training)
             else:
                 raise ValueError('Missing encoder input: %s' % encoder_input)
 

@@ -126,6 +126,15 @@ class ClassifierHead(ModelHead):
         self.scores = tf.nn.softmax(self.logits)  # (b x n)
         self.predictions = tf.argmax(self.logits, axis=1)
 
+    def training(self):
+        super().training()
+        self._eval_predict()
+        self._prediction()
+
+    def evaluation(self):
+        super().evaluation()
+        self._prediction()
+
     def _evaluation(self):
         predictions_key = append_label(constants.PREDICT_KEY, self.name)
         labels_key = append_label(constants.LABEL_KEY, self.name)
@@ -167,7 +176,10 @@ class TokenClassifierHead(ClassifierHead):
         super().__init__(inputs, config, features, params, training)
 
     def _all(self):
-        inputs = self.inputs[0]
+        if isinstance(self.inputs, tf.Tensor):
+            inputs = self.inputs
+        else:
+            inputs = self.inputs[0]
         if constants.TOKEN_INDEX_KEY in self.features:
             targets = self.features[constants.TOKEN_INDEX_KEY]
         else:
