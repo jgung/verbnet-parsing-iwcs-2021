@@ -113,7 +113,9 @@ You can run the same command to resume training from a saved checkpoint.
 The development F1 score typically reaches between 80 and 81.
 
 For training on CoNLL-2012, you will only need to change the `"reader": "conll_2005"` field in 
-`srl-glove-config.json` to `"reader": "conll_2012"`.
+`srl-glove-config.json` to `"reader": "conll_2012"`, or override it using `--param_overrides reader=conll_2012`.
+
+To train with BERT, use `data/config/srl/srl-bert-config.json` instead of `srl-glove-config.json`.
 
 ### Dependency Parsing
 We also provide an implementation of the graph-based dependency parser described in the paper 
@@ -151,9 +153,10 @@ A script, `./gcloud-train.sh` has been provided to simplify the training process
         --config        Path to .json file used to configure features and model hyper-parameters
         --train         Path to training corpus file
         --valid         Path to validation corpus file
-        --test          Comma-separated list of paths to test files
+        --test          Comma-separated list of paths to test files (optional)
         --bucket        Google Cloud Storage bucket name
         --job-name      Job name (optional)
+        --runtime       Tensorflow runtime version (optional, 1.13 by default)
 ```
 
 Alternatively, follow the [latest instructions](
