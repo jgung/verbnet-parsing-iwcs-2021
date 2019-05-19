@@ -1,25 +1,32 @@
 import os
+from typing import List
 
 import tensorflow as tf
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
-from tfnlp.common.eval import append_srl_prediction_output, write_props_to_file
+from tfnlp.common.eval import append_srl_prediction_output, write_props_to_file, accuracy_eval
 from tfnlp.common.eval import conll_eval, conll_srl_eval, parser_write_and_eval
 from tfnlp.common.utils import binary_np_array_to_unicode
 
 
-def get_evaluator(head, feature_extractor, output_path, script_path):
+def get_evaluator(heads, feature_extractor, output_path, script_path):
     evaluators = {
         constants.TAGGER_KEY: TaggerEvaluator,
         constants.SRL_KEY: SrlEvaluator,
         constants.NER_KEY: TaggerEvaluator,
         constants.PARSER_KEY: DepParserEvaluator,
+        constants.TOKEN_CLASSIFIER_KEY: TokenClassifierEvaluator
     }
-    if head.task not in evaluators:
-        raise ValueError("Unsupported head type: " + head.task)
-    return evaluators[head.task](target=feature_extractor.targets[head.name],
-                                 output_path=output_path,
-                                 script_path=script_path)
+
+    evals = []
+    for head in heads:
+        if head.task not in evaluators:
+            raise ValueError("Unsupported head type: " + head.task)
+        evaluator = evaluators[head.task](target=feature_extractor.targets[head.name],
+                                          output_path=output_path,
+                                          script_path=script_path)
+        evals.append(evaluator)
+    return AggregateEvaluator(evals)
 
 
 class Evaluator(object):
@@ -39,12 +46,30 @@ class Evaluator(object):
         pass
 
 
+class AggregateEvaluator(object):
+    def __init__(self, evaluators: List[Evaluator]) -> None:
+        super().__init__()
+        self._evaluators = evaluators
+
+    def __call__(self, labeled_instances, results):
+        for evaluator in self._evaluators:
+            evaluator(labeled_instances, results)
+
+
 class TokenClassifierEvaluator(Evaluator):
     def __init__(self, target=None, output_path=None, script_path=None):
         super().__init__(target, output_path, script_path)
 
     def __call__(self, labeled_instances, results):
-        super().__call__(labeled_instances, results)
+        target_key = constants.LABEL_KEY if not self.target.name else self.target.name
+        labels = []
+        gold = []
+        indices = []
+        for instance, result in zip(labeled_instances, results):
+            labels.append(result[target_key].decode('utf-8'))
+            gold.append(instance[self.target.key])
+            indices.append(instance[constants.SENTENCE_INDEX])
+        accuracy_eval(gold, labels, indices, output_file=self.output_path)
 
 
 class TaggerEvaluator(Evaluator):
