@@ -34,7 +34,8 @@
         "rank": 1,
         "constraint_key": "predicate_lemma",
         "config": {
-          "dim": 100
+          "dim": 100,
+          "dropout": 0.1
         }
       }
     ],
