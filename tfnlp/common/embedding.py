@@ -1,5 +1,6 @@
 import gzip
 from collections import OrderedDict
+from typing import Dict, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -14,7 +15,7 @@ def zero_initializer(_, dim):
     return np.zeros(dim)
 
 
-def read_vectors(path, max_vecs=1000000):
+def read_vectors(path, max_vecs=1000000) -> Tuple[Dict[str, np.array], int]:
     """
     Read word vectors from a specified path as float32 numpy arrays.
     :param path: path to .gz file or text file
@@ -39,6 +40,13 @@ def read_vectors(path, max_vecs=1000000):
             vectors[fields[0]] = vec
 
     return vectors, dim
+
+
+def write_vectors(vectors, path):
+    with file_io.FileIO(path, 'w') as lines:
+        for word, vector in vectors.items():
+            lines.write(word + ' ' + ' '.join([str(ele) for ele in vector]))
+            lines.write('\n')
 
 
 def initialize_embedding_from_dict(vector_map, dim, vocabulary, zero_init=False, standardize=False):
