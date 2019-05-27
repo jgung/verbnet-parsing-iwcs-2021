@@ -11,14 +11,14 @@
     "sense_mappings": "./mappings/pb2vn.json"
   },
   "checkpoint_epochs": 0.5,
-  "max_epochs": 8,
+  "max_epochs": 16,
   "batch_size": 16,
   "optimizer": {
     "name": "bert",
     "lr": {
       "name": "bert",
       "rate": 0.00005,
-      "warmup_proportion": 0.1
+      "warmup_proportion": 0.2
     },
     "clip": 1.0
   },
@@ -47,6 +47,12 @@
           "dim": 100,
           "function": {
             "name": "Mean"
+          },
+          "initializer": {
+            "embedding": "vectors/vn.glove.6B.100d.txt",
+            "pkl_path": "vn-vectors.pkl",
+            "zero_init": true,
+            "restrict_vocab": true
           }
         }
       },
@@ -71,15 +77,16 @@
       "inputs": [
         "bert",
         "marker"
-      ],
-      "input_dropout": 0.1
+      ]
     },
     {
       "name": "tokens",
       "type": "repeat_and_concat",
       "inputs": [
         "vncls",
-        "subtokens"]
+        "subtokens"
+      ],
+      "input_dropout": 0.1
     },
     {
       "name": "blstm",

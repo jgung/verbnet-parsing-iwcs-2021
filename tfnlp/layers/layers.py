@@ -132,7 +132,7 @@ def encoder(features, inputs, mode, config):
         elif constants.ENCODER_REPEAT == encoder_type:
             return repeat(inputs, features[config.key])
         elif constants.ENCODER_REPEAT_AND_CONCAT == encoder_type:
-            return concat_single_to_sequence(inputs)
+            return concat_single_to_sequence(inputs, training, config)
         elif constants.ENCODER_SUM == encoder_type:
             return reduce_sum(inputs)
         elif constants.ENCODER_MLP == encoder_type:
@@ -163,7 +163,7 @@ def repeat(inputs, token_indices):
     return tf.tile(predicates, [1, shape[1], 1])  # (b x n x d)
 
 
-def concat_single_to_sequence(inputs):
+def concat_single_to_sequence(inputs, training, config):
     """
     Tile and concatenate a single vector (such as for an individual token) with each element in a given sequence.
     """
@@ -171,7 +171,10 @@ def concat_single_to_sequence(inputs):
         raise AssertionError("'%s' must have exactly 2 inputs" % constants.ENCODER_REPEAT_AND_CONCAT)
     single, sequence = inputs
     tiled = tf.tile(tf.expand_dims(single, 1), [1, tf.shape(sequence)[1], 1])
-    return tf.concat([tiled, sequence], axis=-1)
+    result = tf.concat([tiled, sequence], axis=-1)
+    if config.input_dropout > 0:
+        result = tf.layers.dropout(result, rate=config.input_dropout, training=training, name='input_layer_dropout')
+    return result
 
 
 def mlp(inputs, training, config):
@@ -203,7 +206,8 @@ def concat(inputs, training, config):
     inputs = [_get_encoder_input(encoder_input) for encoder_input in inputs]
     result = tf.concat(inputs, -1, name="inputs")
     # apply dropout across entire layer
-    result = tf.layers.dropout(result, rate=config.input_dropout, training=training, name='input_layer_dropout')
+    if config.input_dropout > 0:
+        result = tf.layers.dropout(result, rate=config.input_dropout, training=training, name='input_layer_dropout')
     return result
 
 
