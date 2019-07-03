@@ -119,17 +119,22 @@ def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False):
     def _get_label(_label):
         result = _label.replace(CONLL_START, "").replace(CONLL_END, "").replace(CONLL_CONT, "")
         if label_mappings is not None:
-            if map_with_regex:
-                for search, repl in label_mappings.items():
-                    match = re.search(search, result)
-                    if match is not None:
-                        return re.sub(search, repl, result)
             return label_mappings.get(result, result)
         return result
+
+    def _map_with_regex(_label):
+        if map_with_regex:
+            for search, repl in label_mappings.items():
+                match = re.search(search, _label)
+                if match is not None:
+                    return re.sub(search, repl, _label)
+        raise AssertionError
 
     current = None
     results = []
     for token in labels:
+        if map_with_regex:
+            token = _map_with_regex(token)
         if token.startswith(CONLL_START):
             label = _get_label(token)
             results.append(BEGIN_ + label)

@@ -40,24 +40,27 @@ def write_instance(inst, writer):
 if __name__ == '__main__':
     base_path = 'data/datasets/lre2019/'
     inputs = [
-        base_path + 'all_dev.VERBAL.conll',
-        base_path + 'all_dev.NOMINAL.conll',
-        base_path + 'all_dev.FUNCTIONTAG.conll',
+        base_path + 'all_train.VERBAL.conll',
+        base_path + 'all_train.NOMINAL.conll',
+        base_path + 'all_train.FUNCTIONTAG.conll',
     ]
-    out_path = base_path + 'all.dev.V.N.txt'
+    out_path = base_path + 'all.train.VF.NF.txt'
 
     reader = CoNll2012Reader({k: v for k, v in enumerate(FIELDS)})
 
     with open(out_path, mode='wt') as out_file:
         for instance_views in zip(*(reader.read_file(path) for path in inputs)):
-            props = {}
-            newInstance = {field: instance_views[0][field] for field in FIELDS}
-            for instance_view in instance_views:
+            props = instance_views[0][PROPS_KEY]
+            newInstance = {**instance_views[0]}
+            for instance_view in instance_views[1:]:
                 view_props = instance_view[PROPS_KEY]
+                found = True
                 for pred_idx, newLabels in view_props.items():
-                    if pred_idx in props:
-                        props[pred_idx] = [ol + "$" + nl for ol, nl in zip(props[pred_idx], newLabels)]
-                    else:
-                        props[pred_idx] = newLabels
+                    if pred_idx not in props:
+                        found = False
+                        continue
+                    props[pred_idx] = [ol + "$" + nl for ol, nl in zip(props[pred_idx], newLabels)]
+                if found:
+                    newInstance.update(instance_view)
             newInstance[PROPS_KEY] = props
             write_instance(newInstance, out_file)
