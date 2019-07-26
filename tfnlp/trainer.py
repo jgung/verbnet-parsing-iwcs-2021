@@ -230,22 +230,22 @@ class Trainer(object):
         train_count = sum(1 for _ in tf.python_io.tf_record_iterator(self._data_path_fn(train)))
         valid_count = sum(1 for _ in tf.python_io.tf_record_iterator(self._data_path_fn(valid)))
 
-        steps_per_epoch = train_count / self._training_config.batch_size
+        steps_per_epoch = train_count // self._training_config.batch_size
         if not self._training_config.max_epochs:
             if not self._training_config.max_steps:
                 self._training_config.max_epochs = 100
             else:
-                self._training_config.max_epochs = self._training_config.max_steps / steps_per_epoch
+                self._training_config.max_epochs = self._training_config.max_steps // steps_per_epoch
         if not self._training_config.patience_epochs:
             if not self._training_config.patience:
                 self._training_config.patience_epochs = 5
             else:
-                self._training_config.patience_epochs = self._training_config.patience / steps_per_epoch
+                self._training_config.patience_epochs = self._training_config.patience // steps_per_epoch
         if not self._training_config.checkpoint_epochs:
             if not self._training_config.checkpoint_steps:
                 self._training_config.checkpoint_epochs = 1
             else:
-                self._training_config.checkpoint_epochs = self._training_config.checkpoint_steps / steps_per_epoch
+                self._training_config.checkpoint_epochs = self._training_config.checkpoint_steps // steps_per_epoch
 
         max_steps = self._training_config.max_epochs * steps_per_epoch
         patience = self._training_config.patience_epochs * steps_per_epoch
@@ -266,7 +266,7 @@ class Trainer(object):
         return tfe.estimator.Estimator(model_fn=self._model_fn,
                                        model_dir=self._model_path,
                                        config=RunConfig(
-                                           log_step_count_steps=checkpoint_steps / 10,
+                                           log_step_count_steps=checkpoint_steps // 10,
                                            save_summary_steps=checkpoint_steps,
                                            keep_checkpoint_max=self._training_config.keep_checkpoints,
                                            save_checkpoints_steps=checkpoint_steps),
