@@ -6,7 +6,6 @@
   "ema_decay": 0.999,
   "optimizer": "./optim/adadelta-elmo-l2.json",
   "features": {
-    "seq_feat": "gold",
     "targets": [
       "./feats/gold.json"
     ],

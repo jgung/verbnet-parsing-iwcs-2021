@@ -63,8 +63,8 @@ def make_dataset(extractor,
 
 def padded_batch(extractor, placeholder, batch_size=64):
     dataset = tf.data.Dataset.from_tensor_slices(placeholder)
-    dataset = dataset.map(extractor.parse)
-    dataset = dataset.padded_batch(batch_size, extractor.get_shapes(), extractor.get_padding())
+    dataset = dataset.map(lambda x: extractor.parse(x, train=False))
+    dataset = dataset.padded_batch(batch_size, extractor.get_shapes(train=False), extractor.get_padding(train=False))
     iterator = dataset.make_initializable_iterator()
     with tf.control_dependencies([iterator.initializer]):
         return iterator.get_next()

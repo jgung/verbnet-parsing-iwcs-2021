@@ -14,7 +14,7 @@
     "clip": 5.0
   },
   "features": {
-    "seq_feat": "head",
+    "seq_feat": "fix_word",
     "targets": [
       {
         "name": "head",

@@ -18,7 +18,6 @@
     "clip": 5.0
   },
   "features": {
-    "seq_feat": "word",
     "targets": [
       {
         "name": "NE",

@@ -10,7 +10,6 @@
   "batch_size": 64,
   "optimizer": "../srl/optim/adadelta.json",
   "features": {
-    "seq_feat": "word",
     "targets": [
       {
         "name": "gold",

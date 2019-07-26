@@ -22,7 +22,6 @@
     "clip": 1.0
   },
   "features": {
-    "seq_feat": "word",
     "targets": [
       "../srl/feats/gold.json"
     ],

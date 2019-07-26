@@ -21,7 +21,6 @@
   "batch_size": 80,
   "optimizer": "../srl/optim/adadelta.json",
   "features": {
-    "seq_feat": "word",
     "targets": [
       "../srl/feats/gold.json",
       {

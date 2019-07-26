@@ -238,7 +238,8 @@ def get_feature_extractor(config):
     seq_feat = next((feat for feat in config.targets if feat.name == config.seq_feat),
                     next((feat for feat in config.inputs if feat.name == config.seq_feat), None))
     if not seq_feat:
-        raise AssertionError("No sequence length feature provided with name: " + config.seq_feat)
+        print("No sequence length feature provided with name '%s', automatically adding sequence length feat" % config.seq_feat)
+        seq_feat = SequenceFeature(LENGTH_KEY, config.seq_feat)
     config.inputs.append(LengthFeature(seq_feat))
 
     return FeatureExtractor(features=config.inputs, targets=config.targets)
@@ -1046,9 +1047,10 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             features[constants.BERT_SPLIT_INDEX] = int64_feature(segment_index)
             feature_list[constants.MARKER_KEY] = str_feature_list(['1' if i == focus_index else '0' for i in range(len(ids))])
 
-        target_labels = {target.name: target.get_values(instance) for target in self.targets.values() if target.rank == 1}
-        for name, label in target_labels.items():
-            features[name] = str_feature(label)
+        if train:
+            target_labels = {target.name: target.get_values(instance) for target in self.targets.values() if target.rank == 1}
+            for name, label in target_labels.items():
+                features[name] = str_feature(label)
 
         for feature in self.extractors(False):
             if feature.rank < 0 or feature.name == constants.MARKER_KEY:  # dummy feature

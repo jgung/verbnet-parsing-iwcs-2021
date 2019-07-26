@@ -17,7 +17,6 @@
     "clip": 5.0
   },
   "features": {
-    "seq_feat": "word",
     "targets": [
       "./feats/targets-feat.json"
     ],

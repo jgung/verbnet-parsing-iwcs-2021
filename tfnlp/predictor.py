@@ -133,7 +133,7 @@ def _get_feature_function(config: object, path_to_vocab: str) -> Callable[[dict]
     feature_extractor = get_feature_extractor(config)
     feature_extractor.read_vocab(path_to_vocab)
 
-    return lambda instance: feature_extractor.extract(instance).SerializeToString()
+    return lambda instance: feature_extractor.extract(instance, train=False).SerializeToString()
 
 
 def _default_predictor(path_to_savedmodel: str) -> Callable[[Iterable[str]], dict]:
