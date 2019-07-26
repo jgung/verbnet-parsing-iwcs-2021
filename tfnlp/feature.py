@@ -238,7 +238,8 @@ def get_feature_extractor(config):
     seq_feat = next((feat for feat in config.targets if feat.name == config.seq_feat),
                     next((feat for feat in config.inputs if feat.name == config.seq_feat), None))
     if not seq_feat:
-        print("No sequence length feature provided with name '%s', automatically adding sequence length feat" % config.seq_feat)
+        tf.logging.info("No sequence length feature provided with key '%s', automatically creating feature for computing "
+                        "sequence length from this key. " % config.seq_feat)
         seq_feat = SequenceFeature(LENGTH_KEY, config.seq_feat)
     config.inputs.append(LengthFeature(seq_feat))
 
