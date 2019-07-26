@@ -9,16 +9,17 @@
     "map_with_regex": true,
     "label_mappings": {
       "gold": {
-        "^(\\S+)\\$(\\S+)": "\\1"
+        "^(\\S+)\\$(\\S+)": "\\2"
       },
       "ft": {
-        "^(\\S+)\\$(\\S+)": "\\2"
+        "^(\\S+)\\$(\\S+)": "\\1"
       }
     }
   },
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
+  "max_length": 64,
   "optimizer": {
     "name": "bert",
     "lr": {

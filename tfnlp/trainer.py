@@ -72,12 +72,13 @@ class Trainer(object):
 
         self._feature_extractor = None
 
-    def train(self, train: str, valid: str) -> None:
+    def train(self, train: str, valid: str, feats_only: bool = False) -> None:
         """
         Train a new model with this trainer, or if a model already exists in the save path for this trainer,
         resume training from a checkpoint.
         :param train: path to training corpus
         :param valid: path to validation corpus
+        :param feats_only: only extract features, don't train
         """
         if not self._feature_extractor:
             self._init_feature_extractor(train_path=train)
@@ -85,6 +86,9 @@ class Trainer(object):
         # read and extract features from training/validation data, serialize to disk
         self._extract_and_write(train)
         self._extract_and_write(valid)
+
+        if feats_only:
+            return
 
         # compute steps per epoch/checkpoint and early stopping steps
         max_steps, patience, checkpoint_steps = self._compute_steps(train, valid)
@@ -342,7 +346,7 @@ class Trainer(object):
                                     caching=self._training_config.dataset_caching)
 
 
-TRAINING_MODES = {'train', 'predict', 'test', 'itl'}
+TRAINING_MODES = {'train', 'predict', 'test', 'itl', 'features-only'}
 
 
 def default_args():
@@ -433,6 +437,9 @@ def cli():
 
     elif mode == "itl":
         trainer.itl()
+
+    elif mode == "features-only":
+        trainer.train(opts.train, opts.valid, True)
 
 
 if __name__ == '__main__':
