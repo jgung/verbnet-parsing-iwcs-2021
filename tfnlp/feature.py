@@ -650,7 +650,8 @@ class BaseFeatureExtractor:
         pass
 
     def extract_all(self, instances, train=True):
-        return [self.extract(instance, train) for instance in instances]
+        for instance in instances:
+            yield self.extract(instance, train)
 
     def extract(self, instance, train=True):
         """
@@ -1130,8 +1131,11 @@ def write_features(examples, out_path):
     """
     with file_io.FileIO(out_path, 'w') as file:
         writer = tf.python_io.TFRecordWriter(file.name)
-        for example in examples:
+        for i, example in enumerate(examples):
+            if i % 4096 == 0 and i > 0:
+                tf.logging.info("... ... ... %d instances written to %s", i, out_path)
             writer.write(example.SerializeToString())
+        tf.logging.info("Wrote extracted features for %d instances to %s", i + 1, out_path)
 
 
 def get_default_buckets(lengths, min_count, max_length=None):

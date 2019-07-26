@@ -224,7 +224,6 @@ class Trainer(object):
             tf.logging.info("Using pre-existing features for %s from %s", path, output_path)
             return
         examples = self._extract_features(path, test)
-        tf.logging.info("Writing extracted features from %s for %d instances to %s", path, len(examples), output_path)
         write_features(examples, output_path)
 
     def _compute_steps(self, train, valid):
