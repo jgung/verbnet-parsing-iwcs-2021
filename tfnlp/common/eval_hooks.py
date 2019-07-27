@@ -6,7 +6,7 @@ from tensorflow.python.training.session_run_hook import SessionRunArgs
 
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
-from tfnlp.common.eval import PREDICTIONS_FILE, append_srl_prediction_output
+from tfnlp.common.eval import PREDICTIONS_FILE, append_srl_prediction_output, GOLD_FILE
 from tfnlp.common.eval import accuracy_eval, conll_eval, conll_srl_eval, write_props_to_file, parser_write_and_eval
 from tfnlp.common.utils import binary_np_array_to_unicode
 
@@ -142,7 +142,7 @@ class SrlEvalHook(SequenceEvalHook):
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, tensors, features, script_path, out_path=None, gold_path=None):
+    def __init__(self, tensors, features, script_path, output_dir=None):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors: dictionary of batch-sized tensors necessary for computing evaluation
@@ -151,8 +151,7 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
         self._tensors = tensors
         self._features = features
         self._script_path = script_path
-        self._output_path = out_path
-        self._gold_path = gold_path
+        self._output_dir = output_dir
         self._arc_probs = None
         self._arcs = None
         self._rel_probs = None
@@ -178,14 +177,16 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
             self._arcs.append(heads[:seq_len])
 
     def end(self, session):
+        output_file = os.path.join(self._output_dir, PREDICTIONS_FILE)
+        gold_file = os.path.join(self._output_dir, GOLD_FILE)
         result = parser_write_and_eval(arc_probs=self._arc_probs,
                                        rel_probs=self._rel_probs,
                                        heads=self._arcs,
                                        rels=self._rels,
                                        script_path=self._script_path,
                                        features=self._features,
-                                       out_path=self._output_path,
-                                       gold_path=self._gold_path)
+                                       out_path=output_file,
+                                       gold_path=gold_file)
         tf.logging.info('\n%s', result)
 
 

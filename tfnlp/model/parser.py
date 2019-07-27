@@ -4,6 +4,7 @@ import tfnlp.common.constants as constants
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ParserEvalHook
 from tfnlp.layers.heads import ModelHead
+from tfnlp.layers.layers import get_encoder_input
 from tfnlp.layers.util import select_logits, bilinear, get_shape, mlp
 
 
@@ -25,7 +26,7 @@ class ParserHead(ModelHead):
         self.predictions = None
 
     def _all(self):
-        inputs = self.inputs[0]
+        inputs = get_encoder_input(self.inputs)
         input_shape = get_shape(inputs)  # (b x n x d), d == output_size
         self.n_steps = input_shape[1]  # n
 
@@ -100,7 +101,8 @@ class ParserHead(ModelHead):
                     constants.LENGTH_KEY: self.features[constants.LENGTH_KEY],
                     constants.HEAD_KEY: self.features[constants.HEAD_KEY],
                     constants.DEPREL_KEY: self.features[constants.DEPREL_KEY]
-                }, features=self.extractor, script_path=self.params.script_path)
+                }, features=self.extractor, script_path=self.params.script_path, output_dir=self.params.job_dir
+            )
             self.evaluation_hooks.append(hook)
 
     def _prediction(self):

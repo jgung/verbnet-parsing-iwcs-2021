@@ -19,6 +19,7 @@ from tfnlp.common.srleval import evaluate
 SUMMARY_FILE = 'eval-summary.tsv'
 EVAL_LOG = 'eval.log'
 PREDICTIONS_FILE = 'predictions.txt'
+GOLD_FILE = 'gold.txt'
 
 
 def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
@@ -182,7 +183,7 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
     return accuracy
 
 
-def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features, out_path=None, gold_path=None):
+def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features, out_path, gold_path):
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs, features)
 
     line_func = _conllx_line if 'conllx' in script_path else _conll09_line

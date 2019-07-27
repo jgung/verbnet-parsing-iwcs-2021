@@ -221,6 +221,15 @@ class TaggerHead(ModelHead):
 
         self._tag_transitions = None
 
+    def training(self):
+        super().training()
+        self._eval_predict()
+        self._prediction()
+
+    def evaluation(self):
+        super().evaluation()
+        self._prediction()
+
     def _all(self):
         inputs, encoder_dim = self.inputs[:2]
         time_steps = tf.shape(inputs)[1]

@@ -122,7 +122,7 @@ def get_embedding_input(inputs, feature, training):
 def encoder(features, inputs, mode, config):
     training = mode == tfe.estimator.ModeKeys.TRAIN
 
-    with tf.variable_scope("encoder"):
+    with tf.variable_scope("encoder-%s" % config.name):
         encoder_type = config.encoder_type
 
         if constants.ENCODER_IDENT == encoder_type:
@@ -153,7 +153,7 @@ def repeat(inputs, token_indices):
     """
     if len(inputs) != 1:
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_REPEAT)
-    inputs = _get_encoder_input(inputs[0])
+    inputs = get_encoder_input(inputs[0])
 
     shape = tf.shape(inputs, out_type=tf.int64)  # (b, n, d)
     batch_indices = tf.range(shape[0])  # [0, 1, 2, ..., b]
@@ -180,7 +180,7 @@ def concat_single_to_sequence(inputs, training, config):
 def mlp(inputs, training, config):
     if len(inputs) != 1:
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_MLP)
-    inputs = _get_encoder_input(inputs[0])
+    inputs = get_encoder_input(inputs[0])
 
     with tf.variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
@@ -196,14 +196,14 @@ def mlp(inputs, training, config):
         return y, hidden_size, y
 
 
-def _get_encoder_input(encoder_input):
+def get_encoder_input(encoder_input):
     if isinstance(encoder_input, tuple):
         encoder_input = encoder_input[0]
     return encoder_input
 
 
 def concat(inputs, training, config):
-    inputs = [_get_encoder_input(encoder_input) for encoder_input in inputs]
+    inputs = [get_encoder_input(encoder_input) for encoder_input in inputs]
     result = tf.concat(inputs, -1, name="inputs")
     # apply dropout across entire layer
     if config.input_dropout > 0:
