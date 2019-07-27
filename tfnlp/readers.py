@@ -208,7 +208,7 @@ class ConllSrlReader(ConllReader):
                  pred_end=0,
                  pred_key=PREDICATE_KEY,
                  chunk_func=lambda x: x,
-                 line_filter=lambda line: line.startswith("#"),  # skip comments
+                 line_filter=lambda line: line.startswith("#") and not line.startswith("# #"),  # skip comments
                  label_mappings=None,
                  regex_mapping=False,
                  sense_mappings=None):
