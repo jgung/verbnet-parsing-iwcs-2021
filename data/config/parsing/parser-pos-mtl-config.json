@@ -1,6 +1,6 @@
 {
   "reader": "conllx",
-  "batch_size": 16,
+  "batch_size": 100,
   "metric": "LAS",
   "optimizer": {
     "name": "LazyAdam",

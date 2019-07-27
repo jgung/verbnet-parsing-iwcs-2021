@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 
 from tensorflow.python.lib.io import file_io
+import tensorflow as tf
 
 from tfnlp.common import constants
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
@@ -194,7 +195,11 @@ class ConllDepReader(ConllReader):
     def read_instances(self, rows):
         instances = [self.read_fields(rows)]
         for instance in instances:
-            instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
+            try:
+                instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
+            except ValueError:
+                tf.logging.warning('Unable to read instance: %s', ' '.join(instance[WORD_KEY]))
+                return []
             if self.label_field is not None:
                 instance[LABEL_KEY] = instance[self.label_field][:]
 
