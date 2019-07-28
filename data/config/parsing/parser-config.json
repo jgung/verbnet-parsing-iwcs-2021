@@ -150,7 +150,6 @@
       "encoder": "blstm",
       "name": "deprel",
       "type": "parser",
-      "metric": "LAS",
       "mlp_dropout": 0.33
     }
   ]

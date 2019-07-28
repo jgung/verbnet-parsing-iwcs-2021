@@ -142,7 +142,7 @@ class SrlEvalHook(SequenceEvalHook):
 
 
 class ParserEvalHook(session_run_hook.SessionRunHook):
-    def __init__(self, tensors, features, script_path, output_dir=None):
+    def __init__(self, tensors, features, script_path, eval_update, eval_placeholder, output_dir=None):
         """
         Initialize a `SessionRunHook` used to perform off-graph evaluation of sequential predictions.
         :param tensors: dictionary of batch-sized tensors necessary for computing evaluation
@@ -156,6 +156,8 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
         self._arcs = None
         self._rel_probs = None
         self._rels = None
+        self._eval_update = eval_update
+        self._eval_placeholder = eval_placeholder
 
     def begin(self):
         self._arc_probs = []
@@ -188,6 +190,12 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
                                        out_path=output_file,
                                        gold_path=gold_file)
         tf.logging.info('\n%s', result)
+
+        lines = result.split('\n')
+        las = float(lines[0].strip().split()[9])
+
+        # update model's best score for early stopping
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: las})
 
 
 def metric_compare_fn(metric_key):

@@ -3,7 +3,6 @@
   "checkpoint_steps": 1000,
   "patience": 5000,
   "batch_size": 100,
-  "metric": "LAS",
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -150,7 +149,6 @@
       "encoder": "blstm",
       "name": "deprel",
       "type": "parser",
-      "metric": "LAS",
       "mlp_dropout": 0.33
     }
   ]

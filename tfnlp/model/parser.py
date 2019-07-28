@@ -91,6 +91,12 @@ class ParserHead(ModelHead):
             constants.LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / self.n_tokens),
         }
 
+        overall_score = tf.identity(self.metric)
+        self.metric_ops[append_label(constants.OVERALL_KEY, self.name)] = (overall_score, overall_score)
+        overall_key = append_label(constants.OVERALL_KEY, self.name)
+        # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
+        eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
+
         self.evaluation_hooks = []
 
         if self.params.script_path:
@@ -101,7 +107,10 @@ class ParserHead(ModelHead):
                     constants.LENGTH_KEY: self.features[constants.LENGTH_KEY],
                     constants.HEAD_KEY: self.features[constants.HEAD_KEY],
                     constants.DEPREL_KEY: self.features[constants.DEPREL_KEY]
-                }, features=self.extractor, script_path=self.params.script_path, output_dir=self.params.job_dir
+                }, features=self.extractor, script_path=self.params.script_path,
+                eval_update=tf.assign(self.metric, eval_placeholder),
+                eval_placeholder=eval_placeholder,
+                output_dir=self.params.job_dir
             )
             self.evaluation_hooks.append(hook)
 
