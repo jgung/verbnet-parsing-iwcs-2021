@@ -76,7 +76,7 @@ class ClassifierEvalHook(EvalHook):
         accuracy_eval(self._gold,
                       self._predictions,
                       self._indices,
-                      output_file=os.path.join(self._output_dir, PREDICTIONS_FILE))
+                      output_file=os.path.join(self._output_dir, self._predict_key + '.' + PREDICTIONS_FILE))
 
 
 class SequenceEvalHook(EvalHook):
@@ -100,7 +100,8 @@ class SequenceEvalHook(EvalHook):
             self._predictions.append([self._vocab.index_to_feat(val) for val in predictions][:seq_len])
 
     def end(self, session):
-        score, result = conll_eval(self._gold, self._predictions, self._indices, os.path.join(self._output_dir, PREDICTIONS_FILE))
+        score, result = conll_eval(self._gold, self._predictions, self._indices,
+                                   os.path.join(self._output_dir, self._predict_key + '.' + PREDICTIONS_FILE))
         tf.logging.info(result)
         session.run(self._eval_update, feed_dict={self._eval_placeholder: score})
 
@@ -133,7 +134,7 @@ class SrlEvalHook(SequenceEvalHook):
         session.run(self._eval_update, feed_dict={self._eval_placeholder: result.evaluation.prec_rec_f1()[2]})
 
         if self._output_dir:
-            predictions_path = os.path.join(self._output_dir, PREDICTIONS_FILE)
+            predictions_path = os.path.join(self._output_dir, self._predict_key + '.' + PREDICTIONS_FILE)
             write_props_to_file(predictions_path + '.gold', self._gold, self._markers, self._indices)
             write_props_to_file(predictions_path, self._predictions, self._markers, self._indices)
 
@@ -179,8 +180,8 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
             self._arcs.append(heads[:seq_len])
 
     def end(self, session):
-        output_file = os.path.join(self._output_dir, PREDICTIONS_FILE)
-        gold_file = os.path.join(self._output_dir, GOLD_FILE)
+        output_file = os.path.join(self._output_dir, self._predict_key + '.' + PREDICTIONS_FILE)
+        gold_file = os.path.join(self._output_dir, self._predict_key + '.' + GOLD_FILE)
         result = parser_write_and_eval(arc_probs=self._arc_probs,
                                        rel_probs=self._rel_probs,
                                        heads=self._arcs,
