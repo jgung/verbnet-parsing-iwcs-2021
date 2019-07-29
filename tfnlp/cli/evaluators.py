@@ -79,12 +79,13 @@ class TaggerEvaluator(Evaluator):
 
     def __call__(self, labeled_instances, results):
         target_key = constants.LABEL_KEY if not self.target.name else self.target.name
+        labels_key = constants.LABEL_KEY if not self.target.key else self.target.key
         labels = []
         gold = []
         indices = []
         for instance, result in zip(labeled_instances, results):
             labels.append([label for label in binary_np_array_to_unicode(result[target_key]) if label != BERT_SUBLABEL])
-            gold.append(instance[constants.LABEL_KEY])
+            gold.append(instance[labels_key])
             indices.append(instance[constants.SENTENCE_INDEX])
         f1, result_str = conll_eval(gold, labels, indices, output_file=self.output_path + '.txt')
         tf.logging.info(result_str)
