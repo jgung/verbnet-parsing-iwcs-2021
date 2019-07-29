@@ -237,15 +237,9 @@ class Trainer(object):
             else:
                 self._training_config.max_epochs = self._training_config.max_steps // steps_per_epoch
         if not self._training_config.patience_epochs:
-            if not self._training_config.patience:
-                self._training_config.patience_epochs = 5
-            else:
-                self._training_config.patience_epochs = self._training_config.patience // steps_per_epoch
+            self._training_config.patience_epochs = 5
         if not self._training_config.checkpoint_epochs:
-            if not self._training_config.checkpoint_steps:
-                self._training_config.checkpoint_epochs = 1
-            else:
-                self._training_config.checkpoint_epochs = self._training_config.checkpoint_steps // steps_per_epoch
+            self._training_config.checkpoint_epochs = 1
 
         max_steps = self._training_config.max_epochs * steps_per_epoch
         patience = self._training_config.patience_epochs * steps_per_epoch

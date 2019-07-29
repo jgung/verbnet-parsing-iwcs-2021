@@ -1,7 +1,5 @@
 {
   "reader": "conll_2009",
-  "checkpoint_steps": 1000,
-  "patience": 5000,
   "batch_size": 100,
   "metric": "LAS",
   "optimizer": {

@@ -1,8 +1,7 @@
 {
   "reader": "conllx",
-  "checkpoint_steps": 1000,
-  "patience": 5000,
   "batch_size": 100,
+  "ema_decay": 0.999,
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -95,12 +94,12 @@
           "chars"
         ],
         "config": {
-          "dim": 30,
+          "dim": 50,
           "dropout": 0.5,
           "function": {
             "name": "ConvNet",
             "kernel_size": 3,
-            "num_filters": 30
+            "num_filters": 50
           }
         }
       }
@@ -129,25 +128,17 @@
         "word-and-char"
       ],
       "encoder": "lstm",
-      "state_size": 128,
+      "state_size": 256,
       "encoder_dropout": 0.33,
       "encoder_input_dropout": 0.33,
       "forget_bias": 1,
       "encoder_layers": 2
     },
     {
-      "name": "pos-dropout",
-      "type": "concat",
-      "inputs": [
-        "pos"
-      ],
-      "input_dropout": 0.33
-    },
-    {
       "name": "pos-and-word",
       "type": "concat",
       "inputs": [
-        "pos-dropout",
+        "pos",
         "word-and-char"
       ]
     },

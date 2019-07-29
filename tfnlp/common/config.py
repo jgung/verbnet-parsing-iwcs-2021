@@ -31,8 +31,6 @@ class BaseNetworkConfig(Params):
         self.batch_buffer_size = config.get('batch_buffer_size', 512)  # number of consecutive batches to shuffle
         self.dataset_caching = config.get('dataset_caching', True)
 
-        self.checkpoint_steps = config.get('checkpoint_steps')
-        self.patience = config.get('patience')
         self.max_steps = config.get('max_steps')
 
         self.max_epochs = config.get('max_epochs')
