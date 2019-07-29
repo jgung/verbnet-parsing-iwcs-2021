@@ -119,7 +119,7 @@ class Trainer(object):
 
         for test_set in test_paths:
             tf.logging.info('Evaluating on %s' % test_set)
-            output_path = os.path.join(self._model_path, os.path.basename(test_set) + '.eval')
+            output_path = os.path.join(self._job_dir, os.path.basename(test_set) + '.eval')
 
             evaluation_fn = get_evaluator(self._training_config.heads,
                                           self._feature_extractor, output_path, self._eval_script_path)

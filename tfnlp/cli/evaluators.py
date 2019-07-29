@@ -23,7 +23,7 @@ def get_evaluator(heads, feature_extractor, output_path, script_path):
         if head.task not in evaluators:
             raise ValueError("Unsupported head type: " + head.task)
         evaluator = evaluators[head.task](target=feature_extractor.targets[head.name],
-                                          output_path=output_path,
+                                          output_path=output_path + '.' + head.name,
                                           script_path=script_path)
         evals.append(evaluator)
     return AggregateEvaluator(evals)
@@ -69,7 +69,7 @@ class TokenClassifierEvaluator(Evaluator):
             labels.append(result[target_key].decode('utf-8'))
             gold.append(instance[self.target.key])
             indices.append(instance[constants.SENTENCE_INDEX])
-        accuracy_eval(gold, labels, indices, output_file=self.output_path)
+        accuracy_eval(gold, labels, indices, output_file=self.output_path + '.txt')
 
 
 class TaggerEvaluator(Evaluator):
@@ -86,7 +86,7 @@ class TaggerEvaluator(Evaluator):
             labels.append([label for label in binary_np_array_to_unicode(result[target_key]) if label != BERT_SUBLABEL])
             gold.append(instance[constants.LABEL_KEY])
             indices.append(instance[constants.SENTENCE_INDEX])
-        f1, result_str = conll_eval(gold, labels, indices, output_file=self.output_path)
+        f1, result_str = conll_eval(gold, labels, indices, output_file=self.output_path + '.txt')
         tf.logging.info(result_str)
 
 
@@ -114,8 +114,8 @@ class DepParserEvaluator(Evaluator):
                                        rels=gold_rels,
                                        script_path=self.script_path,
                                        features=self.target,
-                                       out_path=self.output_path,
-                                       gold_path=self.output_path + '.gold')
+                                       out_path=self.output_path + '.txt',
+                                       gold_path=self.output_path + '.gold.txt')
         tf.logging.info('\n%s', result)
 
 
@@ -134,8 +134,8 @@ class SrlEvaluator(Evaluator):
             markers.append(instance[constants.MARKER_KEY])
             indices.append(instance[constants.SENTENCE_INDEX])
 
-        write_props_to_file(self.output_path + '.gold.conll', gold, markers, indices)
-        write_props_to_file(self.output_path + '.conll', gold, markers, indices)
+        write_props_to_file(self.output_path + '.gold.txt', gold, markers, indices)
+        write_props_to_file(self.output_path + '.txt', gold, markers, indices)
 
         result = conll_srl_eval(gold, labels, markers, indices)
         tf.logging.info(result)
