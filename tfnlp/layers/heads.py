@@ -8,7 +8,6 @@ from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ClassifierEvalHook, SequenceEvalHook, SrlEvalHook
-from tfnlp.common.metrics import tagger_metrics
 from tfnlp.layers.layers import string2index
 from tfnlp.layers.util import get_shape, mlp, bilinear, select_logits, sequence_loss
 
@@ -305,12 +304,6 @@ class TaggerHead(ModelHead):
                 )
             )
         else:
-            ns = None if self.name == constants.LABEL_KEY else self.name
-            metrics = tagger_metrics(labels=self.targets, predictions=tf.cast(self.predictions, dtype=tf.int64), ns=ns)
-            self.metric_ops.update(metrics)
-            acc_key = append_label(constants.ACCURACY_METRIC_KEY, self.name)
-            self.metric_ops[acc_key] = tf.metrics.accuracy(labels=self.targets, predictions=self.predictions, name=acc_key)
-
             self.evaluation_hooks.append(
                 SequenceEvalHook(
                     tensors=eval_tensors,
