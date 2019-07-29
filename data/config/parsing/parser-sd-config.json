@@ -1,6 +1,7 @@
 {
   "reader": "conllx",
   "batch_size": 100,
+  "checkpoint_epochs": 2,
   "optimizer": {
     "name": "LazyAdam",
     "params": {

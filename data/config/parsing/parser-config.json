@@ -1,6 +1,7 @@
 {
   "reader": "conll_2009",
   "batch_size": 100,
+  "checkpoint_epochs": 2,
   "metric": "LAS",
   "optimizer": {
     "name": "Adam",

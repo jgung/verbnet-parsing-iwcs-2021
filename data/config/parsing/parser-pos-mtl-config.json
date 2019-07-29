@@ -2,6 +2,7 @@
   "reader": "conllx",
   "batch_size": 100,
   "ema_decay": 0.999,
+  "checkpoint_epochs": 2,
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -43,8 +44,11 @@
       {
         "name": "pos",
         "key": "xpos",
+        "unknown_word": "NN",
+        "pad_word": "O",
         "config": {
-          "dim": 100
+          "dim": 100,
+          "dropout": 0.33
         }
       }
     ],
@@ -99,7 +103,7 @@
           "function": {
             "name": "ConvNet",
             "kernel_size": 3,
-            "num_filters": 50
+            "num_filters": 30
           }
         }
       }
@@ -128,7 +132,7 @@
         "word-and-char"
       ],
       "encoder": "lstm",
-      "state_size": 256,
+      "state_size": 128,
       "encoder_dropout": 0.33,
       "encoder_input_dropout": 0.33,
       "forget_bias": 1,
@@ -174,8 +178,7 @@
       "name": "pos",
       "type": "tagger",
       "metric": "Accuracy",
-      "mlp_dropout": 0.33,
-      "crf": false
+      "mlp_dropout": 0.33
     }
   ]
 }
