@@ -143,8 +143,23 @@ def encoder(features, inputs, mode, config):
             return stacked_bilstm(inputs[0], features[config.sequence_length_key], training, config)
         elif constants.ENCODER_TRANSFORMER == encoder_type:
             return transformer_encoder(inputs[0], features[config.sequence_length_key], training, config)
+        elif constants.ENCODER_SENTINEL == encoder_type:
+            return add_sentinel(inputs)
         else:
             raise ValueError('No encoder of type "{}" available'.format(encoder_type))
+
+
+def add_sentinel(inputs):
+    """
+    Add a trainable head/sentinel token to inputs of same dimensionality as previous inputs.
+    """
+    inputs = get_encoder_input(inputs[0])
+    shape = tf.shape(inputs, out_type=tf.int64)  # (b, n, d)
+
+    sentinel = tf.get_variable(name='sentinel', shape=[inputs.shape[-1]], trainable=True)
+    tiled = tf.tile(tf.reshape(sentinel, [1, 1, inputs.shape[-1]]), [shape[0], 1, 1])
+    result = tf.concat([tiled, inputs], axis=1)
+    return result
 
 
 def repeat(inputs, token_indices):

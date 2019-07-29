@@ -50,13 +50,6 @@
         "mapping_funcs": [
           "lower"
         ],
-        "padding_funcs": [
-          {
-            "type": "pad",
-            "count": 1,
-            "value": "<ROOT>"
-          }
-        ],
         "config": {
           "dim": 100,
           "trainable": false,
@@ -77,13 +70,6 @@
         "mapping_funcs": [
           "lower"
         ],
-        "padding_funcs": [
-          {
-            "type": "pad",
-            "count": 1,
-            "value": "<ROOT>"
-          }
-        ],
         "config": {
           "dim": 100,
           "word_dropout": 0.33,
@@ -102,14 +88,7 @@
           "initializer": {
             "zero_init": true
           }
-        },
-        "padding_funcs": [
-          {
-            "type": "pad",
-            "count": 1,
-            "value": "<ROOT>"
-          }
-        ]
+        }
       }
     ]
   },

@@ -93,6 +93,7 @@ BIAFFINE_SRL_KEY = "biaffine-srl"
 PARSER_KEY = "parser"
 
 # encoder types, that apply a functon to one or more inputs
+ENCODER_SENTINEL = 'sentinel'  # add a sentinel (head) to input
 ENCODER_BLSTM = 'lstm'
 ENCODER_DBLSTM = 'dblstm'
 ENCODER_TRANSFORMER = 'transformer'
@@ -103,7 +104,7 @@ ENCODER_MLP = 'mlp'
 ENCODER_REPEAT = 'repeat_token'
 ENCODER_REPEAT_AND_CONCAT = 'repeat_and_concat'
 ENCODERS = [ENCODER_BLSTM, ENCODER_DBLSTM, ENCODER_TRANSFORMER, ENCODER_CONCAT, ENCODER_SUM, ENCODER_IDENT, ENCODER_MLP,
-            ENCODER_REPEAT, ENCODER_REPEAT_AND_CONCAT]
+            ENCODER_REPEAT, ENCODER_REPEAT_AND_CONCAT, ENCODER_SENTINEL]
 
 # TF serving export constants
 SERVING_PLACEHOLDER = 'input_example_tensor'

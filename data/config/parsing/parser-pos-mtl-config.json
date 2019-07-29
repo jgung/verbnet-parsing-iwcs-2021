@@ -1,7 +1,8 @@
 {
   "reader": "conllx",
+  "checkpoint_steps": 1000,
+  "patience": 5000,
   "batch_size": 100,
-  "metric": "LAS",
   "optimizer": {
     "name": "LazyAdam",
     "params": {
@@ -45,30 +46,35 @@
         "key": "xpos",
         "config": {
           "dim": 100
-        },
-        "padding_funcs": [
-          {
-            "type": "pad",
-            "count": 1,
-            "value": "<ROOT>"
-          }
-        ]
+        }
       }
     ],
     "inputs": [
       {
-        "name": "word",
+        "name": "fix_word",
+        "key": "word",
+        "mapping_funcs": [
+          "lower"
+        ],
+        "config": {
+          "dim": 100,
+          "trainable": false,
+          "word_dropout": 0.33,
+          "initializer": {
+            "embedding": "vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl",
+            "include_in_vocab": 400000,
+            "zero_init": true,
+            "restrict_vocab": true
+          }
+        }
+      },
+      {
+        "name": "train_word",
         "key": "word",
         "threshold": 2,
         "mapping_funcs": [
           "lower"
-        ],
-        "padding_funcs": [
-          {
-            "type": "pad",
-            "count": 1,
-            "value": "<ROOT>"
-          }
         ],
         "config": {
           "dim": 100,
@@ -88,13 +94,6 @@
         "mapping_funcs": [
           "chars"
         ],
-        "padding_funcs": [
-          {
-            "type": "pad",
-            "count": 1,
-            "value": "<ROOT>"
-          }
-        ],
         "config": {
           "dim": 30,
           "dropout": 0.5,
@@ -109,10 +108,18 @@
   },
   "encoders": [
     {
+      "name": "words_sum",
+      "type": "sum",
+      "inputs": [
+        "train_word",
+        "fix_word"
+      ]
+    },
+    {
       "name": "word-and-char",
       "type": "concat",
       "inputs": [
-        "word",
+        "words_sum",
         "char"
       ]
     },
@@ -129,32 +136,46 @@
       "encoder_layers": 2
     },
     {
-      "name": "dep-blstm",
+      "name": "pos-dropout",
+      "type": "concat",
       "inputs": [
-        "word-and-char"
+        "pos"
       ],
-      "encoder": "lstm",
-      "state_size": 128,
-      "encoder_dropout": 0.33,
-      "encoder_input_dropout": 0.33,
-      "forget_bias": 1,
-      "encoder_layers": 2
+      "input_dropout": 0.33
     },
     {
       "name": "pos-and-word",
       "type": "concat",
       "inputs": [
-        "pos",
-        "dep-blstm"
+        "pos-dropout",
+        "word-and-char"
       ]
+    },
+    {
+      "name": "with-sentinel",
+      "type": "sentinel",
+      "inputs": [
+        "pos-and-word"
+      ]
+    },
+    {
+      "name": "dep-blstm",
+      "inputs": [
+        "with-sentinel"
+      ],
+      "encoder": "lstm",
+      "state_size": 400,
+      "encoder_dropout": 0.33,
+      "encoder_input_dropout": 0.33,
+      "forget_bias": 1,
+      "encoder_layers": 3
     }
   ],
   "heads": [
     {
-      "encoder": "pos-and-word",
+      "encoder": "dep-blstm",
       "name": "deprel",
       "type": "parser",
-      "metric": "LAS",
       "mlp_dropout": 0.33
     },
     {
@@ -163,7 +184,7 @@
       "type": "tagger",
       "metric": "Accuracy",
       "mlp_dropout": 0.33,
-      "crf": true
+      "crf": false
     }
   ]
 }

@@ -3,7 +3,6 @@ import os
 import tensorflow as tf
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
-
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
 from tfnlp.common.eval import PREDICTIONS_FILE, append_srl_prediction_output, GOLD_FILE
@@ -180,8 +179,8 @@ class ParserEvalHook(session_run_hook.SessionRunHook):
             self._arcs.append(heads[:seq_len])
 
     def end(self, session):
-        output_file = os.path.join(self._output_dir, self._predict_key + '.' + PREDICTIONS_FILE)
-        gold_file = os.path.join(self._output_dir, self._predict_key + '.' + GOLD_FILE)
+        output_file = os.path.join(self._output_dir, 'dep.' + PREDICTIONS_FILE)
+        gold_file = os.path.join(self._output_dir, 'dep.' + GOLD_FILE)
         result = parser_write_and_eval(arc_probs=self._arc_probs,
                                        rel_probs=self._rel_probs,
                                        heads=self._arcs,
