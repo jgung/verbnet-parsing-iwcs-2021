@@ -199,14 +199,20 @@ def get_parse_predictions(arc_probs, rel_probs, rel_feat):
     heads = []
     rels = []
     for arc_prob_matrix, rel_prob_tensor in zip(arc_probs, rel_probs):
-        arc_preds = nonprojective(arc_prob_matrix)
-        arc_preds_one_hot = np.zeros([rel_prob_tensor.shape[0], rel_prob_tensor.shape[2]])
-        arc_preds_one_hot[np.arange(len(arc_preds)), arc_preds] = 1.
-        rel_preds = np.argmax(np.einsum('nrb,nb->nr', rel_prob_tensor, arc_preds_one_hot), axis=1)
-        rel_preds = [rel_feat.index_to_feat(rel) for rel in rel_preds]
+        arc_preds, rel_preds = get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat)
         rels.append(rel_preds)
         heads.append(arc_preds)
     return heads, rels
+
+
+def get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat=None):
+    arc_preds = nonprojective(arc_prob_matrix)
+    arc_preds_one_hot = np.zeros([rel_prob_tensor.shape[0], rel_prob_tensor.shape[2]])
+    arc_preds_one_hot[np.arange(len(arc_preds)), arc_preds] = 1.
+    rel_preds = np.argmax(np.einsum('nrb,nb->nr', rel_prob_tensor, arc_preds_one_hot), axis=1)
+    if rel_feat:
+        rel_preds = [rel_feat.index_to_feat(rel) for rel in rel_preds]
+    return arc_preds, rel_preds
 
 
 def _conllx_line(index, arc_pred, rel_pred):

@@ -1,3 +1,4 @@
+from common.eval import get_parse_prediction
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.constants import WORD_KEY
@@ -21,8 +22,19 @@ def get_formatter(config):
         prediction = result[target].decode('utf-8')
         return prediction
 
-    def _no_op_formatter(result, ignored=None):
-        return str(result)
+    def _parser_formatter(result, original_input):
+        feats = next(iter([target for target in config.features.targets if target.name == constants.DEPREL_KEY]), None)
+        fields = [[str(r) for r in range(1, len(original_input[WORD_KEY]) + 1)], original_input[WORD_KEY]]
+        if constants.POS_KEY in result:
+            fields.append(binary_np_array_to_unicode(result[constants.POS_KEY]))
+
+        heads, labels = get_parse_prediction(result[constants.ARC_PROBS], result[constants.REL_PROBS], )
+        if feats:
+            feats = {val: key for key, val in feats.indices.items()}
+            labels = [feats[rel] for rel in labels]
+
+        fields = fields + [[str(l) for l in labels[1:]], [str(s) for s in heads[1:]]]
+        return '\n'.join([' '.join(line) for line in zip(*fields)]) + '\n'
 
     head_type = [head.task for head in config.heads][0]
     formatters = {
@@ -30,7 +42,7 @@ def get_formatter(config):
         constants.TAGGER_KEY: _tagger_formatter,
         constants.NER_KEY: _tagger_formatter,
         constants.SRL_KEY: _tagger_formatter,
-        constants.PARSER_KEY: _no_op_formatter
+        constants.PARSER_KEY: _parser_formatter
     }
     if head_type not in formatters:
         raise ValueError("Unsupported head type: " + head_type)
