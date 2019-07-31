@@ -50,8 +50,9 @@ class ParserHead(ModelHead):
 
     def _train_eval(self):
         # compute combined arc and rel losses (both via softmax cross entropy)
-
-        self.mask = tf.sequence_mask(self.features[constants.LENGTH_KEY], name="padding_mask")
+        lens = self.features[constants.LENGTH_KEY]
+        _mask = tf.sequence_mask(lens, name="padding_mask")
+        self.mask = tf.concat([tf.fill([tf.shape(lens)[0], 1], True), _mask], axis=1)
 
         def compute_loss(logits, targets, name):
             with tf.variable_scope(name):
