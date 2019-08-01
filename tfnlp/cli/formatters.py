@@ -1,4 +1,4 @@
-from common.eval import get_parse_prediction
+from tfnlp.common.eval import get_parse_prediction
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.constants import WORD_KEY
