@@ -479,6 +479,23 @@ class LengthFilter(object):
                 yield instance
 
 
+class DuplicateWithUncased(object):
+    def __init__(self, reader, every_k=2):
+        super().__init__()
+        self.reader = reader
+        self._every_k = every_k
+
+    def read_file(self, *args, **kwargs):
+        count = 0
+        for instance in self.reader.read_file(*args, **kwargs):
+            if count % self._every_k == 0:
+                new_instance = dict(instance)
+                new_instance[WORD_KEY] = [w.lower() for w in instance[WORD_KEY]]
+                yield new_instance
+            yield instance
+            count += 1
+
+
 def get_reader(reader_config, training_config=None):
     """
     Return a corpus reader for a given config.
@@ -533,6 +550,8 @@ def get_reader(reader_config, training_config=None):
             raise ValueError("Unexpected reader type: " + reader_config)
     if training_config and training_config.max_length > 0:
         reader = LengthFilter(length=training_config.max_length, reader=reader)
+    if training_config and training_config.duplicate_uncased > 0:
+        reader = DuplicateWithUncased(reader=reader, every_k=training_config.duplicate_uncased)
     return reader
 
 
