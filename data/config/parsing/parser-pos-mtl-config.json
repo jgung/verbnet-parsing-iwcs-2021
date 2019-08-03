@@ -32,7 +32,8 @@
         "indices": {
           "O": 0
         },
-        "unknown_word": "O",
+        "unknown_word": "dep",
+        "pad_word": "O",
         "padding_funcs": [
           {
             "type": "pad",
@@ -54,7 +55,7 @@
     ],
     "inputs": [
       {
-        "name": "fix_word",
+        "name": "fix-word",
         "key": "word",
         "mapping_funcs": [
           "lower"
@@ -73,7 +74,7 @@
         }
       },
       {
-        "name": "train_word",
+        "name": "train-word",
         "key": "word",
         "threshold": 2,
         "mapping_funcs": [
@@ -111,18 +112,18 @@
   },
   "encoders": [
     {
-      "name": "words_sum",
+      "name": "words-sum",
       "type": "sum",
       "inputs": [
-        "train_word",
-        "fix_word"
+        "train-word",
+        "fix-word"
       ]
     },
     {
       "name": "word-and-char",
       "type": "concat",
       "inputs": [
-        "words_sum",
+        "words-sum",
         "char"
       ]
     },
@@ -139,7 +140,7 @@
       "encoder_layers": 2
     },
     {
-      "name": "pos-and-word",
+      "name": "words-and-pos",
       "type": "concat",
       "inputs": [
         "pos",
@@ -150,7 +151,7 @@
       "name": "with-sentinel",
       "type": "sentinel",
       "inputs": [
-        "pos-and-word"
+        "words-and-pos"
       ]
     },
     {
@@ -171,6 +172,8 @@
       "encoder": "dep-blstm",
       "name": "deprel",
       "type": "parser",
+      "rel_mlp_size": 100,
+      "arc_mlp_size": 500,
       "mlp_dropout": 0.33
     },
     {

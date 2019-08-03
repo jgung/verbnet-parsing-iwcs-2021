@@ -22,8 +22,8 @@ class ParserHead(ModelHead):
 
         self.arc_probs = None
         self.rel_probs = None
-        self.n_tokens = None
         self.predictions = None
+        self.lens = self.features[constants.LENGTH_KEY] + 1  # plus one for sentinel
 
     def _all(self):
         inputs = get_encoder_input(self.inputs)
@@ -34,9 +34,8 @@ class ParserHead(ModelHead):
         def _mlp(size, name):
             return mlp(inputs, input_shape, self.config.mlp_dropout, size, self._training, name, n_splits=2)
 
-        arc_mlp_size, rel_mlp_size = 500, 100
-        dep_arc_mlp, head_arc_mlp = _mlp(arc_mlp_size, name="arc_mlp")  # (bn x d), where d == arc_mlp_size
-        dep_rel_mlp, head_rel_mlp = _mlp(rel_mlp_size, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
+        dep_arc_mlp, head_arc_mlp = _mlp(self.config.arc_mlp_size, name="arc_mlp")  # (bn x d), where d == arc_mlp_size
+        dep_rel_mlp, head_rel_mlp = _mlp(self.config.rel_mlp_size, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
 
         # apply binary biaffine classifier for arcs
         with tf.variable_scope("arc_bilinear_logits"):
@@ -49,11 +48,9 @@ class ParserHead(ModelHead):
             self.rel_logits = bilinear(dep_rel_mlp, head_rel_mlp, num_labels, self.n_steps)  # (b x n x r x n)
 
     def _train_eval(self):
-        # compute combined arc and rel losses (both via softmax cross entropy)
-        lens = self.features[constants.LENGTH_KEY]
-        _mask = tf.sequence_mask(lens, name="padding_mask")
-        self.mask = tf.concat([tf.fill([tf.shape(lens)[0], 1], True), _mask], axis=1)
+        self.mask = tf.sequence_mask(self.lens, name="padding_mask")
 
+        # compute combined arc and rel losses (both via softmax cross entropy)
         def compute_loss(logits, targets, name):
             with tf.variable_scope(name):
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=targets)
@@ -73,23 +70,23 @@ class ParserHead(ModelHead):
         # compute relations, and arc/prob probabilities for use in MST algorithm
         self.arc_probs = tf.nn.softmax(self.arc_logits)  # (b x n)
         self.rel_probs = tf.nn.softmax(self.rel_logits, axis=2)  # (b x n x r x n)
-        self.n_tokens = tf.cast(tf.reduce_sum(self.features[constants.LENGTH_KEY]), tf.int32)
         _rel_logits = select_logits(self.rel_logits, self.arc_predictions, self.n_steps)  # (b x n x r)
         self.predictions = tf.argmax(_rel_logits, axis=-1)  # (b x n)
 
     def _evaluation(self):
         # compute metrics, such as UAS, LAS, and LA
-        arc_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.arc_predictions, self.arc_targets)), self.mask)
-        rel_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.predictions, self.targets)), self.mask)
+        arc_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.arc_predictions[:, 1:], self.arc_targets[:, 1:])), self.mask)
+        rel_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.predictions[:, 1:], self.targets[:, 1:])), self.mask)
         n_arc_correct = tf.cast(tf.reduce_sum(arc_correct), tf.int32)
         n_rel_correct = tf.cast(tf.reduce_sum(rel_correct), tf.int32)
         correct = arc_correct * rel_correct
         n_correct = tf.cast(tf.reduce_sum(correct), tf.int32)
 
+        n_tokens = tf.cast(tf.reduce_sum(self.lens - 1), tf.int32)  # minus 1 for sentinel
         self.metric_ops = {
-            constants.UNLABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_arc_correct / self.n_tokens),
-            constants.LABEL_SCORE: tf.metrics.mean(n_rel_correct / self.n_tokens),
-            constants.LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / self.n_tokens),
+            constants.UNLABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_arc_correct / n_tokens),
+            constants.LABEL_SCORE: tf.metrics.mean(n_rel_correct / n_tokens),
+            constants.LABELED_ATTACHMENT_SCORE: tf.metrics.mean(n_correct / n_tokens),
         }
 
         overall_score = tf.identity(self.metric)
@@ -105,7 +102,7 @@ class ParserHead(ModelHead):
                 {
                     constants.ARC_PROBS: self.arc_probs,
                     constants.REL_PROBS: self.rel_probs,
-                    constants.LENGTH_KEY: self.features[constants.LENGTH_KEY],
+                    constants.LENGTH_KEY: self.lens,  # plus one for the sentinel
                     constants.HEAD_KEY: self.features[constants.HEAD_KEY],
                     constants.DEPREL_KEY: self.features[constants.DEPREL_KEY]
                 }, features=self.extractor, script_path=self.params.script_path,

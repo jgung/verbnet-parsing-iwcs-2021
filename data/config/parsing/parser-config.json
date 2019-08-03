@@ -1,10 +1,10 @@
 {
   "reader": "conll_2009",
   "batch_size": 100,
+  "ema_decay": 0.999,
   "checkpoint_epochs": 2,
-  "metric": "LAS",
   "optimizer": {
-    "name": "Adam",
+    "name": "LazyAdam",
     "params": {
       "beta1": 0.9,
       "beta2": 0.9
@@ -13,7 +13,6 @@
     "clip": 5.0
   },
   "features": {
-    "seq_feat": "fix_word",
     "targets": [
       {
         "name": "head",
@@ -45,7 +44,7 @@
     ],
     "inputs": [
       {
-        "name": "fix_word",
+        "name": "fix-word",
         "key": "word",
         "mapping_funcs": [
           "lower"
@@ -64,7 +63,7 @@
         }
       },
       {
-        "name": "train_word",
+        "name": "train-word",
         "key": "word",
         "threshold": 2,
         "mapping_funcs": [
@@ -80,7 +79,7 @@
       },
       {
         "name": "pos",
-        "key": "ppos",
+        "key": "pos",
         "threshold": 2,
         "config": {
           "dim": 100,
@@ -94,26 +93,32 @@
   },
   "encoders": [
     {
-      "name": "words_sum",
+      "name": "words-sum",
       "type": "sum",
       "inputs": [
-        "train_word",
-        "fix_word"
+        "train-word",
+        "fix-word"
       ]
     },
     {
-      "name": "words_and_pos",
+      "name": "words-and-pos",
       "type": "concat",
       "inputs": [
-        "words_sum",
+        "words-sum",
         "pos"
-      ],
-      "input_dropout": 0.0
+      ]
+    },
+    {
+      "name": "with-sentinel",
+      "type": "sentinel",
+      "inputs": [
+        "words-and-pos"
+      ]
     },
     {
       "name": "blstm",
       "inputs": [
-        "words_and_pos"
+        "with-sentinel"
       ],
       "encoder": "lstm",
       "state_size": 400,
@@ -128,6 +133,8 @@
       "encoder": "blstm",
       "name": "deprel",
       "type": "parser",
+      "rel_mlp_size": 100,
+      "arc_mlp_size": 500,
       "mlp_dropout": 0.33
     }
   ]
