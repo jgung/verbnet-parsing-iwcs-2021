@@ -14,6 +14,7 @@ from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
 from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
+from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_S_CASED_URL
@@ -37,8 +38,11 @@ def embedding(features, feature_config, training):
             tags.add("train")
         bert_module = hub.Module(BERT_S_CASED_URL, tags=tags, trainable=True)
 
+        lens = features[constants.LENGTH_KEY]
+        if constants.BERT_LENGTH_KEY in features:
+            lens = features[constants.BERT_LENGTH_KEY]
         if constants.BERT_SPLIT_INDEX in features:
-            max_sequence_length = tf.reduce_max(features[constants.LENGTH_KEY])
+            max_sequence_length = tf.reduce_max(lens)
             mask = tf.sequence_mask(features[constants.BERT_SPLIT_INDEX], maxlen=max_sequence_length)  # e.g. [1, 1, ..., 0, 0]
             segment_ids = tf.cast(tf.math.logical_not(mask), dtype=tf.int32)  # e.g. [0, 0, ..., 1, 1]
         else:
@@ -47,7 +51,7 @@ def embedding(features, feature_config, training):
         bert_inputs = dict(
             input_ids=tf.cast(features[constants.BERT_KEY], tf.int32),
             # mask over the sequence lengths, which extend over all BERT tokens in input_ids for each seq in the batch
-            input_mask=tf.cast(tf.sequence_mask(features[constants.LENGTH_KEY]), dtype=tf.int32),
+            input_mask=tf.cast(tf.sequence_mask(lens), dtype=tf.int32),
             # we don't care about segment_ids since we're not supporting sentence pair tasks for now
             segment_ids=segment_ids)
 
@@ -145,6 +149,8 @@ def encoder(features, inputs, mode, config):
             return transformer_encoder(inputs[0], features[config.sequence_length_key], training, config)
         elif constants.ENCODER_SENTINEL == encoder_type:
             return add_sentinel(inputs)
+        elif constants.ENCODER_REMOVE_SUBTOKENS == encoder_type:
+            return remove_subtokens(inputs, features[constants.SEQUENCE_MASK])
         else:
             raise ValueError('No encoder of type "{}" available'.format(encoder_type))
 
@@ -160,6 +166,16 @@ def add_sentinel(inputs):
     tiled = tf.tile(tf.reshape(sentinel, [1, 1, inputs.shape[-1]]), [shape[0], 1, 1])
     result = tf.concat([tiled, inputs], axis=1)
     return result
+
+
+def remove_subtokens(inputs, mask):
+    """
+    Remove wordpiece subtokens.
+    """
+    if len(inputs) != 1:
+        raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_REMOVE_SUBTOKENS)
+    inputs = get_encoder_input(inputs[0])
+    return boolean_mask(inputs, tf.cast(mask, tf.bool), keepdims=True).to_tensor()
 
 
 def repeat(inputs, token_indices):

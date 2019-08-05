@@ -8,7 +8,6 @@ import tensorflow_hub as hub
 from bert.tokenization import FullTokenizer
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
-
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_S_CASED_URL, BERT_CLS, BERT_SEP, BERT_SUBLABEL
 from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, \
@@ -175,6 +174,7 @@ class FeatureConfig(Params):
         config = feature.get('config', Params())
         self.config = FeatureHyperparameters(config, self)
         self.constraint_key = feature.get('constraint_key')
+        self.drop_subtokens = feature.get('drop_subtokens', False)
 
 
 class FeaturesConfig(object):
@@ -226,11 +226,12 @@ def get_feature_extractor(config):
     # load default configurations
     config = FeaturesConfig(config)
 
-    if constants.BERT_KEY in [inp.name for inp in config.inputs]:
+    bert_feat = next(iter([inp for inp in config.inputs if inp.name == constants.BERT_KEY]), None)
+    if bert_feat:
         tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
-        feats = [feat for feat in config.inputs if feat.name != constants.BERT_KEY]
         contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
-        return BertFeatureExtractor(targets=config.targets, features=feats, srl=contains_marker)
+        return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=contains_marker,
+                                    drop_subtokens=bert_feat.options['drop_subtokens'])
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
@@ -250,6 +251,7 @@ class DummyExtractor(object):
     def __init__(self, name, rank=-1, **kwargs) -> None:
         self.name = name
         self.rank = rank
+        self.options = {**kwargs}
 
     def has_vocab(self):
         return False
@@ -716,14 +718,14 @@ def get_feature_spec(extractors):
     context_features = {}
     sequence_features = {}
     for feature in extractors:
-        if feature.rank == 1:
+        if type(feature) == DummyExtractor:
+            continue  # dummy feature
+        elif feature.rank == 1:
             context_features[feature.name] = tf.FixedLenFeature([], dtype=feature.dtype)
         elif feature.rank == 2:
             sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=feature.dtype)
         elif feature.rank == 3:
             sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=feature.dtype)
-        elif feature.rank < 0:
-            continue  # dummy feature
         else:
             raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
 
@@ -733,14 +735,14 @@ def get_feature_spec(extractors):
 def get_shapes(extractors):
     shapes = {}
     for feature in extractors:
-        if feature.rank == 3:
+        if type(feature) == DummyExtractor:
+            continue  # dummy feature
+        elif feature.rank == 3:
             shapes[feature.name] = tf.TensorShape([None, feature.max_len])
         elif feature.rank == 2:
             shapes[feature.name] = tf.TensorShape([None])
         elif feature.rank == 1:
             shapes[feature.name] = tf.TensorShape([])
-        elif feature.rank < 0:
-            continue  # dummy feature
         else:
             raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
 
@@ -750,7 +752,7 @@ def get_shapes(extractors):
 def get_padding(extractors):
     padding = {}
     for feature in extractors:
-        if feature.rank < 0:
+        if type(feature) == DummyExtractor:
             continue  # dummy feature
         if feature.dtype == tf.string:
             if feature.has_vocab():
@@ -872,7 +874,7 @@ class FeatureExtractor(BaseFeatureExtractor):
         feature_list = {}
         features = {}
         for feature in self.extractors(train):
-            if feature.rank < 0:
+            if type(feature) == DummyExtractor:
                 # dummy feature
                 continue
             feat = feature.extract(instance)
@@ -941,10 +943,11 @@ class BertLengthFeature(Extractor):
 
 
 class BertFeatureExtractor(BaseFeatureExtractor):
-    def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL) -> None:
+    def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL, drop_subtokens=False) -> None:
         super().__init__()
         self.srl = srl
         self.label_subtokens = True
+        self.drop_subtokens = drop_subtokens
         bert_module = hub.Module(model)
         tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
         with tf.Session() as sess:
@@ -953,12 +956,15 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         self.tokenizer = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
         self.targets = {target.name: target for target in targets}
+
+        len_name = constants.BERT_LENGTH_KEY if self.drop_subtokens else constants.LENGTH_KEY
         self.features = {
-            LENGTH_KEY: BertLengthFeature(self.tokenizer, srl=srl),
+            len_name: BertLengthFeature(self.tokenizer, srl=srl, name=len_name),
             SENTENCE_INDEX: index_feature(),
-            constants.BERT_KEY: DummyExtractor(constants.BERT_KEY),
             **{feature.name: feature for feature in features}
         }
+        if drop_subtokens:
+            self.features[LENGTH_KEY] = LengthFeature(SequenceFeature(LENGTH_KEY, constants.WORD_KEY))
 
     def extractors(self, train=True):
         if train:
@@ -977,12 +983,17 @@ class BertFeatureExtractor(BaseFeatureExtractor):
                 extractor.train(instance)
 
     def extract(self, instance, train=True):
+        if self.srl and self.drop_subtokens:
+            raise AssertionError('SRL does not yet support "drop_subtokens=True"')
         # (1) split up labels and words by subtokens generated by wordpiece_tokenizer -------------------------------------------
         target_seqs = {}
         split_labels = {}
         if train:
             target_seqs = {target.name: target.get_values(instance) for target in self.targets.values() if target.rank == 2}
-            split_labels = {target: [BERT_SUBLABEL] for target in target_seqs.keys()}
+            if self.drop_subtokens:
+                split_labels = target_seqs
+            else:
+                split_labels = {target: [BERT_SUBLABEL] for target in target_seqs.keys()}
         split_tokens = [BERT_CLS]
 
         mask = [0]
@@ -1004,13 +1015,13 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             mask.append(1)
             mask.extend([0] * (len(sub_tokens) - 1))
 
-            if not train:
+            if not train or self.drop_subtokens:
                 continue
 
             for target, labels in target_seqs.items():
                 label = labels[i]
                 split_labels[target].append(label)
-                if self.label_subtokens:
+                if not self.label_subtokens:
                     if len(label) > 2 and label[:2] == 'B-':
                         label = 'I-' + label[2:]
                     # else label = label
@@ -1021,7 +1032,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         split_tokens.append(BERT_SEP)
         mask.append(0)
 
-        if train:
+        if train and not self.drop_subtokens:
             for labels in split_labels.values():
                 labels.append(BERT_SUBLABEL)
 
@@ -1033,7 +1044,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             split_tokens.extend(predicate_subtokens)
             split_tokens.append(BERT_SEP)
             mask.extend((1 + len(predicate_subtokens)) * [0])
-            if train:
+            if train and not self.drop_subtokens:
                 for target, labels in split_labels.items():
                     labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
 
@@ -1044,8 +1055,12 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         features = {}
 
         for name, labels in split_labels.items():
-            assert len(labels) == len(ids)
-            feature_list[name] = str_feature_list(labels)  # labels
+            if not self.drop_subtokens:
+                assert len(labels) == len(ids)
+            if self.target(name).dtype == tf.int64:
+                feature_list[name] = int64_feature_list(labels)
+            else:
+                feature_list[name] = str_feature_list(labels)
 
         feature_list[constants.BERT_KEY] = int64_feature_list(ids)  # BERT wordpiece token indices
         feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
@@ -1061,7 +1076,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
                 features[name] = str_feature(label)
 
         for feature in self.extractors(False):
-            if feature.rank < 0 or feature.name == constants.MARKER_KEY:  # dummy feature
+            if type(feature) == DummyExtractor or feature.name == constants.MARKER_KEY:  # dummy feature
                 continue
             feat = feature.extract(instance)
             if isinstance(feat, tf.train.FeatureList):
