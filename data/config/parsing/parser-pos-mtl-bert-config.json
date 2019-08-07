@@ -51,11 +51,7 @@
           "X": 1
         },
         "unknown_word": "NN",
-        "pad_word": "O",
-        "config": {
-          "dim": 100,
-          "dropout": 0.33
-        }
+        "pad_word": "O"
       }
     ],
     "inputs": [
@@ -74,30 +70,10 @@
       ]
     },
     {
-      "name": "pos-blstm",
-      "inputs": [
-        "bert-no-subtokens"
-      ],
-      "encoder": "lstm",
-      "state_size": 128,
-      "encoder_dropout": 0.33,
-      "encoder_input_dropout": 0.33,
-      "forget_bias": 1,
-      "encoder_layers": 2
-    },
-    {
-      "name": "word-and-pos",
-      "type": "concat",
-      "inputs": [
-        "pos",
-        "bert-no-subtokens"
-      ]
-    },
-    {
       "name": "with-sentinel",
       "type": "sentinel",
       "inputs": [
-        "word-and-pos"
+        "bert-no-subtokens"
       ]
     },
     {
@@ -123,7 +99,7 @@
       "mlp_dropout": 0.33
     },
     {
-      "encoder": "pos-blstm",
+      "encoder": "bert-no-subtokens",
       "name": "pos",
       "type": "tagger",
       "metric": "Accuracy",

@@ -211,7 +211,7 @@ class TaggerHead(ModelHead):
 
     def __init__(self, inputs, config, features, params, training=False):
         super().__init__(inputs, config, features, params, training)
-        if constants.BERT_SPLIT_INDEX in self.features:
+        if constants.BERT_SPLIT_INDEX in self.features and constants.BERT_LENGTH_KEY not in self.features:
             self._sequence_lengths = self.features[constants.BERT_SPLIT_INDEX]
         else:
             self._sequence_lengths = self.features[constants.LENGTH_KEY]
