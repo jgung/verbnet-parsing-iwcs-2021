@@ -16,10 +16,10 @@
       }
     }
   },
+  "duplicate_uncased": 2,
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
-  "max_length": 64,
   "optimizer": {
     "name": "bert",
     "lr": {
@@ -35,8 +35,7 @@
         "name": "gold",
         "key": "gold",
         "indices": {
-          "O": 0,
-          "X": 1
+          "O": 0
         },
         "unknown_word": "O",
         "pad_word": "O"
@@ -45,8 +44,7 @@
         "name": "ft",
         "key": "ft",
         "indices": {
-          "O": 0,
-          "X": 1
+          "O": 0
         },
         "unknown_word": "O",
         "pad_word": "O"
@@ -54,7 +52,8 @@
     ],
     "inputs": [
       {
-        "name": "bert"
+        "name": "bert",
+        "drop_subtokens": true
       },
       {
         "name": "marker",
@@ -72,10 +71,17 @@
   },
   "encoders": [
     {
+      "name": "bert-no-subtokens",
+      "type": "remove_subtokens",
+      "inputs": [
+        "bert"
+      ]
+    },
+    {
       "name": "tokens",
       "type": "concat",
       "inputs": [
-        "bert",
+        "bert-no-subtokens",
         "marker"
       ],
       "input_dropout": 0.1
@@ -89,8 +95,7 @@
       "state_size": 768,
       "encoder_dropout": 0.1,
       "encoder_output_dropout": 0.1,
-      "encoder_layers": 1,
-      "sequence_length_key": "bert_split_idx"
+      "encoder_layers": 1
     },
     {
       "name": "predicate",

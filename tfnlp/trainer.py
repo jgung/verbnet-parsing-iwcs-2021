@@ -85,7 +85,7 @@ class Trainer(object):
 
         # read and extract features from training/validation data, serialize to disk
         self._extract_and_write(train)
-        self._extract_and_write(valid)
+        self._extract_and_write(valid, test=True)
 
         if feats_only:
             return

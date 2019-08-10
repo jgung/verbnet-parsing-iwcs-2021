@@ -12,6 +12,7 @@
     },
     "clip": 1.0
   },
+  "duplicate_uncased": 2,
   "features": {
     "targets": [
       {
