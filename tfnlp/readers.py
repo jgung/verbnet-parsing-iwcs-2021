@@ -191,6 +191,7 @@ class MultiConllReader(object):
 class ConllDepReader(ConllReader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.extract_invalid = False
 
     def read_instances(self, rows):
         instances = [self.read_fields(rows)]
@@ -199,6 +200,8 @@ class ConllDepReader(ConllReader):
                 instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
             except ValueError:
                 tf.logging.warning('Unable to read instance: %s', ' '.join(instance[WORD_KEY]))
+                if self.extract_invalid:
+                    return [None]
                 return []
             if self.label_field is not None:
                 instance[LABEL_KEY] = instance[self.label_field][:]
