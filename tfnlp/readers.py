@@ -267,7 +267,8 @@ class ConllSrlReader(ConllReader):
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
             self.prop_count += 1
-
+            if HEAD_KEY in instance:
+                instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
             if SENSE_KEY in instance:
                 instance[SENSE_KEY] = str(instance[SENSE_KEY][predicate_index])
 

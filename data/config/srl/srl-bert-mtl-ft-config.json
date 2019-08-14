@@ -16,7 +16,6 @@
       }
     }
   },
-  "duplicate_uncased": 2,
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
