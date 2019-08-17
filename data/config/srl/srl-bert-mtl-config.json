@@ -19,7 +19,7 @@
     }
   },
   "checkpoint_epochs": 0.5,
-  "max_epochs": 8,
+  "max_epochs": 16,
   "batch_size": 16,
   "optimizer": {
     "name": "bert",
