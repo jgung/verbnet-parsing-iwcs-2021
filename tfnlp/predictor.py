@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Iterable, List, Union
+from typing import Callable, Iterable, List, Union, Tuple
 
 import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
@@ -25,11 +25,15 @@ class Predictor(object):
 
     def __init__(self, predictor: Callable[[Iterable[str]], dict], parser_function: Callable[[str], Iterable[dict]],
                  feature_function: Callable[[dict], str], formatter: [[object, dict], str],
-                 batcher: Callable[[List[str], Callable[[Iterable[str]], dict]], List[dict]]) -> None:
+                 batcher: Callable[[Iterable[dict], Callable[[Iterable[dict]], dict]], Iterable[Tuple[dict, dict]]]) -> None:
         super().__init__()
-        self._predictor = predictor
+
+        def _predictor_from_dict(raw_feats: Iterable[dict]) -> dict:
+            processed = [feature_function(raw) for raw in raw_feats]
+            return predictor(processed)
+
+        self._predictor = _predictor_from_dict
         self._parser_function = parser_function
-        self._feature_function = feature_function
         self._formatter = formatter
         self._batcher = batcher
 
@@ -43,46 +47,47 @@ class Predictor(object):
         inputs = self._parser_function(text)
         return self.predict_parsed(inputs, formatted)
 
-    def predict_parsed(self, inputs: Iterable[dict], formatted: bool = True) -> Union[List[str], List[dict]]:
+    def predict_parsed(self, inputs: Iterable[dict], formatted: bool = True) -> Union[List[str], Iterable[dict]]:
         """
         Predict from a list of pre-parsed instance dictionaries.
         :param inputs: input dictionaries
         :param formatted: if True, return a textual representation of output
         :return: return a list of results corresponding to each input instance dictionary
         """
-        examples = []
-        for processed_input in inputs:
-            examples.append(self._feature_function(processed_input))
-
-        predictions = self._batcher(examples, self._predictor)
-
-        if not formatted:
-            return predictions
-
-        formatted = []
-        for prediction, processed_input in zip(predictions, inputs):
-            formatted.append(self._formatter(prediction, processed_input))
-        return formatted
+        for processed_input, prediction in self._batcher(inputs, self._predictor):
+            if not formatted:
+                yield prediction
+            else:
+                yield self._formatter(prediction, processed_input)
 
 
-def default_batching_function(batch_size: int) -> Callable[[List[str], Callable[[Iterable[str]], dict]], List[dict]]:
+def default_batching_function(batch_size: int) -> Callable[[Iterable[dict], Callable[[Iterable[dict]], dict]],
+                                                           Iterable[Tuple[dict, dict]]]:
     """
     Returns a function that performs batching over a list of serialized examples, and returns a list of resulting dictionaries.
     :param batch_size: maximum batch size to use (limited by input Predictor's max batch size)
     """
 
-    def _batch_fn(examples: List[str], predictor: Callable[[Iterable[str]], dict]):
-        results = []
-        for i in range(0, len(examples), batch_size):
-            batch_end = min(i + batch_size, len(examples))
-            batch = examples[i:batch_end]
-            result = predictor(batch)
-            for idx in range(len(batch)):
+    def _batch_fn(examples: Iterable[dict], predictor: Callable[[Iterable[dict]], dict]) -> Iterable[Tuple[dict, dict]]:
+
+        curr_batch = []
+
+        def _single_batch(_batch):
+            result = predictor(_batch)
+            for idx in range(len(_batch)):
                 single_result = {}
                 for key, val in result.items():
                     single_result[key] = val[idx]
-                results.append(single_result)
-        return results
+                yield _batch[idx], single_result
+
+        for example in examples:
+            if len(curr_batch) == batch_size:
+                yield from _single_batch(curr_batch)
+                curr_batch = []
+            curr_batch.append(example)
+
+        if len(curr_batch) > 0:
+            yield from _single_batch(curr_batch)
 
     return _batch_fn
 

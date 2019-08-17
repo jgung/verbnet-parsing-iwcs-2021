@@ -125,11 +125,10 @@ class Trainer(object):
                                           self._feature_extractor, output_path, self._eval_script_path)
 
             # extract instances from test file at given path--this is a generator, so wrap in a list
-            instances = list(self._extract_raw(test_set, True))
             # predict from instances instead of raw text, so use .predict_inputs, don't format since we need the raw predictions
-            processed_examples = predictor.predict_parsed(instances, formatted=False)
+            processed_examples = predictor.predict_parsed(self._extract_raw(test_set, True), formatted=False)
             # call evaluation function on predictions
-            evaluation_fn(instances, processed_examples)
+            evaluation_fn(self._extract_raw(test_set, True), processed_examples)
 
     def predict(self, test_paths: Union[str, Iterable[str]]) -> None:
         """

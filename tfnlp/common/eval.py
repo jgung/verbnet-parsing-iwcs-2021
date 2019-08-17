@@ -185,12 +185,16 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
 
 def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features, out_path, gold_path):
     sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs, features)
+    parser_write_and_eval_preds(zip(sys_heads, sys_rels, heads, rels), script_path, out_path, gold_path)
 
-    line_func = _conllx_line if 'conllx' in script_path else _conll09_line
+
+def parser_write_and_eval_preds(data, script_path, out_path, gold_path):
+    line_func = to_conllx_line if 'conllx' in script_path else to_conll09_line
 
     with file_io.FileIO(out_path, 'w') as system_file, file_io.FileIO(gold_path, 'w') as gold_file:
-        write_parse_results_to_file(sys_heads, sys_rels, system_file, line_func)
-        write_parse_results_to_file(heads, rels, gold_file, line_func)
+        for sys_heads, sys_rels, heads, rels in data:
+            write_parse_result_to_file(sys_heads, sys_rels, system_file, line_func)
+            write_parse_result_to_file(heads, rels, gold_file, line_func)
 
     return subprocess.check_output(['perl', script_path, '-g', gold_path, '-s', out_path, '-q'], universal_newlines=True)
 
@@ -215,7 +219,7 @@ def get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat=None):
     return arc_preds, rel_preds
 
 
-def _conllx_line(index, arc_pred, rel_pred):
+def to_conllx_line(index, arc_pred, rel_pred):
     # ID FORM LEMMA CPOS POS FEAT HEAD DEPREL PHEAD PDEPREL
     fields = ['_'] * 10
     fields[0] = str(index + 1)
@@ -225,7 +229,7 @@ def _conllx_line(index, arc_pred, rel_pred):
     return fields
 
 
-def _conll09_line(index, arc_pred, rel_pred):
+def to_conll09_line(index, arc_pred, rel_pred):
     # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
     fields = ['_'] * 15
     fields[0] = str(index + 1)
@@ -237,12 +241,11 @@ def _conll09_line(index, arc_pred, rel_pred):
     return fields
 
 
-def write_parse_results_to_file(heads, rels, file, line_func=_conllx_line):
-    for sentence_heads, sentence_rels in zip(heads, rels):
-        for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
-            fields = line_func(index, arc_pred, rel_pred)
-            file.write('\t'.join(fields) + '\n')
-        file.write('\n')
+def write_parse_result_to_file(sentence_heads, sentence_rels, file, line_func=to_conllx_line):
+    for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
+        fields = line_func(index, arc_pred, rel_pred)
+        file.write('\t'.join(fields) + '\n')
+    file.write('\n')
 
 
 def log_trainable_variables():
