@@ -28,8 +28,7 @@
         "name": "gold",
         "key": "gold",
         "indices": {
-          "O": 0,
-          "X": 1
+          "O": 0
         },
         "unknown_word": "O",
         "pad_word": "O"
@@ -37,7 +36,8 @@
     ],
     "inputs": [
       {
-        "name": "bert"
+        "name": "bert",
+        "drop_subtokens": true
       },
       {
         "name": "vncls",
@@ -71,10 +71,17 @@
   },
   "encoders": [
     {
-      "name": "subtokens",
+      "name": "bert-no-subtokens",
+      "type": "remove_subtokens",
+      "inputs": [
+        "bert"
+      ]
+    },
+    {
+      "name": "with-marker",
       "type": "concat",
       "inputs": [
-        "bert",
+        "bert-no-subtokens",
         "marker"
       ]
     },
@@ -83,7 +90,7 @@
       "type": "repeat_and_concat",
       "inputs": [
         "vncls",
-        "subtokens"
+        "with-marker"
       ],
       "input_dropout": 0.1
     },
@@ -96,8 +103,7 @@
       "state_size": 768,
       "encoder_dropout": 0.1,
       "encoder_output_dropout": 0.1,
-      "encoder_layers": 1,
-      "sequence_length_key": "bert_split_idx"
+      "encoder_layers": 1
     },
     {
       "name": "predicate",
