@@ -70,7 +70,7 @@ class ClassifierEvalHook(EvalHook):
                                                                               constraint_keys):
             instance[self._target.key] = self._target.index_to_feat(gold)
             result[self._target.name] = self._target.index_to_feat(prediction)
-            result[self._score_name] = {self._target.index_to_feat(i): score for i, score in enumerate(scores)}
+            result[self._score_name] = scores
             if self._target.constraints:
                 instance[self._target.constraint_key] = constraint_key.decode('utf-8')
 

@@ -79,7 +79,7 @@ def default_batching_function(batch_size: int) -> Callable[[Iterable[dict], Call
                 single_result = {}
                 for key, val in result.items():
                     value = val[idx]
-                    if not np.issubdtype(value.dtype, np.number) and len(value.shape) > 0:
+                    if isinstance(value, np.ndarray) and not np.issubdtype(value.dtype, np.number) and len(value.shape) > 0:
                         value = binary_np_array_to_unicode(value)
                     single_result[key] = value
                 yield _batch[idx], single_result

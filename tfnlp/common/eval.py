@@ -166,9 +166,8 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
     if output_file:
         with file_io.FileIO(output_file, 'w') as _out_file:
             # sort by sentence index to maintain original order of instances
-            for predicted, index in sorted(zip(predicted_labels, indices), key=lambda k: k[1]):
-                _out_file.write("{}\t{}\n".format(index, predicted))
-                _out_file.write("\n")  # sentence break
+            for predicted, index, gold in sorted(zip(predicted_labels, indices, gold_labels), key=lambda k: k[1]):
+                _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
 
     cm = ConfusionMatrix(gold_labels, predicted_labels)
     tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))

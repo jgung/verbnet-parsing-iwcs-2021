@@ -108,7 +108,7 @@ class TokenClassifierEvaluator(Evaluator):
 
     def accumulate(self, instance, result):
         if self.target.constraints:
-            scores = result[self.scores_name]
+            scores = {self.target.index_to_feat(i): score for i, score in enumerate(result[self.scores_name])}
             ck = instance[self.target.constraint_key]
             valid_scores = {label: score for label, score in scores.items() if label in self.target.constraints.get(ck, [])}
             label = max(valid_scores.items(), key=lambda x: x[1], default=(constants.UNKNOWN_WORD, 0))[0]
