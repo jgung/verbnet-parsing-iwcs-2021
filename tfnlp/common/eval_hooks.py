@@ -1,4 +1,5 @@
 import tensorflow as tf
+from common.config import append_label
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
@@ -55,6 +56,7 @@ class EvalHook(session_run_hook.SessionRunHook):
 class ClassifierEvalHook(EvalHook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._score_name = append_label(LABEL_SCORES, self._target.name)
 
     def _create_instances(self, run_context, run_values):
         instances, results = super()._create_instances(run_context, run_values)
@@ -68,9 +70,9 @@ class ClassifierEvalHook(EvalHook):
                                                                               constraint_keys):
             instance[self._target.key] = self._target.index_to_feat(gold)
             result[self._target.name] = self._target.index_to_feat(prediction)
-            result[LABEL_SCORES] = {self._target.index_to_feat(i): score for i, score in enumerate(scores)}
+            result[self._score_name] = {self._target.index_to_feat(i): score for i, score in enumerate(scores)}
             if self._target.constraints:
-                result[self._target.constraint_key] = constraint_key.decode('utf-8')
+                instance[self._target.constraint_key] = constraint_key.decode('utf-8')
 
         return instances, results
 
@@ -117,7 +119,7 @@ class SrlEvalHook(SequenceEvalHook):
         if self._output_dir:
             step = session.run(tf.train.get_global_step(session.graph))
             append_srl_prediction_output(str(step),
-                                         self._evaluator.metric,
+                                         self._evaluator.summary,
                                          self._output_dir,
                                          output_confusions=self._output_confusions)
 

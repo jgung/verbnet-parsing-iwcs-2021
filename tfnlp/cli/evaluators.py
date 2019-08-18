@@ -1,4 +1,3 @@
-import os
 import subprocess
 from typing import List
 
@@ -8,9 +7,9 @@ from common.config import append_label
 from tensorflow.python.lib.io import file_io
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
-from tfnlp.common.eval import append_srl_prediction_output, write_props_to_file, accuracy_eval, get_parse_prediction, \
-    to_conll09_line, to_conllx_line, write_parse_result_to_file
 from tfnlp.common.eval import conll_eval, conll_srl_eval
+from tfnlp.common.eval import write_props_to_file, accuracy_eval, get_parse_prediction, \
+    to_conll09_line, to_conllx_line, write_parse_result_to_file
 
 
 def get_evaluator(heads, feature_extractor, output_path, script_path):
@@ -99,6 +98,7 @@ class TokenClassifierEvaluator(Evaluator):
         self.gold = None
         self.indices = None
         self.target_key = constants.LABEL_KEY if not self.target.name else self.target.name
+        self.labels_key = constants.LABEL_KEY if not self.target.key else self.target.key
         self.scores_name = append_label(constants.LABEL_SCORES, self.target_key)
 
     def start(self):
@@ -115,7 +115,7 @@ class TokenClassifierEvaluator(Evaluator):
             self.labels.append(label)
         else:
             self.labels.append(result[self.target_key].decode('utf-8'))
-        self.gold.append(instance[self.target.key])
+        self.gold.append(instance[self.labels_key])
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
     def evaluate(self):
@@ -234,9 +234,5 @@ class SrlEvaluator(TaggerEvaluator):
 
         result = conll_srl_eval(self.gold, self.labels, self.markers, self.indices)
         tf.logging.info(str(result))
-
-        # append results to summary file
-        job_dir = os.path.dirname(self.output_path)
-        append_srl_prediction_output(os.path.basename(self.output_path), result, job_dir, output_confusions=True)
 
         self.metric, self.summary = result.evaluation.prec_rec_f1()[2], result
