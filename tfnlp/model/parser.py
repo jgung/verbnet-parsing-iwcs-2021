@@ -1,6 +1,9 @@
+import os
+
 import tensorflow as tf
 
 import tfnlp.common.constants as constants
+from cli.evaluators import DepParserEvaluator
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ParserEvalHook
 from tfnlp.layers.heads import ModelHead
@@ -75,8 +78,10 @@ class ParserHead(ModelHead):
 
     def _evaluation(self):
         # compute metrics, such as UAS, LAS, and LA
-        arc_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.arc_predictions[:, 1:], self.arc_targets[:, 1:])), self.mask)
-        rel_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.predictions[:, 1:], self.targets[:, 1:])), self.mask)
+        arc_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.arc_predictions[:, 1:], self.arc_targets[:, 1:])),
+                                      self.mask[:, 1:])
+        rel_correct = tf.boolean_mask(tf.to_int32(tf.equal(self.predictions[:, 1:], self.targets[:, 1:])),
+                                      self.mask[:, 1:])
         n_arc_correct = tf.cast(tf.reduce_sum(arc_correct), tf.int32)
         n_rel_correct = tf.cast(tf.reduce_sum(rel_correct), tf.int32)
         correct = arc_correct * rel_correct
@@ -104,8 +109,14 @@ class ParserHead(ModelHead):
                     constants.REL_PROBS: self.rel_probs,
                     constants.LENGTH_KEY: self.lens,  # plus one for the sentinel
                     constants.HEAD_KEY: self.features[constants.HEAD_KEY],
-                    constants.DEPREL_KEY: self.features[constants.DEPREL_KEY]
-                }, features=self.extractor, script_path=self.params.script_path,
+                    constants.DEPREL_KEY: self.features[constants.DEPREL_KEY],
+                    constants.SENTENCE_INDEX: self.features[constants.SENTENCE_INDEX]
+                },
+                evaluator=DepParserEvaluator(
+                    target=self.extractor,
+                    output_path=os.path.join(self.params.job_dir, self.name + '.dev'),
+                    script_path=self.params.script_path
+                ),
                 eval_update=tf.assign(self.metric, eval_placeholder),
                 eval_placeholder=eval_placeholder,
                 output_dir=self.params.job_dir

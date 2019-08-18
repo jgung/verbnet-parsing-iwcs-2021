@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from cli.evaluators import TaggerEvaluator, SrlEvaluator, TokenClassifierEvaluator
 from tensorflow.contrib.crf.python.ops import crf
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 from tfnlp.common import constants
@@ -158,10 +159,16 @@ class ClassifierHead(ModelHead):
                 label_key=labels_key,
                 predict_key=predictions_key,
                 tensors=tensors,
-                vocab=self.extractor,
+                evaluator=TokenClassifierEvaluator(
+                    target=self.extractor,
+                    output_path=os.path.join(self.params.job_dir, self.name + '.dev')),
                 output_dir=self.params.job_dir
             )
         ]
+
+    def _prediction(self):
+        super()._prediction()
+        self.export_outputs[append_label(constants.LABEL_SCORES, self.name)] = self.scores
 
 
 def select_by_token_index(states, indices):
@@ -294,7 +301,9 @@ class TaggerHead(ModelHead):
             self.evaluation_hooks.append(
                 SrlEvalHook(
                     tensors=eval_tensors,
-                    vocab=self.extractor,
+                    evaluator=SrlEvaluator(
+                        target=self.extractor,
+                        output_path=os.path.join(self.params.job_dir, self.name + '.dev')),
                     label_key=labels_key,
                     predict_key=predictions_key,
                     eval_update=tf.assign(self.metric, eval_placeholder),
@@ -307,7 +316,9 @@ class TaggerHead(ModelHead):
             self.evaluation_hooks.append(
                 SequenceEvalHook(
                     tensors=eval_tensors,
-                    vocab=self.extractor,
+                    evaluator=TaggerEvaluator(
+                        target=self.extractor,
+                        output_path=os.path.join(self.params.job_dir, self.name + '.dev')),
                     label_key=labels_key,
                     predict_key=predictions_key,
                     eval_update=tf.assign(self.metric, eval_placeholder),

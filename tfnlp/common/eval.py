@@ -1,6 +1,5 @@
 import os
 import re
-import subprocess
 from collections import defaultdict
 from typing import Iterable, Tuple, Dict, List
 
@@ -181,32 +180,6 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
     accuracy = correct / total
     tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
     return accuracy
-
-
-def parser_write_and_eval(arc_probs, rel_probs, heads, rels, script_path, features, out_path, gold_path):
-    sys_heads, sys_rels = get_parse_predictions(arc_probs, rel_probs, features)
-    parser_write_and_eval_preds(zip(sys_heads, sys_rels, heads, rels), script_path, out_path, gold_path)
-
-
-def parser_write_and_eval_preds(data, script_path, out_path, gold_path):
-    line_func = to_conllx_line if 'conllx' in script_path else to_conll09_line
-
-    with file_io.FileIO(out_path, 'w') as system_file, file_io.FileIO(gold_path, 'w') as gold_file:
-        for sys_heads, sys_rels, heads, rels in data:
-            write_parse_result_to_file(sys_heads, sys_rels, system_file, line_func)
-            write_parse_result_to_file(heads, rels, gold_file, line_func)
-
-    return subprocess.check_output(['perl', script_path, '-g', gold_path, '-s', out_path, '-q'], universal_newlines=True)
-
-
-def get_parse_predictions(arc_probs, rel_probs, rel_feat):
-    heads = []
-    rels = []
-    for arc_prob_matrix, rel_prob_tensor in zip(arc_probs, rel_probs):
-        arc_preds, rel_preds = get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat)
-        rels.append(rel_preds)
-        heads.append(arc_preds)
-    return heads, rels
 
 
 def get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat=None):

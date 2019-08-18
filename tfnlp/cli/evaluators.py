@@ -4,13 +4,13 @@ from typing import List
 
 import numpy as np
 import tensorflow as tf
+from common.config import append_label
 from tensorflow.python.lib.io import file_io
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.eval import append_srl_prediction_output, write_props_to_file, accuracy_eval, get_parse_prediction, \
     to_conll09_line, to_conllx_line, write_parse_result_to_file
 from tfnlp.common.eval import conll_eval, conll_srl_eval
-from tfnlp.common.utils import binary_np_array_to_unicode
 
 
 def get_evaluator(heads, feature_extractor, output_path, script_path):
@@ -41,6 +41,9 @@ class Evaluator(object):
         self.output_path = output_path
         self.script_path = script_path
 
+        self.metric = 0
+        self.summary = ''
+
     def __call__(self, labeled_instances, results):
         """
         Perform standard evaluation on a given list of gold labeled instances.
@@ -55,7 +58,7 @@ class Evaluator(object):
             if count % 1024 == 0:
                 tf.logging.info("...Accumulated %d instances for evaluation.", count)
         tf.logging.info("Evaluating on %d instances...", count)
-        self.finish()
+        self.evaluate()
 
     def start(self):
         pass
@@ -63,7 +66,7 @@ class Evaluator(object):
     def accumulate(self, instance, result):
         pass
 
-    def finish(self):
+    def evaluate(self):
         pass
 
 
@@ -80,9 +83,13 @@ class AggregateEvaluator(Evaluator):
         for evaluator in self._evaluators:
             evaluator.accumulate(instance, result)
 
-    def finish(self):
+    def evaluate(self):
+        total, summaries = 0, []
         for evaluator in self._evaluators:
-            evaluator.finish()
+            evaluator.evaluate()
+            total += evaluator.metric
+            summaries.append(str(evaluator.summary))
+        self.metric, self.summary = total / len(self._evaluators), '\n'.join(summaries)
 
 
 class TokenClassifierEvaluator(Evaluator):
@@ -92,6 +99,7 @@ class TokenClassifierEvaluator(Evaluator):
         self.gold = None
         self.indices = None
         self.target_key = constants.LABEL_KEY if not self.target.name else self.target.name
+        self.scores_name = append_label(constants.LABEL_SCORES, self.target_key)
 
     def start(self):
         self.labels = []
@@ -99,12 +107,19 @@ class TokenClassifierEvaluator(Evaluator):
         self.indices = []
 
     def accumulate(self, instance, result):
-        self.labels.append(result[self.target_key].decode('utf-8'))
+        if self.target.constraints:
+            scores = result[self.scores_name]
+            ck = instance[self.target.constraint_key]
+            valid_scores = {label: score for label, score in scores.items() if label in self.target.constraints.get(ck, [])}
+            label = max(valid_scores.items(), key=lambda x: x[1], default=(constants.UNKNOWN_WORD, 0))[0]
+            self.labels.append(label)
+        else:
+            self.labels.append(result[self.target_key].decode('utf-8'))
         self.gold.append(instance[self.target.key])
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
-    def finish(self):
-        accuracy_eval(self.gold, self.labels, self.indices, output_file=self.output_path + '.txt')
+    def evaluate(self):
+        self.metric, self.summary = accuracy_eval(self.gold, self.labels, self.indices, output_file=self.output_path + '.txt'), ''
 
 
 class TaggerEvaluator(Evaluator):
@@ -123,13 +138,14 @@ class TaggerEvaluator(Evaluator):
         self.indices = []
 
     def accumulate(self, instance, result):
-        self.labels.append([label for label in binary_np_array_to_unicode(result[self.target_key]) if label != BERT_SUBLABEL])
-        self.gold.append(instance[self.labels_key])
+        self.labels.append([label for label in result[self.target_key] if label != BERT_SUBLABEL])
+        self.gold.append([label for label in instance[self.labels_key] if label != BERT_SUBLABEL])
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
-    def finish(self):
+    def evaluate(self):
         f1, result_str = conll_eval(self.gold, self.labels, self.indices, output_file=self.output_path + '.txt')
         tf.logging.info(result_str)
+        self.metric, self.summary = f1, result_str
 
 
 class DepParserEvaluator(Evaluator):
@@ -149,7 +165,7 @@ class DepParserEvaluator(Evaluator):
         self._line_func = to_conllx_line if 'conllx' in self.script_path else to_conll09_line
 
     def start(self):
-        self._system_file = file_io.FileIO(self._system_path + '.txt', 'w')
+        self._system_file = file_io.FileIO(self._system_path, 'w')
         self._gold_file = file_io.FileIO(self._gold_path, 'w')
         self._sent_index = -1
         self._sent_arc_probs, self._sent_rel_probs = None, None
@@ -158,7 +174,9 @@ class DepParserEvaluator(Evaluator):
 
     def accumulate(self, instance, result):
         # here, we aggregate multiple predictions over the same sentence, as in a product of experts
-        seq_len = 1 + len(instance[constants.WORD_KEY])  # plus 1 for head
+
+        # plus 1 for head
+        seq_len = instance[constants.LENGTH_KEY] if constants.LENGTH_KEY in instance else 1 + len(instance[constants.WORD_KEY])
 
         arc_probs = result[constants.ARC_PROBS][:seq_len, :seq_len]
         rel_probs = result[constants.REL_PROBS][:seq_len, :, :seq_len]
@@ -183,7 +201,7 @@ class DepParserEvaluator(Evaluator):
             write_parse_result_to_file(sys_arc, sys_rel, self._system_file, self._line_func)
             write_parse_result_to_file(self._sent_gold_arc, self._sent_gold_rel, self._gold_file, self._line_func)
 
-    def finish(self):
+    def evaluate(self):
         self._write_result()
 
         self._system_file.close()
@@ -192,6 +210,9 @@ class DepParserEvaluator(Evaluator):
         res = subprocess.check_output(['perl', self.script_path, '-g', self._gold_path, '-s', self._system_path, '-q'],
                                       universal_newlines=True)
         tf.logging.info('\n%s', res)
+        lines = res.split('\n')
+        las = float(lines[0].strip().split()[9])
+        self.metric, self.summary = las, res
 
 
 class SrlEvaluator(TaggerEvaluator):
@@ -207,13 +228,15 @@ class SrlEvaluator(TaggerEvaluator):
         super().accumulate(instance, result)
         self.markers.append(instance[constants.MARKER_KEY])
 
-    def finish(self):
+    def evaluate(self):
         write_props_to_file(self.output_path + '.gold.txt', self.gold, self.markers, self.indices)
         write_props_to_file(self.output_path + '.txt', self.gold, self.markers, self.indices)
 
         result = conll_srl_eval(self.gold, self.labels, self.markers, self.indices)
-        tf.logging.info(result)
+        tf.logging.info(str(result))
 
         # append results to summary file
         job_dir = os.path.dirname(self.output_path)
         append_srl_prediction_output(os.path.basename(self.output_path), result, job_dir, output_confusions=True)
+
+        self.metric, self.summary = result.evaluation.prec_rec_f1()[2], result

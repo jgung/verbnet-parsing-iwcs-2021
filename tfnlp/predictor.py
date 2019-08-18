@@ -2,13 +2,14 @@ import os
 from typing import Callable, Iterable, List, Union, Tuple
 
 import tensorflow as tf
+import numpy as np
 from tensorflow.contrib.predictor import from_saved_model
 
 from tfnlp.cli.formatters import get_formatter
 from tfnlp.cli.parsers import get_parser
 from tfnlp.common import constants
 from tfnlp.common.config import get_network_config
-from tfnlp.common.utils import read_json
+from tfnlp.common.utils import read_json, binary_np_array_to_unicode
 from tfnlp.feature import get_feature_extractor
 
 
@@ -77,7 +78,10 @@ def default_batching_function(batch_size: int) -> Callable[[Iterable[dict], Call
             for idx in range(len(_batch)):
                 single_result = {}
                 for key, val in result.items():
-                    single_result[key] = val[idx]
+                    value = val[idx]
+                    if not np.issubdtype(value.dtype, np.number) and len(value.shape) > 0:
+                        value = binary_np_array_to_unicode(value)
+                    single_result[key] = value
                 yield _batch[idx], single_result
 
         for example in examples:
