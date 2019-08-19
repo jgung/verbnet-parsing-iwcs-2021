@@ -480,7 +480,7 @@ class Feature(Extractor):
             constraint_path = path + ".constraints.txt"
             if not file_io.file_exists(constraint_path):
                 return False
-            self.constraints = read_json(constraint_path)
+            self.constraints = read_json(constraint_path, as_params=False)
 
         return True
 

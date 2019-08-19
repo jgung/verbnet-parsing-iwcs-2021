@@ -42,14 +42,17 @@ def read_jsons(json_string):
     return _convert_to_attributes(json_dict)
 
 
-def read_json(json_path):
+def read_json(json_path, as_params=True):
     """
     Read a JSON file as an attribute dictionary--all dicts are recursively converted to attribute dictionaries.
     :param json_path: path to JSON file
+    :param as_params: convert result into a `Params` object with key values accessible through attributes
     :return: attribute dictionary for input JSON
     """
     with file_io.FileIO(json_path, 'r') as lines:
         json_dict = json.load(lines)
+        if not as_params:
+            return json_dict
         return _convert_to_attributes(json_dict)
 
 
