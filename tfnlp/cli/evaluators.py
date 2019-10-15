@@ -3,10 +3,11 @@ from typing import List
 
 import numpy as np
 import tensorflow as tf
-from common.config import append_label
 from tensorflow.python.lib.io import file_io
+
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
+from tfnlp.common.config import append_label
 from tfnlp.common.eval import conll_eval, conll_srl_eval
 from tfnlp.common.eval import write_props_to_file, accuracy_eval, get_parse_prediction, \
     to_conll09_line, to_conllx_line, write_parse_result_to_file

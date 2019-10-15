@@ -3,8 +3,8 @@ import os
 import re
 from collections import defaultdict
 
-from tensorflow.python.lib.io import file_io
 import tensorflow as tf
+from tensorflow.python.lib.io import file_io
 
 from tfnlp.common import constants
 from tfnlp.common.chunk import chunk, convert_conll_to_bio, end_of_chunk, start_of_chunk
@@ -219,7 +219,8 @@ class ConllSrlReader(ConllReader):
                  line_filter=lambda line: line.startswith("#") and not line.startswith("# #"),  # skip comments
                  label_mappings=None,
                  regex_mapping=False,
-                 sense_mappings=None):
+                 sense_mappings=None,
+                 pred_filter=lambda x: True):
         """
         Construct an CoNLL reader for SRL.
         :param index_field_map: map from indices to corresponding fields
@@ -231,6 +232,7 @@ class ConllSrlReader(ConllReader):
         :param label_mappings: dict of label key onto a dictionary of mappings from input to output labels
         :param regex_mapping: if `True`, treat mappings as regular expressions, e.g. {"^([RC]-)?(\\S+)\\$(\\S+)$": "\\1\\3"}
         :param sense_mappings: dict of original sense key (with lemma) to mapped sense keys
+        :param pred_filter: filter function applied to predicate lemma, skips non-matching instances
         """
         super(ConllSrlReader, self).__init__(index_field_map,
                                              line_filter=line_filter,
@@ -252,6 +254,7 @@ class ConllSrlReader(ConllReader):
                 _target_mappings.update(r_mappings)
         self._regex_mapping = regex_mapping
         self._sense_mappings = sense_mappings
+        self._pred_filter = pred_filter
 
     def read_instances(self, rows):
         instances = []
@@ -263,6 +266,8 @@ class ConllSrlReader(ConllReader):
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[PREDICATE_INDEX_KEY] = predicate_index
             instance[constants.PREDICATE_LEMMA] = instance[self._predicate_key][predicate_index]
+            if not self._pred_filter(instance[constants.PREDICATE_LEMMA]):
+                continue
             instance[constants.PREDICATE_FORM] = instance[WORD_KEY][predicate_index]
             instance[INSTANCE_INDEX] = self.prop_count
             instances.append(instance)
@@ -483,6 +488,22 @@ class LengthFilter(object):
                 yield instance
 
 
+class KeyFilter(object):
+    def __init__(self, reader, filter_key, include, exclude):
+        super().__init__()
+        self.reader = reader
+        self.filter_key = filter_key
+        self.include = include if include else []
+        self.exclude = exclude if exclude else []
+
+    def read_file(self, *args, **kwargs):
+        for instance in self.reader.read_file(*args, **kwargs):
+            if self.include and instance[self.filter_key] in self.include:
+                yield instance
+            elif self.exclude and instance[self.filter_key] not in self.exclude:
+                yield instance
+
+
 class DuplicateWithUncased(object):
     def __init__(self, reader, every_k=2):
         super().__init__()
@@ -500,11 +521,12 @@ class DuplicateWithUncased(object):
             count += 1
 
 
-def get_reader(reader_config, training_config=None):
+def get_reader(reader_config, training_config=None, is_test=False):
     """
     Return a corpus reader for a given config.
     :param reader_config: reader configuration
     :param training_config: training configuration
+    :param is_test: prepare reader for testing
     """
 
     def reader_from_name(reader_name):
@@ -541,10 +563,13 @@ def get_reader(reader_config, training_config=None):
                                         pred_end=reader_config.get('pred_end', 0),
                                         label_mappings=reader_config.get('label_mappings'),
                                         regex_mapping=reader_config.get('map_with_regex', False),
-                                        sense_mappings=reader_config.get('sense_mappings'))
+                                        sense_mappings=reader_config.get('sense_mappings'),
+                                        pred_filter=reader_config.get('pred_filter')
+                                        )
                 if SENSE_KEY in field_index_map and PREDICATE_KEY in field_index_map:
                     def is_predicate(line):
                         return line[field_index_map[PREDICATE_KEY]] is not '-' and line[field_index_map[SENSE_KEY]] is not '-'
+
                     reader.is_predicate = is_predicate
             else:
                 reader = ConllReader(index_field_map)
@@ -552,10 +577,13 @@ def get_reader(reader_config, training_config=None):
             reader = MultiConllReader([get_reader(reader) for reader in reader_config.readers], reader_config.suffixes)
         else:
             raise ValueError("Unexpected reader type: " + reader_config)
-    if training_config and training_config.max_length > 0:
+    if not is_test and training_config and training_config.max_length > 0:
         reader = LengthFilter(length=training_config.max_length, reader=reader)
-    if training_config and training_config.duplicate_uncased > 0:
+    if not is_test and training_config and training_config.duplicate_uncased > 0:
         reader = DuplicateWithUncased(reader=reader, every_k=training_config.duplicate_uncased)
+    if training_config and training_config.filter_key and (training_config.exclude or training_config.include):
+        reader = KeyFilter(reader=reader, filter_key=training_config.filter_key, include=training_config.include,
+                           exclude=training_config.exclude)
     return reader
 
 

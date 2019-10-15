@@ -196,9 +196,7 @@ class Trainer(object):
             raise ValueError('No feature vocabulary available at %s and unable to train new vocabulary' % self._vocab_path)
 
     def _extract_raw(self, path: str, test: bool = False):
-        # TODO: allow for separate test reader configuration
-        reader = get_reader(self._training_config.reader) if test else get_reader(self._training_config.reader,
-                                                                                  self._training_config)
+        reader = get_reader(self._training_config.reader, self._training_config, is_test=test)
         raw_instances = reader.read_file(path)
 
         if not raw_instances:

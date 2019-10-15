@@ -50,7 +50,7 @@ def get_count_tuples(reader, dataset, only_core=False):
 
     predicate_counts = get_counts(result,
                                   lambda i: i[PREDICATE_KEY][i[PREDICATE_INDEX_KEY]],
-                                  lambda i: next(iter([s for s in i[SENSE_KEY] if s is not '-']), '-'))
+                                  lambda i: i[SENSE_KEY])
 
     roleset_counts = get_role_counts(result, only_core)
 
@@ -281,7 +281,7 @@ if __name__ == '__main__':
     parser.add_argument('--reader', type=str, default='conll_2012', help='Reader type')
     parser.add_argument('--kl', action='store_true',
                         help='Compute KL divergence between consecutive pairs of comma-separated corpus paths')
-    parser.add_argument('--k', type=int, help='Top 100 predicates to consider')
+    parser.add_argument('--k', type=int, default=100, help='Top k (100 by default) predicates to consider')
     parser.add_argument('--core', action='store_true', help='Only count core roles')
     parser.set_defaults(kl=False)
     parser.set_defaults(core=False)
