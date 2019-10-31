@@ -5,7 +5,7 @@ from typing import Union, Iterable, Callable, Optional
 
 import tensorflow as tf
 import tensorflow_estimator as tfe
-from tensorflow.contrib.estimator import stop_if_no_increase_hook
+from tensorflow.compat.v1 import logging
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
 from tensorflow.python.estimator.export.export import ServingInputReceiver
@@ -55,7 +55,7 @@ class Trainer(object):
         self._job_dir = save_dir_path
 
         config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
-        if not tf.gfile.Exists(config_path):
+        if not tf.io.gfile.exists(config_path):
             write_json(config, config_path)
         if not config:
             config = read_json(config_path)
@@ -118,7 +118,7 @@ class Trainer(object):
         # get function that is used to evaluate predictions from configuration
 
         for test_set in test_paths:
-            tf.logging.info('Evaluating on %s' % test_set)
+            logging.info('Evaluating on %s' % test_set)
             output_path = os.path.join(self._job_dir, os.path.basename(test_set) + '.eval')
 
             evaluation_fn = get_evaluator(self._training_config.heads,
@@ -146,7 +146,7 @@ class Trainer(object):
 
         for test_set in test_paths:
             prediction_path = os.path.join(self._job_dir, os.path.basename(test_set) + '.predictions.txt')
-            tf.logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
+            logging.info('Writing predictions on %s to %s' % (test_set, prediction_path))
             with file_io.FileIO(prediction_path, mode="w") as output:
                 with file_io.FileIO(test_set, mode="r") as text_lines:
                     for line in text_lines:
@@ -180,16 +180,16 @@ class Trainer(object):
 
     def _get_predictor(self):
         latest = get_latest_savedmodel_from_jobdir(self._job_dir)
-        tf.logging.info("Loading predictor from saved model at %s" % latest)
+        logging.info("Loading predictor from saved model at %s" % latest)
         return from_saved_model(latest)
 
     def _init_feature_extractor(self, train_path: str = None):
         self._feature_extractor = get_feature_extractor(self._training_config.features)
-        tf.logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
+        logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
         if self._feature_extractor.read_vocab(self._vocab_path):
-            tf.logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
+            logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
         elif train_path:
-            tf.logging.info("No valid pre-existing vocabulary found at %s "
+            logging.info("No valid pre-existing vocabulary found at %s "
                             "(this is normal when not loading from an existing model)", self._vocab_path)
             self._train_vocab(train_path)
         else:
@@ -204,21 +204,21 @@ class Trainer(object):
         return raw_instances
 
     def _train_vocab(self, train_path: str):
-        tf.logging.info("Creating new vocabulary using training data at %s", train_path)
+        logging.info("Creating new vocabulary using training data at %s", train_path)
         self._feature_extractor.initialize(self._resources)
         self._feature_extractor.train(self._extract_raw(train_path))
-        tf.logging.info("Writing new feature/label vocabulary to %s", self._vocab_path)
+        logging.info("Writing new feature/label vocabulary to %s", self._vocab_path)
         self._feature_extractor.write_vocab(self._vocab_path, resources=self._resources, prune=True)
 
     def _extract_features(self, path: str, test: bool = False):
-        tf.logging.info("Extracting features from %s", path)
+        logging.info("Extracting features from %s", path)
         examples = self._feature_extractor.extract_all(self._extract_raw(path, test))
         return examples
 
     def _extract_and_write(self, path: str, test: bool = False):
         output_path = self._data_path_fn(path)
-        if tf.gfile.Exists(output_path):
-            tf.logging.info("Using pre-existing features for %s from %s", path, output_path)
+        if tf.io.gfile.exists(output_path):
+            logging.info("Using pre-existing features for %s from %s", path, output_path)
             return
         examples = self._extract_features(path, test)
         write_features(examples, output_path)
@@ -242,14 +242,14 @@ class Trainer(object):
         patience = self._training_config.patience_epochs * steps_per_epoch
         checkpoint_steps = self._training_config.checkpoint_epochs * steps_per_epoch
 
-        tf.logging.info('Training on %d instances at %s, validating on %d instances at %s'
+        logging.info('Training on %d instances at %s, validating on %d instances at %s'
                         % (train_count, train, valid_count, valid))
-        tf.logging.info('Training for a maximum of %d epoch(s) (%d steps w/ batch_size=%d)'
+        logging.info('Training for a maximum of %d epoch(s) (%d steps w/ batch_size=%d)'
                         % (self._training_config.max_epochs, max_steps, self._training_config.batch_size))
         if patience < max_steps:
-            tf.logging.info('Early stopping after %d epoch(s) (%d steps) with no improvement on validation set'
+            logging.info('Early stopping after %d epoch(s) (%d steps) with no improvement on validation set'
                             % (self._training_config.patience_epochs, patience))
-        tf.logging.info('Evaluating every %d steps, %d epoch(s)' % (checkpoint_steps, self._training_config.checkpoint_epochs))
+        logging.info('Evaluating every %d steps, %d epoch(s)' % (checkpoint_steps, self._training_config.checkpoint_epochs))
 
         return max_steps, patience, checkpoint_steps
 
@@ -264,7 +264,7 @@ class Trainer(object):
                                        params=self._params(test=False))
 
     def _training_hooks(self, estimator, patience, checkpoint_steps):
-        early_stopping = stop_if_no_increase_hook(
+        early_stopping = tf.estimator.experimental.stop_if_no_increase_hook(
             estimator,
             metric_name=self._training_config.metric,
             max_steps_without_increase=patience,
@@ -290,8 +290,7 @@ class Trainer(object):
     def _eval_spec(self, valid):
         exporter = BesterExporter(serving_input_receiver_fn=self._serving_input_fn,
                                   compare_fn=metric_compare_fn(self._training_config.metric),
-                                  exports_to_keep=self._training_config.exports_to_keep,
-                                  strip_default_attrs=False)
+                                  exports_to_keep=self._training_config.exports_to_keep)
 
         return tfe.estimator.EvalSpec(self._input_fn(valid, False),
                                       steps=None,  # evaluate on full validation set
@@ -374,11 +373,11 @@ def cli():
 
     # write configuration file to model path, applying any updates/overrides if this is the first time training
     config_path = os.path.join(opts.save, constants.CONFIG_PATH)
-    if not tf.gfile.Exists(config_path):
+    if not tf.io.gfile.exists(config_path):
         if not opts.config:
             raise AssertionError('trainer configuration is required when training for the first time')
         config = read_config(opts.config, opts.config_overrides, opts.param_overrides)
-        tf.gfile.MakeDirs(opts.save)
+        tf.io.gfile.makedirs(opts.save)
         write_json(config, config_path)
 
     trainer = Trainer(save_dir_path=opts.save,
@@ -395,15 +394,15 @@ def cli():
     set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
 
     if mode == 'train' and not opts.train and test_paths:
-        tf.logging.info('No training set provided, defaulting to test mode for %s' % opts.test)
+        logging.info('No training set provided, defaulting to test mode for %s' % opts.test)
         mode = 'test'
 
     if mode == "train":
         if not opts.train:
-            tf.logging.warn('train mode was selected, but no training set path was provided (use "--train path/to/train")')
+            logging.warn('train mode was selected, but no training set path was provided (use "--train path/to/train")')
             return
         elif not opts.valid:
-            tf.logging.warn('train mode was selected, but no validation set path was provided (use "--valid path/to/valid")')
+            logging.warn('train mode was selected, but no validation set path was provided (use "--valid path/to/valid")')
             return
 
         trainer.train(opts.train, opts.valid)
@@ -413,14 +412,14 @@ def cli():
 
     elif mode == "predict":
         if not test_paths:
-            tf.logging.warn('predict mode was selected, but no test paths were provided (use "--test path1,path2")')
+            logging.warn('predict mode was selected, but no test paths were provided (use "--test path1,path2")')
             return
 
         trainer.predict(test_paths)
 
     elif mode == "test":
         if not test_paths:
-            tf.logging.warn('test mode was selected, but no test paths were provided (use "--test path1,path2")')
+            logging.warn('test mode was selected, but no test paths were provided (use "--test path1,path2")')
             return
 
         trainer.eval(test_paths)

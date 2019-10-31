@@ -11,10 +11,10 @@ from tensorflow.python.ops import clip_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
+from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
 from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
-from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_S_CASED_URL
@@ -71,7 +71,7 @@ def string2index(feature_strings, feature):
     :param feature: feature extractor with string to index vocabulary
     :return: feature id Tensor
     """
-    with tf.variable_scope('lookup'):
+    with tf.compat.v1.variable_scope('lookup'):
         feats = list(feature.ordered_feats())
         lookup = index_table_from_tensor(mapping=tf.constant(feats), default_value=feature.unk_index())
         return lookup.lookup(feature_strings)
@@ -80,10 +80,10 @@ def string2index(feature_strings, feature):
 def get_embedding_input(inputs, feature, training):
     config = feature.config
 
-    with tf.variable_scope(feature.name):
+    with tf.compat.v1.variable_scope(feature.name):
         feature_ids = string2index(inputs, feature)
 
-        with tf.variable_scope('embedding'):
+        with tf.compat.v1.variable_scope('embedding'):
             initializer = None
             if training:
                 if feature.embedding is not None:
@@ -95,7 +95,7 @@ def get_embedding_input(inputs, feature, training):
                     tf.logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
                     initializer = tf.glorot_uniform_initializer
 
-            embedding_matrix = tf.get_variable(name='parameters',
+            embedding_matrix = tf.compat.v1.get_variable(name='parameters',
                                                shape=[feature.vocab_size(), config.dim],
                                                initializer=initializer,
                                                trainable=config.trainable)
@@ -126,7 +126,7 @@ def get_embedding_input(inputs, feature, training):
 def encoder(features, inputs, mode, config):
     training = mode == tfe.estimator.ModeKeys.TRAIN
 
-    with tf.variable_scope("encoder-%s" % config.name):
+    with tf.compat.v1.variable_scope("encoder-%s" % config.name):
         encoder_type = config.encoder_type
 
         if constants.ENCODER_IDENT == encoder_type:
@@ -213,7 +213,7 @@ def mlp(inputs, training, config):
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_MLP)
     inputs = get_encoder_input(inputs[0])
 
-    with tf.variable_scope("conv_mlp", [inputs]):
+    with tf.compat.v1.variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
         input_dim = inputs.get_shape().as_list()[-1]
         hidden_size = config.dim
@@ -276,12 +276,12 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
 
     outputs = None
     final_state = None
-    with tf.variable_scope("dblstm"):
+    with tf.compat.v1.variable_scope("dblstm"):
         cells = [highway_lstm_cell(config.state_size) for _ in range(config.encoder_layers)]
 
         for i, cell in enumerate(cells):
             odd = i % 2 == 1
-            with tf.variable_scope("%s-%s" % ('bw' if odd else 'fw', i // 2)) as layer_scope:
+            with tf.compat.v1.variable_scope("%s-%s" % ('bw' if odd else 'fw', i // 2)) as layer_scope:
                 inputs = _reverse(inputs) if odd else inputs
 
                 outputs, final_state = dynamic_rnn(cell=cell, inputs=inputs,
@@ -312,7 +312,7 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
     outputs = inputs
     fw_state, bw_state = None, None
     for i in range(config.encoder_layers):
-        with tf.variable_scope("biRNN_%d" % i):
+        with tf.compat.v1.variable_scope("biRNN_%d" % i):
             size = outputs.get_shape().as_list()[-1]
             outputs, (fw_state, bw_state) = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
                                                                       sequence_length=sequence_lengths, dtype=tf.float32)
@@ -490,17 +490,17 @@ class HighwayLSTMCell(LayerRNNCell):
 
 def transformer_encoder(inputs, sequence_lengths, training, config):
     # nonlinear projection of input to dimensionality of transformer (head size x num heads)
-    with tf.variable_scope("encoder_input_proj"):
+    with tf.compat.v1.variable_scope("encoder_input_proj"):
         inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads), alpha=0.1)
 
-    with tf.variable_scope('transformer'):
+    with tf.compat.v1.variable_scope('transformer'):
         mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.int32)
         # e.g. give attention bias [0 0 0 0 -inf -inf -inf] for a sequence length of 4 -- don't attend to padding nodes
         attention_bias = attention_bias_ignore_padding(tf.cast(1 - mask, tf.float32))
         # add sinusoidal timing signal to give position information to inputs
         inputs = add_timing_signal_1d(inputs)
         for i in range(config.encoder_layers):
-            with tf.variable_scope('layer%d' % i):
+            with tf.compat.v1.variable_scope('layer%d' % i):
                 inputs = transformer(inputs, attention_bias, training, config)
 
     # apply final layer norm
@@ -518,7 +518,7 @@ def transformer(inputs, attention_bias, training, config):
 
     self_attention_dim = config.head_dim * config.num_heads
     with tf.name_scope('transformer_layer'):
-        with tf.variable_scope("self_attention"):
+        with tf.compat.v1.variable_scope("self_attention"):
             # apply layer norm before self attention layer
             x = _layer_norm(inputs)
 
@@ -533,7 +533,7 @@ def transformer(inputs, attention_bias, training, config):
                                     attention_type="dot_product")
             x = _residual(x, y)
 
-        with tf.variable_scope("ffnn"):
+        with tf.compat.v1.variable_scope("ffnn"):
             # apply layer norm after self attention layer
             x = layer_norm(x, begin_norm_axis=-1, begin_params_axis=-1)
 
@@ -560,7 +560,7 @@ def _ff(name, x, in_dim, out_dim, keep_prob, last=False):
 
 
 def _mlp(inputs, hidden_size, output_size, keep_prob):
-    with tf.variable_scope("conv_mlp", [inputs]):
+    with tf.compat.v1.variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
         input_dim = inputs.get_shape().as_list()[-1]
 

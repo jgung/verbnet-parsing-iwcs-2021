@@ -1,7 +1,7 @@
 import tensorflow as tf
-from common.config import append_label
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
+from tfnlp.common.config import append_label
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
 from tfnlp.common.eval import append_srl_prediction_output

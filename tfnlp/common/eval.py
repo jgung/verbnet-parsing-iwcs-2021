@@ -8,6 +8,7 @@ import tensorflow as tf
 from nltk import ConfusionMatrix
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.lib.io.file_io import get_matching_files
+from tensorflow.compat.v1 import logging
 
 from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
@@ -170,14 +171,14 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
                 _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
 
     cm = ConfusionMatrix(gold_labels, predicted_labels)
-    tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
+    logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
 
     if len(gold_labels) != len(predicted_labels):
         raise ValueError("Predictions and gold labels must have the same length.")
     correct = sum(x == y for x, y in zip(gold_labels, predicted_labels))
     total = len(predicted_labels)
     accuracy = correct / total
-    tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
+    logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
     return accuracy
 
 
@@ -225,7 +226,7 @@ def log_trainable_variables():
     Log every trainable variable name and shape and return the total number of trainable variables.
     :return: total number of trainable variables
     """
-    all_weights = {variable.name: variable for variable in tf.trainable_variables()}
+    all_weights = {variable.name: variable for variable in tf.compat.v1.trainable_variables()}
     total_size = 0
     weights = []
     for variable_name in sorted(list(all_weights)):
@@ -235,7 +236,7 @@ def log_trainable_variables():
         total_size += variable_size
 
     weights.append("Total trainable variables size: %d" % total_size)
-    tf.logging.log_first_n(tf.logging.INFO, "Trainable variables:\n%s\n", 1, '\n'.join(weights))
+    logging.log_first_n(logging.INFO, "Trainable variables:\n%s\n", 1, '\n'.join(weights))
     return total_size
 
 
