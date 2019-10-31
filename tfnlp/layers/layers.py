@@ -15,6 +15,7 @@ from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
 from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
+from tensorflow.compat.v1 import logging
 
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_S_CASED_URL
@@ -24,7 +25,7 @@ ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
 def embedding(features, feature_config, training):
     if feature_config.name == constants.ELMO_KEY:
-        tf.logging.info("Using ELMo module at %s", ELMO_URL)
+        logging.info("Using ELMo module at %s", ELMO_URL)
         elmo_module = hub.Module(ELMO_URL, trainable=True)
         elmo_embedding = elmo_module(inputs={'tokens': features[constants.ELMO_KEY],
                                              'sequence_len': tf.cast(features[constants.LENGTH_KEY], dtype=tf.int32)},
@@ -32,7 +33,7 @@ def embedding(features, feature_config, training):
                                      as_dict=True)['elmo']
         return elmo_embedding
     elif feature_config.name == constants.BERT_KEY:
-        tf.logging.info("Using BERT module at %s", BERT_S_CASED_URL)
+        logging.info("Using BERT module at %s", BERT_S_CASED_URL)
         tags = set()
         if training:
             tags.add("train")
@@ -89,10 +90,10 @@ def get_embedding_input(inputs, feature, training):
                 if feature.embedding is not None:
                     initializer = embedding_initializer(feature.embedding)
                 elif config.initializer.zero_init:
-                    tf.logging.info("Zero init for feature embedding: %s", feature.name)
+                    logging.info("Zero init for feature embedding: %s", feature.name)
                     initializer = tf.zeros_initializer
                 else:
-                    tf.logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
+                    logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
                     initializer = tf.glorot_uniform_initializer
 
             embedding_matrix = tf.compat.v1.get_variable(name='parameters',
