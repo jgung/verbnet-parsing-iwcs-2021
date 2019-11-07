@@ -220,7 +220,7 @@ class ConllSrlReader(ConllReader):
                  label_mappings=None,
                  regex_mapping=False,
                  sense_mappings=None,
-                 pred_filter=lambda x: True):
+                 pred_filter=None):
         """
         Construct an CoNLL reader for SRL.
         :param index_field_map: map from indices to corresponding fields
@@ -254,7 +254,7 @@ class ConllSrlReader(ConllReader):
                 _target_mappings.update(r_mappings)
         self._regex_mapping = regex_mapping
         self._sense_mappings = sense_mappings
-        self._pred_filter = pred_filter
+        self._pred_filter = pred_filter if pred_filter is not None else lambda x: True
 
     def read_instances(self, rows):
         instances = []
@@ -263,7 +263,6 @@ class ConllSrlReader(ConllReader):
             instance = dict(fields)  # copy instance dictionary and add labels
             for label_key, labels in all_labels.items():
                 instance[label_key] = labels
-            instance[MARKER_KEY] = [index == predicate_index and '1' or '0' for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[PREDICATE_INDEX_KEY] = predicate_index
             instance[constants.PREDICATE_LEMMA] = instance[self._predicate_key][predicate_index]
             if not self._pred_filter(instance[constants.PREDICATE_LEMMA]):
@@ -282,6 +281,13 @@ class ConllSrlReader(ConllReader):
                     if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
                         sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
                     instance[SENSE_KEY] = self._sense_mappings.get(sense, [constants.UNKNOWN_WORD])
+
+                if sense != 'LV':
+                    sense = '1'
+                instance[SENSE_KEY] = [index == predicate_index and sense or '0'
+                                       for index in range(0, len(all_labels[LABEL_KEY]))]
+            instance[MARKER_KEY] = [index == predicate_index and '1' or '0'
+                                    for index in range(0, len(all_labels[LABEL_KEY]))]
 
         return instances
 

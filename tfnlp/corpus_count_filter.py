@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from tfnlp.common.utils import write_json
+from tfnlp.common.utils import write_json, read_json
 from tfnlp.compute_stats import get_count_tuples, output_probs
 from tfnlp.readers import get_reader
 
@@ -22,7 +22,7 @@ def main(opts):
 
     ks = [int(k) for k in opts.k.split(',')]
     print('Processing on following thresholds: {}'.format(', '.join([str(k) for k in ks])))
-    reader = get_reader(opts.reader)
+    reader = get_reader(read_json(opts.reader))
 
     print("Reading corpus at %s..." % opts.train)
     train_tuples, _ = get_count_tuples(reader, opts.train, True)

@@ -50,7 +50,7 @@ def get_count_tuples(reader, dataset, only_core=False):
 
     predicate_counts = get_counts(result,
                                   lambda i: i[PREDICATE_KEY][i[PREDICATE_INDEX_KEY]],
-                                  lambda i: i[SENSE_KEY])
+                                  lambda i: next(iter([s for s in i[SENSE_KEY] if s is not '-']), '-'))
 
     roleset_counts = get_role_counts(result, only_core)
 

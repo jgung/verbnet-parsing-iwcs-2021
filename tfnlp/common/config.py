@@ -45,6 +45,9 @@ class BaseNetworkConfig(Params):
         self.bucket_sizes = config.get('bucket_sizes')
         self.max_length = config.get('max_length', 100)
         self.duplicate_uncased = config.get('duplicate_uncased', 0)
+        self.filter_key = config.get('filter_key')
+        self.include = config.get('include')
+        self.exclude = config.get('exclude')
         # Decay for exponential moving average (EMA) of parameters -- 0.998 or 0.999 is standard
         # "Temporal averaging for semi-supervised learning", Laine and Aila 2017. https://arxiv.org/abs/1610.02242
         self.ema_decay = config.get('ema_decay', 0)
@@ -75,6 +78,7 @@ class BaseNetworkConfig(Params):
         optimizer_config = config.get('optimizer')
         if optimizer_config:
             self.optimizer = OptimizerConfig(optimizer_config)
+
 
 
 class OptimizerConfig(Params):
