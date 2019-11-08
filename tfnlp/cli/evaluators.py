@@ -115,7 +115,11 @@ class TokenClassifierEvaluator(Evaluator):
             label = max(valid_scores.items(), key=lambda x: x[1], default=(constants.UNKNOWN_WORD, 0))[0]
             self.labels.append(label)
         else:
-            self.labels.append(result[self.target_key].decode('utf-8'))
+            result = result[self.target_key]
+            if not isinstance(result, str):
+                result = result.decode('utf-8')
+            self.labels.append(result)
+
         self.gold.append(instance[self.labels_key])
         self.indices.append(instance[constants.SENTENCE_INDEX])
 

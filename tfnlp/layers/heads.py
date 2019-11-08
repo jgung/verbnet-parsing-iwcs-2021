@@ -106,8 +106,11 @@ class ClassifierHead(ModelHead):
         self.scores = None
 
     def _all(self):
-        inputs = self.inputs[2]
-        inputs = tf.layers.dropout(inputs, training=self._training)
+        if len(self.inputs) == 2:
+            inputs = tf.squeeze(self.inputs[0], axis=1)
+        else:
+            inputs = self.inputs[2]
+            inputs = tf.layers.dropout(inputs, training=self._training)
 
         with tf.variable_scope("logits"):
             num_labels = self.extractor.vocab_size()

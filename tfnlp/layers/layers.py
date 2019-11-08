@@ -56,7 +56,10 @@ def embedding(features, feature_config, training):
             segment_ids=segment_ids)
 
         bert_outputs = bert_module(bert_inputs, signature="tokens", as_dict=True)
-        bert_embedding = bert_outputs["sequence_output"]
+        output_type = feature_config.options.get("output_type")
+        bert_embedding = bert_outputs[output_type]
+        if output_type == "pooled_output":
+            bert_embedding = tf.expand_dims(bert_embedding, axis=1)
         return bert_embedding
 
     elif feature_config.has_vocab():

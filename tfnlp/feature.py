@@ -175,6 +175,7 @@ class FeatureConfig(Params):
         self.config = FeatureHyperparameters(config, self)
         self.constraint_key = feature.get('constraint_key')
         self.drop_subtokens = feature.get('drop_subtokens', False)
+        self.output_type = feature.get('output_type', 'sequence_output')
 
 
 class FeaturesConfig(object):
@@ -231,7 +232,8 @@ def get_feature_extractor(config):
         tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
         contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
         return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=contains_marker,
-                                    drop_subtokens=bert_feat.options['drop_subtokens'])
+                                    drop_subtokens=bert_feat.options['drop_subtokens'],
+                                    output_type=bert_feat.options['output_type'])
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
@@ -943,11 +945,13 @@ class BertLengthFeature(Extractor):
 
 
 class BertFeatureExtractor(BaseFeatureExtractor):
-    def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL, drop_subtokens=False) -> None:
+    def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL, drop_subtokens=False,
+                 output_type="sequence_output") -> None:
         super().__init__()
         self.srl = srl
         self.label_subtokens = True
         self.drop_subtokens = drop_subtokens
+        self.output_type = output_type
         bert_module = hub.Module(model)
         tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
         with tf.Session() as sess:
