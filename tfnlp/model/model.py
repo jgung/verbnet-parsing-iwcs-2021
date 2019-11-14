@@ -76,7 +76,7 @@ def multi_head_model_fn(features, mode, params):
         # compute loss for each target
         losses = [head.loss for head in heads]
         # just compute mean over losses (possibly consider a more sophisticated strategy?)
-        loss = losses[0] if len(losses) == 0 else tf.reduce_mean(tf.stack(losses))
+        loss = losses[0] if len(losses) == 1 else tf.reduce_mean(tf.stack(losses))
 
     dependencies = []
     # optionally setup exponential moving average of parameters

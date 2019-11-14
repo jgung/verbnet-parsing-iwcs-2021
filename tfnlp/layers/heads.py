@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from cli.evaluators import TaggerEvaluator, SrlEvaluator, TokenClassifierEvaluator
+from tfnlp.cli.evaluators import TaggerEvaluator, SrlEvaluator, TokenClassifierEvaluator
 from tensorflow.contrib.crf.python.ops import crf
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
 from tfnlp.common import constants

@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 import tfnlp.common.constants as constants
-from cli.evaluators import DepParserEvaluator
+from tfnlp.cli.evaluators import DepParserEvaluator
 from tfnlp.common.config import append_label
 from tfnlp.common.eval_hooks import ParserEvalHook
 from tfnlp.layers.heads import ModelHead
