@@ -176,7 +176,7 @@ def remove_subtokens(inputs, mask):
     if len(inputs) != 1:
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_REMOVE_SUBTOKENS)
     inputs = get_encoder_input(inputs[0])
-    return boolean_mask(inputs, tf.cast(mask, tf.bool), keepdims=True).to_tensor()
+    return boolean_mask(inputs, tf.cast(mask, tf.bool)).to_tensor()
 
 
 def repeat(inputs, token_indices):
