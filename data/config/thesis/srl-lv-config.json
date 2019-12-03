@@ -1,0 +1,53 @@
+{
+  "reader": "./reader/ft-reader.json",
+  "checkpoint_epochs": 0.5,
+  "max_epochs": 8,
+  "batch_size": 16,
+  "optimizer": "./optim/bert.json",
+  "features": {
+    "targets": [
+      "./feats/lv-sense.json",
+      "./feats/srl.json"
+    ],
+    "inputs": [
+      "./feats/bert.json",
+      "./feats/marker.json"
+    ]
+  },
+  "encoders": [
+    "./encoder/bert-no-subtokens.json",
+    {
+      "name": "bert-and-marker",
+      "type": "concat",
+      "inputs": [
+        "bert-no-subtokens",
+        "marker"
+      ],
+      "input_dropout": 0.1
+    },
+    {
+      "name": "srl-inputs",
+      "type": "repeat_and_concat",
+      "inputs": [
+        "sense",
+        "bert-and-marker"
+      ]
+    },
+    "./encoder/srl-blstm.json",
+    "./encoder/srl-repeat-predicate.json",
+    "./encoder/srl-concat-predicate.json",
+    "./encoder/srl-mlp.json"
+  ],
+  "heads": [
+    {
+      "encoder": "bert-and-marker",
+      "name": "sense",
+      "type": "token-classifier",
+      "mlp_layers": [
+        300
+      ],
+      "mlp_dropout": 0.1
+    },
+    "./heads/srl-head.json"
+  ]
+}

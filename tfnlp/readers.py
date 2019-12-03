@@ -274,19 +274,18 @@ class ConllSrlReader(ConllReader):
             self.prop_count += 1
             if HEAD_KEY in instance:
                 instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
-            # if SENSE_KEY in instance:
-            #     instance[SENSE_KEY] = str(instance[SENSE_KEY][predicate_index])
-            #
-            #     sense = instance[SENSE_KEY]
-            #     if self._sense_mappings:
-            #         if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
-            #             sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
-            #         instance[SENSE_KEY] = self._sense_mappings.get(sense, [constants.UNKNOWN_WORD])
+            if SENSE_KEY in instance:
+                instance[SENSE_KEY] = str(instance[SENSE_KEY][predicate_index])
 
-                # if sense != 'LV':
-                #     sense = '1'
-                # instance[SENSE_KEY] = [index == predicate_index and sense or '0'
-                #                        for index in range(0, len(all_labels[LABEL_KEY]))]
+                sense = instance[SENSE_KEY]
+                if self._sense_mappings:
+                    if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
+                        sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
+                    sense = self._sense_mappings.get(sense, [constants.UNKNOWN_WORD])
+                elif sense != 'LV':
+                    sense = 'O'
+                instance[SENSE_KEY] = sense
+
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0'
                                     for index in range(0, len(all_labels[LABEL_KEY]))]
 

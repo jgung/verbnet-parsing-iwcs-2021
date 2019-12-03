@@ -1,0 +1,15 @@
+{
+  "name": "sense",
+  "key": "sense",
+  "indices": {
+    "O": 0,
+    "LV": 1
+  },
+  "unknown_word": "O",
+  "pad_word": "O",
+  "rank": 1,
+  "config": {
+    "dim": 100,
+    "dropout": 0.1
+  }
+}

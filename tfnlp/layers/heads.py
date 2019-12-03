@@ -194,6 +194,17 @@ class TokenClassifierHead(ClassifierHead):
             targets = self.features[constants.PREDICATE_INDEX_KEY]
         inputs = select_by_token_index(inputs, targets)
 
+        if len(self.config.mlp_layers) > 0:
+            def _leaky_relu(h):
+                return tf.nn.leaky_relu(h, alpha=0.01)
+
+            for i, dim in enumerate(self.config.mlp_layers):
+                inputs = tf.layers.dense(inputs=inputs, units=dim,
+                                         activation=_leaky_relu,
+                                         kernel_initializer=tf.zeros_initializer)
+                if self.config.mlp_dropout:
+                    inputs = tf.layers.dropout(inputs, rate=self.config.mlp_dropout, training=self._training)
+
         with tf.variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
             self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
