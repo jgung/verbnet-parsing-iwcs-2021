@@ -7,7 +7,6 @@ from tfnlp.common.chunk import chunk
 from tfnlp.common.utils import read_json
 from tfnlp.readers import get_reader
 
-
 OUTPUT_FIELDS = [constants.ID_KEY, constants.INSTANCE_INDEX, constants.TOKEN_INDEX_KEY, constants.WORD_KEY, constants.POS_KEY,
                  constants.PARSE_KEY, constants.PREDICATE_KEY, constants.SENSE_KEY, constants.DEPREL_KEY, constants.HEAD_KEY]
 
@@ -20,6 +19,11 @@ def props_by_pred(reader, dataset):
         instance[constants.INSTANCE_INDEX] = [instance[constants.INSTANCE_INDEX] for _ in instance[constants.WORD_KEY]]
         instance[constants.SENTENCE_INDEX] = [instance[constants.SENTENCE_INDEX] for _ in instance[constants.WORD_KEY]]
         instance[constants.LABEL_KEY] = chunk(instance[constants.LABEL_KEY], conll=True)
+        pred_idx = instance[constants.PREDICATE_INDEX_KEY]
+        instance[constants.SENSE_KEY] = [instance[constants.SENSE_KEY][pred_idx] if i == pred_idx else '-'
+                                         for i in range(0, len(instance[constants.SENSE_KEY]))]
+        instance[constants.PREDICATE_KEY] = [instance[constants.PREDICATE_KEY][pred_idx] if i == pred_idx else '-'
+                                             for i in range(0, len(instance[constants.PREDICATE_KEY]))]
         pred = by_pred[instance[constants.PREDICATE_KEY][instance[constants.PREDICATE_INDEX_KEY]]]
         pred.append(instance)
     return by_pred
