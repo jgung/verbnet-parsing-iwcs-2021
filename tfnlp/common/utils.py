@@ -17,15 +17,15 @@ class Params(dict):
         self[key] = value
 
 
-def _convert_to_attributes(dictionary):
+def convert_to_attributes(dictionary):
     for key, val in dictionary.items():
         if isinstance(val, dict):
-            dictionary[key] = _convert_to_attributes(val)
+            dictionary[key] = convert_to_attributes(val)
         elif isinstance(val, list):
             result = []
             for entry in val:
                 if isinstance(entry, dict):
-                    result.append(_convert_to_attributes(entry))
+                    result.append(convert_to_attributes(entry))
                 else:
                     result.append(entry)
             dictionary[key] = result
@@ -39,7 +39,7 @@ def read_jsons(json_string):
     :return: attribute dictionary for input JSON
     """
     json_dict = json.loads(json_string)
-    return _convert_to_attributes(json_dict)
+    return convert_to_attributes(json_dict)
 
 
 def read_json(json_path, as_params=True):
@@ -53,7 +53,7 @@ def read_json(json_path, as_params=True):
         json_dict = json.load(lines)
         if not as_params:
             return json_dict
-        return _convert_to_attributes(json_dict)
+        return convert_to_attributes(json_dict)
 
 
 def write_json(value, json_path):

@@ -4,11 +4,28 @@ from collections import defaultdict
 
 from tfnlp.common import constants
 from tfnlp.common.chunk import chunk
-from tfnlp.common.utils import read_json
+from tfnlp.common.utils import read_json, convert_to_attributes
 from tfnlp.readers import get_reader
 
 OUTPUT_FIELDS = [constants.ID_KEY, constants.INSTANCE_INDEX, constants.TOKEN_INDEX_KEY, constants.WORD_KEY, constants.POS_KEY,
                  constants.PARSE_KEY, constants.PREDICATE_KEY, constants.SENSE_KEY, constants.DEPREL_KEY, constants.HEAD_KEY]
+
+
+def default_reader():
+    return convert_to_attributes({
+        "field_index_map": {
+            "ID": 0,
+            "token_index": 2,
+            "word": 3,
+            "pos": 4,
+            "parse": 5,
+            "predicate": 6,
+            "sense": 7,
+            "deprel": 8,
+            "head": 9
+        },
+        "pred_start": 13
+    })
 
 
 def props_by_pred(reader, dataset):
@@ -48,7 +65,7 @@ def main(opts):
         ks = [int(k) for k in opts.k.split(',')]
     print('Processing on following thresholds: {}'.format(', '.join([str(k) for k in ks])))
     try:
-        reader = get_reader(opts.reader)
+        reader = get_reader(default_reader() if opts.reader is None else opts.reader)
     except ValueError:
         reader = get_reader(read_json(opts.reader))
 
@@ -77,6 +94,6 @@ if __name__ == '__main__':
     parser.add_argument('--dev', type=str, help='Development corpus used to generate predicate filter based on counts',
                         required=True)
     parser.add_argument('--output', type=str, help='Output path', required=True)
-    parser.add_argument('--reader', type=str, default='conll_2012', help='Reader type')
+    parser.add_argument('--reader', type=str, help='Reader type')
     parser.add_argument('--k', type=str, default='0', help='Thresholds to use for count in training data (0, or OOV by default)')
     main(parser.parse_args())
