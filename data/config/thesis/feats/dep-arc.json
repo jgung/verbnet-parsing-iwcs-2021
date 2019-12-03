@@ -1,0 +1,12 @@
+{
+  "name": "dep-arc",
+  "key": "head",
+  "numeric": true,
+  "padding_funcs": [
+    {
+      "type": "pad",
+      "count": 1,
+      "value": 0
+    }
+  ]
+}

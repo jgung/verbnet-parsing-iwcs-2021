@@ -1,0 +1,9 @@
+{
+  "name": "pos",
+  "key": "xpos",
+  "indices": {
+    "O": 0
+  },
+  "unknown_word": "NN",
+  "pad_word": "O"
+}

@@ -1,0 +1,10 @@
+{
+  "field_index_map": {
+    "word": 3,
+    "xpos": 4,
+    "predicate": 6,
+    "deprel": 8,
+    "head": 9
+  },
+  "pred_start": 13
+}

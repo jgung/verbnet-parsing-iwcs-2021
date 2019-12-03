@@ -1,0 +1,7 @@
+{
+  "name": "dep-sentinel",
+  "type": "sentinel",
+  "inputs": [
+    "bert-no-subtokens"
+  ]
+}

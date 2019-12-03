@@ -1,0 +1,7 @@
+{
+  "encoder": "bert-no-subtokens",
+  "name": "pos",
+  "type": "tagger",
+  "metric": "Accuracy",
+  "mlp_dropout": 0.33
+}
