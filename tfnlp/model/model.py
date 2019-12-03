@@ -74,7 +74,7 @@ def multi_head_model_fn(features, mode, params):
     loss = None
     if mode in [tfe.estimator.ModeKeys.TRAIN, tfe.estimator.ModeKeys.EVAL]:
         # compute loss for each target
-        losses = [head.loss for head in heads]
+        losses = [head.weight * head.loss for head in heads]
         # just compute mean over losses (possibly consider a more sophisticated strategy?)
         loss = losses[0] if len(losses) == 1 else tf.reduce_mean(tf.stack(losses))
 

@@ -151,6 +151,7 @@ class HeadConfig(Params):
         self.label_smoothing = config.get('label_smoothing', 0)
         # "Regularizing Neural Networks by Penalizing Confident Predictions", Pereyra et al. 2017 -- 1.0 is default
         self.confidence_penalty = config.get('confidence_penalty', 0)
+        self.weight = config.get('weight', 1)
 
 
 def get_network_config(config):

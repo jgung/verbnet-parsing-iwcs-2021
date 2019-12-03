@@ -22,6 +22,7 @@ class ModelHead(object):
         self.features = features
         self.params = params
         self._training = training
+        self.weight = config.weight
 
         self.targets = None
         self.logits = None
