@@ -4,7 +4,6 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
-from tfnlp.common.eval import append_srl_prediction_output
 from tfnlp.common.utils import binary_np_array_to_unicode
 
 
@@ -50,7 +49,8 @@ class EvalHook(session_run_hook.SessionRunHook):
             self._evaluator.accumulate(instance, result)
 
     def end(self, session):
-        self._evaluator.evaluate()
+        step = session.run(tf.train.get_global_step(session.graph))
+        self._evaluator.evaluate(str(step))
 
 
 class ClassifierEvalHook(EvalHook):
@@ -116,12 +116,6 @@ class SrlEvalHook(SequenceEvalHook):
 
     def end(self, session):
         super().end(session)
-        if self._output_dir:
-            step = session.run(tf.train.get_global_step(session.graph))
-            append_srl_prediction_output(str(step),
-                                         self._evaluator.summary,
-                                         self._output_dir,
-                                         output_confusions=self._output_confusions)
 
 
 class ParserEvalHook(EvalHook):
