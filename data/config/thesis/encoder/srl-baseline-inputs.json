@@ -1,0 +1,9 @@
+{
+  "name": "srl-inputs",
+  "type": "concat",
+  "inputs": [
+    "bert-no-subtokens",
+    "marker"
+  ],
+  "input_dropout": 0.1
+}

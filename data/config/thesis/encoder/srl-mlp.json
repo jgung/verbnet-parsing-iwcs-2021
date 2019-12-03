@@ -1,0 +1,10 @@
+{
+  "name": "srl-mlp",
+  "type": "mlp",
+  "inputs": [
+    "srl-mlp-input"
+  ],
+  "dim": 300,
+  "layers": 1,
+  "keep_prob": 0.9
+}
