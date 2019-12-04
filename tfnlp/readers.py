@@ -275,9 +275,9 @@ class ConllSrlReader(ConllReader):
             if HEAD_KEY in instance:
                 instance[HEAD_KEY] = [int(x) for x in instance[HEAD_KEY]]
             if SENSE_KEY in instance:
-                instance[SENSE_KEY] = str(instance[SENSE_KEY][predicate_index])
+                instance[constants.ROLESET_KEY] = str(instance[SENSE_KEY][predicate_index])
 
-                sense = instance[SENSE_KEY]
+                sense = instance[constants.ROLESET_KEY]
                 if self._sense_mappings:
                     if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
                         sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
