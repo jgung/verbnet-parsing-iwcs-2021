@@ -10,8 +10,7 @@
       "./feats/dep-rel.json"
     ],
     "inputs": [
-      "./feats/bert.json",
-      "./feats/marker.json"
+      "./feats/bert.json"
     ]
   },
   "encoders": [
