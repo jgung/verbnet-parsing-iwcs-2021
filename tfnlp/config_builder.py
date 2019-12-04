@@ -61,7 +61,7 @@ def build_config(base_config: dict, override_configs: dict = None, override_para
         for k, config in override_configs.items():
             if '.' in k:
                 raise ValueError('Override configuration keys can only be top-level parameters (no nested params)')
-            result[k] = read_json(config)
+            result[k] = config
 
     # add specific parameter changes (possibly nested)
     if override_params:

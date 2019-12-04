@@ -39,6 +39,7 @@
     "./encoder/srl-mlp.json"
   ],
   "heads": [
+    "./heads/srl-head.json",
     {
       "encoder": "bert-and-marker",
       "name": "sense",
@@ -47,7 +48,6 @@
         300
       ],
       "mlp_dropout": 0.1
-    },
-    "./heads/srl-head.json"
+    }
   ]
 }
