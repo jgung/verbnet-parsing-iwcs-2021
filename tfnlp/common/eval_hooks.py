@@ -76,6 +76,10 @@ class ClassifierEvalHook(EvalHook):
 
         return instances, results
 
+    def end(self, session):
+        super().end(session)
+        session.run(self._eval_update, feed_dict={self._eval_placeholder: self._evaluator.metric})
+
 
 class SequenceEvalHook(EvalHook):
 

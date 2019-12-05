@@ -15,6 +15,7 @@
   },
   "encoders": [
     "./encoder/bert-no-subtokens.json",
+    "./encoder/bert-dropout.json",
     "./encoder/dep-sentinel.json",
     "./encoder/dep-blstm.json"
   ],

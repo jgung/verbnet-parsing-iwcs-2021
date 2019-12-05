@@ -153,7 +153,7 @@ class HeadConfig(Params):
         self.confidence_penalty = config.get('confidence_penalty', 0)
         self.weight = config.get('weight', 1)
 
-        self.mlp_layers = config.get('mlp_layers', [0])
+        self.mlp_layers = config.get('mlp_layers', [])
         self.mlp_dropout = config.get('mlp_dropout', 0.0)
 
 

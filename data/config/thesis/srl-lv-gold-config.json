@@ -16,14 +16,14 @@
   },
   "encoders": [
     "./encoder/bert-no-subtokens.json",
+    "./encoder/bert-dropout.json",
     {
       "name": "bert-and-marker",
       "type": "concat",
       "inputs": [
-        "bert-no-subtokens",
+        "bert-dropout",
         "marker"
-      ],
-      "input_dropout": 0.1
+      ]
     },
     {
       "name": "srl-inputs",
