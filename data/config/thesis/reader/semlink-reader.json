@@ -7,10 +7,10 @@
   "pred_start": 6,
   "map_with_regex": true,
   "label_mappings": {
-    "gold": {
+    "vn": {
       "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
     },
-    "pb": {
+    "gold": {
       "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
     }
   }
