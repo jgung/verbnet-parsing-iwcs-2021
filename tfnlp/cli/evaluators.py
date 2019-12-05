@@ -28,10 +28,14 @@ def get_evaluator(heads, feature_extractor, output_path, script_path):
     for head in heads:
         if head.task not in evaluators:
             raise ValueError("Unsupported head type: " + head.task)
-        evaluator = evaluators[head.task](target=feature_extractor.targets[head.name],
-                                          output_path=output_path + '.' + head.name,
-                                          script_path=script_path)
-        evals.append(evaluator)
+        try:
+            evaluator = evaluators[head.task](target=feature_extractor.targets[head.name],
+                                              output_path=output_path + '.' + head.name,
+                                              script_path=script_path)
+            evals.append(evaluator)
+        except AssertionError:
+            tf.logging.info("Skipping evaluation of '%s' since an evaluation script was not provided", head.task)
+
     return AggregateEvaluator(evals)
 
 
