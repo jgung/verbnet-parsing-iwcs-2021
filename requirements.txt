@@ -4,3 +4,4 @@ nltk
 tensorflow-hub
 tensor2tensor
 bert-tensorflow
+sklearn

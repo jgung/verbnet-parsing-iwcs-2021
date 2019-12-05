@@ -20,7 +20,8 @@ def get_evaluator(heads, feature_extractor, output_path, script_path):
         constants.SRL_KEY: SrlEvaluator,
         constants.NER_KEY: TaggerEvaluator,
         constants.PARSER_KEY: DepParserEvaluator,
-        constants.TOKEN_CLASSIFIER_KEY: TokenClassifierEvaluator
+        constants.TOKEN_CLASSIFIER_KEY: TokenClassifierEvaluator,
+        constants.CLASSIFIER_KEY: TokenClassifierEvaluator
     }
 
     evals = []

@@ -15,6 +15,8 @@ from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
+from sklearn.metrics import classification_report
+
 SUMMARY_FILE = 'eval-summary.tsv'
 EVAL_LOG = 'eval.log'
 PREDICTIONS_FILE = 'predictions.txt'
@@ -163,6 +165,9 @@ def append_srl_prediction_output(identifier, result, output_dir, output_confusio
 
 
 def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
+    if len(gold_labels) != len(predicted_labels):
+        raise ValueError("Predictions and gold labels must have the same length.")
+
     if output_file:
         with file_io.FileIO(output_file, 'w') as _out_file:
             # sort by sentence index to maintain original order of instances
@@ -170,10 +175,11 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
                 _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
 
     cm = ConfusionMatrix(gold_labels, predicted_labels)
-    tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
 
-    if len(gold_labels) != len(predicted_labels):
-        raise ValueError("Predictions and gold labels must have the same length.")
+    tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
+    report = classification_report(y_true=gold_labels, y_pred=predicted_labels)
+    tf.logging.info('\n%s' % report)
+
     correct = sum(x == y for x, y in zip(gold_labels, predicted_labels))
     total = len(predicted_labels)
     accuracy = correct / total

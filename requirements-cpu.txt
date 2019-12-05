@@ -3,3 +3,4 @@ tensorflow-cpu==1.13.1
 nltk
 tensorflow-hub
 bert-tensorflow
+sklearn
