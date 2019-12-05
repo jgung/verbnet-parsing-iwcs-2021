@@ -16,21 +16,13 @@
   },
   "encoders": [
     "./encoder/bert-no-subtokens.json",
-    {
-      "name": "bert-and-marker",
-      "type": "concat",
-      "inputs": [
-        "bert-no-subtokens",
-        "marker"
-      ],
-      "input_dropout": 0.1
-    },
+    "./encoder/bert-dropout.json",
     {
       "name": "srl-inputs",
-      "type": "repeat_and_concat",
+      "type": "concat",
       "inputs": [
-        "sense",
-        "bert-and-marker"
+        "bert-dropout",
+        "marker"
       ]
     },
     "./encoder/srl-blstm.json",
@@ -41,7 +33,7 @@
   "heads": [
     "./heads/srl-head.json",
     {
-      "encoder": "bert-and-marker",
+      "encoder": "bert-dropout",
       "name": "sense",
       "type": "token-classifier",
       "mlp_layers": [

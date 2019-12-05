@@ -125,6 +125,7 @@ class ClassifierHead(ModelHead):
                                                         label_smoothing=self.config.label_smoothing)
         else:
             self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))
+        self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
         self.scores = tf.nn.softmax(self.logits)  # (b x n)
@@ -158,6 +159,12 @@ class ClassifierHead(ModelHead):
         if constraint_key:
             tensors[constraint_key] = self.features[constraint_key]
 
+        overall_score = tf.identity(self.metric)
+        self.metric_ops[append_label(constants.OVERALL_KEY, self.name)] = (overall_score, overall_score)
+        overall_key = append_label(constants.OVERALL_KEY, self.name)
+        # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
+        eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
+
         self.evaluation_hooks = [
             ClassifierEvalHook(
                 label_key=labels_key,
@@ -166,7 +173,9 @@ class ClassifierHead(ModelHead):
                 evaluator=TokenClassifierEvaluator(
                     target=self.extractor,
                     output_path=os.path.join(self.params.job_dir, self.name + '.dev')),
-                output_dir=self.params.job_dir
+                output_dir=self.params.job_dir,
+                eval_update=tf.assign(self.metric, eval_placeholder),
+                eval_placeholder=eval_placeholder,
             )
         ]
 

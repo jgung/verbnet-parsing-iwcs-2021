@@ -133,7 +133,12 @@ def encoder(features, inputs, mode, config):
         encoder_type = config.encoder_type
 
         if constants.ENCODER_IDENT == encoder_type:
-            return tf.nn.dropout(inputs[0], keep_prob=1 if training else 1 - config.dropout), inputs[0].shape[-1]
+            if len(inputs) != 1:
+                raise AssertionError
+            inputs = inputs[0]
+            if training:
+                return tf.nn.dropout(get_encoder_input(inputs), rate=config.dropout)
+            return inputs
         elif constants.ENCODER_CONCAT == encoder_type:
             return concat(inputs, training, config)
         elif constants.ENCODER_REPEAT == encoder_type:

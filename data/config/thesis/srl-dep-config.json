@@ -17,6 +17,7 @@
   },
   "encoders": [
     "./encoder/bert-no-subtokens.json",
+    "./encoder/bert-dropout.json",
     "./encoder/srl-baseline-inputs.json",
     "./encoder/srl-blstm.json",
     "./encoder/srl-repeat-predicate.json",
