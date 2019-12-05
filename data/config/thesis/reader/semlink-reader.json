@@ -5,7 +5,7 @@
     "predicate": 5
   },
   "pred_start": 6,
-  "map_with_regex": true,
+  "map_with_regex_post": true,
   "label_mappings": {
     "vn": {
       "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"

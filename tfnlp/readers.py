@@ -220,6 +220,7 @@ class ConllSrlReader(ConllReader):
                  line_filter=lambda line: line.startswith("#") and not line.startswith("# #"),  # skip comments
                  label_mappings=None,
                  regex_mapping=False,
+                 map_with_regex_post=False,
                  sense_mappings=None,
                  pred_filter=None):
         """
@@ -254,6 +255,7 @@ class ConllSrlReader(ConllReader):
                 _target_mappings.update(c_mappings)
                 _target_mappings.update(r_mappings)
         self._regex_mapping = regex_mapping
+        self._map_with_regex_post = map_with_regex_post
         self._sense_mappings = sense_mappings
         self._pred_filter = pred_filter if pred_filter is not None else lambda x: True
 
@@ -304,7 +306,8 @@ class ConllSrlReader(ConllReader):
         # convert from CoNLL05 labels to IOB labels
         for key, val in pred_cols.items():
             index_to_labels[key] = {label_key: convert_conll_to_bio(val, label_mappings=label_mapping,
-                                                                    map_with_regex=self._regex_mapping)
+                                                                    map_with_regex=self._regex_mapping,
+                                                                    map_with_regex_post=self._map_with_regex_post)
                                     for label_key, label_mapping in self._label_mappings.items()}
 
         assert len(pred_indices) <= len(index_to_labels), (
@@ -570,6 +573,7 @@ def get_reader(reader_config, training_config=None, is_test=False):
                                         pred_end=reader_config.get('pred_end', 0),
                                         label_mappings=reader_config.get('label_mappings'),
                                         regex_mapping=reader_config.get('map_with_regex', False),
+                                        map_with_regex_post=reader_config.get('map_with_regex_post', False),
                                         sense_mappings=reader_config.get('sense_mappings'),
                                         pred_filter=reader_config.get('pred_filter')
                                         )

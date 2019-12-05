@@ -107,12 +107,13 @@ def chunk(labeling: Iterable[str], besio=False, conll=False) -> List[str]:
     return result
 
 
-def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False):
+def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False, map_with_regex_post=False):
     """
     Convert CoNLL-style sequence labels to BIO labels. [`(X`, `*` `)`] => [`B-X`, `I-X`, `I-X`]
     :param labels: list of CoNLL labels
     :param label_mappings: dict mapping labels
     :param map_with_regex: if `True`, treat mappings as regular expressions
+    :param map_with_regex_post: if `True`, apply regular expression mappings after converting to BIO
     :return: list of BIO labels
     """
 
@@ -123,11 +124,10 @@ def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False):
         return result
 
     def _map_with_regex(_label):
-        if map_with_regex:
-            for search, repl in label_mappings.items():
-                match = re.search(search, _label)
-                if match is not None:
-                    return re.sub(search, repl, _label)
+        for search, repl in label_mappings.items():
+            match = re.search(search, _label)
+            if match is not None:
+                return re.sub(search, repl, _label)
         return _label
 
     current = None
@@ -137,6 +137,8 @@ def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False):
             token = _map_with_regex(token)
         if token.startswith(CONLL_START):
             label = _get_label(token)
+            if map_with_regex_post:
+                label = _map_with_regex(label)
             results.append(BEGIN_ + label)
             current = label
         elif current and CONLL_CONT in token:
