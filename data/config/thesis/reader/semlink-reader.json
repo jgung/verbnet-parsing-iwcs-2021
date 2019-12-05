@@ -1,0 +1,17 @@
+{
+  "field_index_map": {
+    "word": 2,
+    "pos": 3,
+    "predicate": 5
+  },
+  "pred_start": 6,
+  "map_with_regex": true,
+  "label_mappings": {
+    "gold": {
+      "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
+    },
+    "pb": {
+      "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
+    }
+  }
+}

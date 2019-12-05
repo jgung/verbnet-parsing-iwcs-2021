@@ -128,7 +128,7 @@ def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False):
                 match = re.search(search, _label)
                 if match is not None:
                     return re.sub(search, repl, _label)
-        raise AssertionError
+        return _label
 
     current = None
     results = []
