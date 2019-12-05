@@ -209,8 +209,7 @@ class TokenClassifierHead(ClassifierHead):
 
             for i, dim in enumerate(self.config.mlp_layers):
                 inputs = tf.layers.dense(inputs=inputs, units=dim,
-                                         activation=_leaky_relu,
-                                         kernel_initializer=tf.zeros_initializer)
+                                         activation=_leaky_relu)
                 if self.config.mlp_dropout:
                     inputs = tf.layers.dropout(inputs, rate=self.config.mlp_dropout, training=self._training)
 

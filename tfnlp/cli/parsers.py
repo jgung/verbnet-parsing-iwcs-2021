@@ -10,6 +10,8 @@ def get_parser(config):
         constants.SRL_KEY: srl_parser,
         constants.NER_KEY: default_parser,
         constants.PARSER_KEY: default_parser,
+        constants.TOKEN_CLASSIFIER_KEY: default_parser,
+        constants.CLASSIFIER_KEY: default_parser,
     }
     if head_type not in parsers:
         raise ValueError("ITL unsupported head type: " + head_type)
