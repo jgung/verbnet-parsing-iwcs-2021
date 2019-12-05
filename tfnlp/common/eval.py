@@ -177,7 +177,7 @@ def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
     cm = ConfusionMatrix(gold_labels, predicted_labels)
 
     tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
-    report = classification_report(y_true=gold_labels, y_pred=predicted_labels)
+    report = classification_report(y_true=gold_labels, y_pred=predicted_labels, digits=4)
     tf.logging.info('\n%s' % report)
 
     correct = sum(x == y for x, y in zip(gold_labels, predicted_labels))
