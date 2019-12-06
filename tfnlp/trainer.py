@@ -1,5 +1,4 @@
 import argparse
-import glob
 import os
 import sys
 from typing import Union, Iterable, Callable, Optional
@@ -348,7 +347,7 @@ def default_args():
     parser.add_argument('--resources', type=str, help='shared resources directory (such as for word embeddings)')
     parser.add_argument('--train', type=str, help='training data path')
     parser.add_argument('--valid', type=str, help='validation/development data path')
-    parser.add_argument('--test', type=str, help='test data paths, comma-separated')
+    parser.add_argument('--test', type=str, nargs="*", help='test data paths, space-separated')
     parser.add_argument('--mode', type=str, default="train", help='(optional) training command, "train" by default',
                         choices=list(TRAINING_MODES))
     parser.add_argument('--script', type=str, help='(optional) evaluation script path')
@@ -391,18 +390,12 @@ def cli():
 
     set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
 
-    _test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None
-    test_paths = []
-    for path in _test_paths:
-        globbed = glob.glob(path)
-        if len(globbed) > 1:
-            tf.logging.info('Found %d test files from %s: %s' % (len(globbed), path, str(globbed)))
-        elif len(globbed) == 0:
-            tf.logging.error('No matching test files found at %s' % path)
-            raise AssertionError('No matching test files found at %s' % path)
-
-        test_paths.extend(globbed)
-    test_paths = sorted(test_paths)
+    test_paths = None
+    if opts.test:
+        test_paths = []
+        for test_path in opts.test:
+            test_paths.extend([t for t in test_path.split(',') if t.strip()])
+        test_paths = sorted(test_paths)
 
     if mode not in TRAINING_MODES:
         raise ValueError("Unexpected mode type: {}".format(mode))
