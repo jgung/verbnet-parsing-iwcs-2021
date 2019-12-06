@@ -284,8 +284,6 @@ class ConllSrlReader(ConllReader):
                     if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
                         sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
                     sense = self._sense_mappings.get(sense, [constants.UNKNOWN_WORD])
-                elif sense != 'LV':
-                    sense = 'O'
                 instance[SENSE_KEY] = sense
 
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0'

@@ -2,6 +2,7 @@
   "field_index_map": {
     "word": 2,
     "pos": 3,
+    "sense": 4,
     "predicate": 5
   },
   "pred_start": 6,
