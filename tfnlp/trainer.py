@@ -397,6 +397,10 @@ def cli():
         globbed = glob.glob(path)
         if len(globbed) > 1:
             tf.logging.info('Found %d test files from %s: %s' % (len(globbed), path, str(globbed)))
+        elif len(globbed) == 0:
+            tf.logging.error('No matching test files found at %s' % path)
+            raise AssertionError('No matching test files found at %s' % path)
+
         test_paths.extend(globbed)
     test_paths = sorted(test_paths)
 
