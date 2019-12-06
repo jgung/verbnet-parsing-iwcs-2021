@@ -256,7 +256,7 @@ class ConllSrlReader(ConllReader):
                 _target_mappings.update(r_mappings)
         self._regex_mapping = regex_mapping
         self._map_with_regex_post = map_with_regex_post
-        self._sense_mappings = dict(sense_mappings)
+        self._sense_mappings = dict(sense_mappings) if sense_mappings else None
         self._pred_filter = pred_filter if pred_filter is not None else lambda x: True
 
     def read_instances(self, rows):
