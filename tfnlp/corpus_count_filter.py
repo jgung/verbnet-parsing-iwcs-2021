@@ -63,8 +63,8 @@ def props_by_pred(reader, dataset):
         instance[constants.SENTENCE_INDEX] = [instance[constants.SENTENCE_INDEX] for _ in instance[constants.WORD_KEY]]
         instance[constants.LABEL_KEY] = chunk(instance[constants.LABEL_KEY], conll=True)
         pred_idx = instance[constants.PREDICATE_INDEX_KEY]
-        instance[constants.SENSE_KEY] = [instance[constants.SENSE_KEY][pred_idx] if i == pred_idx else '-'
-                                         for i in range(0, len(instance[constants.SENSE_KEY]))]
+        instance[constants.SENSE_KEY] = [instance[constants.SENSE_KEY] if i == pred_idx else '-'
+                                         for i in range(0, len(instance[constants.WORD_KEY]))]
         instance[constants.PREDICATE_KEY] = [instance[constants.PREDICATE_KEY][pred_idx] if i == pred_idx else '-'
                                              for i in range(0, len(instance[constants.PREDICATE_KEY]))]
         pred = by_pred[instance[constants.PREDICATE_KEY][instance[constants.PREDICATE_INDEX_KEY]]]

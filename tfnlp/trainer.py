@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 import sys
 from typing import Union, Iterable, Callable, Optional
@@ -387,12 +388,19 @@ def cli():
                       debug=opts.debug)
 
     mode = opts.mode
-    test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None
+
+    set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
+
+    _test_paths = [t for t in opts.test.split(',') if t.strip()] if opts.test else None
+    test_paths = []
+    for path in _test_paths:
+        globbed = glob.glob(path)
+        if len(globbed) > 1:
+            tf.logging.info('Found %d test files from %s: %s' % (len(globbed), path, str(globbed)))
+        test_paths.extend(globbed)
 
     if mode not in TRAINING_MODES:
         raise ValueError("Unexpected mode type: {}".format(mode))
-
-    set_up_logging(os.path.join(opts.save, '{}.log'.format(mode)))
 
     if mode == 'train' and not opts.train and test_paths:
         tf.logging.info('No training set provided, defaulting to test mode for %s' % opts.test)
