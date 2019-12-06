@@ -28,6 +28,32 @@ def default_reader():
     })
 
 
+SEMLINK_OUTPUT_FIELDS = [constants.INSTANCE_INDEX, constants.TOKEN_INDEX_KEY, constants.WORD_KEY, constants.POS_KEY,
+                         constants.SENSE_KEY, constants.PREDICATE_KEY]
+
+
+def semlink_reader():
+    return convert_to_attributes({
+        "field_index_map": {
+            "token_index": 1,
+            "word": 2,
+            "pos": 3,
+            "sense": 4,
+            "predicate": 5
+        },
+        "pred_start": 6,
+        "map_with_regex_post": True,
+        "label_mappings": {
+            "vn": {
+                "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
+            },
+            "gold": {
+                "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
+            }
+        }
+    })
+
+
 def props_by_pred(reader, dataset):
     result = list(reader.read_file(dataset))
 
@@ -65,7 +91,10 @@ def main(opts):
         ks = [int(k) for k in opts.k.split(',')]
     print('Processing on following thresholds: {}'.format(', '.join([str(k) for k in ks])))
     try:
-        reader = get_reader(default_reader() if opts.reader is None else opts.reader)
+        if opts.reader == "semlink":
+            reader = get_reader(semlink_reader())
+        else:
+            reader = get_reader(default_reader() if opts.reader is None else opts.reader)
     except ValueError:
         reader = get_reader(read_json(opts.reader))
 
@@ -84,7 +113,7 @@ def main(opts):
                 if len(train_count) <= k:
                     test_count += count
                     for inst in devs:
-                        write_instance(inst, out_file)
+                        write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None)
         print("Count for %d: %d" % (k, test_count))
 
 
