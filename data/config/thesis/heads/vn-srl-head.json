@@ -1,5 +1,6 @@
 {
   "encoder": "srl-mlp",
   "name": "vn",
-  "type": "srl"
+  "type": "srl",
+  "weight": 0.5
 }
