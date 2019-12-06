@@ -41,16 +41,7 @@ def semlink_reader():
             "sense": 4,
             "predicate": 5
         },
-        "pred_start": 6,
-        "map_with_regex_post": True,
-        "label_mappings": {
-            "vn": {
-                "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
-            },
-            "gold": {
-                "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
-            }
-        }
+        "pred_start": 6
     })
 
 
