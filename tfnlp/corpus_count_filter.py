@@ -72,12 +72,12 @@ def props_by_pred(reader, dataset):
     return by_pred
 
 
-def write_instance(inst, writer, fields=None):
+def write_instance(inst, writer, fields=None, ner=True):
     if fields is None:
         fields = OUTPUT_FIELDS
     for i, fields in enumerate(zip(*[inst[k] for k in fields])):
         propositions = inst[constants.LABEL_KEY][i]
-        writer.write('%s - - * %s\n' % (' '.join([str(f) for f in fields]), propositions))
+        writer.write('%s %s%s\n' % (' '.join([str(f) for f in fields]), '- - * ' if ner else '', propositions))
     writer.write('\n')
 
 
@@ -113,7 +113,8 @@ def main(opts):
                 if len(train_count) <= k:
                     test_count += count
                     for inst in devs:
-                        write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None)
+                        write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
+                                       ner=opts.reader != "semlink")
         print("Count for %d: %d" % (k, test_count))
 
 
