@@ -1,0 +1,20 @@
+{
+  "name": "sense",
+  "key": "sense",
+  "indices": {
+    "None": 0
+  },
+  "unknown_word": "None",
+  "pad_word": "None",
+  "rank": 1,
+  "config": {
+    "dim": 100,
+    "dropout": 0.1
+  },
+  "threshold": 10,
+  "mapping_funcs": [{
+    "type": "sub",
+    "input": "-.*$",
+    "output": ""
+  }]
+}

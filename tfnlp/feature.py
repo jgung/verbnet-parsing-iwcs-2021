@@ -17,6 +17,7 @@ from tfnlp.common.feature_utils import int64_feature_list, int64_feature, str_fe
 from tfnlp.common.utils import Params, deserialize, serialize, write_json, read_json
 from tfnlp.layers.reduce import ConvNet, Mean
 
+SUB = "sub"
 LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"
 CHARACTERS = "chars"
@@ -66,16 +67,28 @@ def is_predicate(value):
 
 
 def _get_mapping_function(func):
-    if func == LOWER:
-        return lower
-    elif func == NORMALIZE_DIGITS:
-        return normalize_digits
-    elif func == CHARACTERS:
-        return characters
-    elif func == PREDICATE:
-        return is_predicate
-    else:
-        raise AssertionError("Unexpected function name: {}".format(func))
+    if isinstance(func, str):
+        if func == LOWER:
+            return lower
+        elif func == NORMALIZE_DIGITS:
+            return normalize_digits
+        elif func == CHARACTERS:
+            return characters
+        elif func == PREDICATE:
+            return is_predicate
+        else:
+            raise AssertionError("Unexpected function name: {}".format(func))
+
+    if func.get("type") == SUB:
+        def mapping(raw):
+            if isinstance(raw, str):
+                return re.sub(func.get("input"), func.get("output"), raw)
+            if isinstance(raw, list):
+                return [lower(l) for l in raw]
+            return [re.sub(func.get("input"), func.get("output"), word) for word in raw]
+
+        return mapping
+    raise AssertionError("Unexpected function: {}".format(func))
 
 
 def _get_padding_function(func):
