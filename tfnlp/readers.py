@@ -246,17 +246,17 @@ class ConllSrlReader(ConllReader):
         self._pred_index = [key for key, val in self._index_field_map.items() if val == pred_key][0]
         self.is_predicate = lambda x: x[self._pred_index] is not '-'
         self.prop_count = 0
-        self._label_mappings = label_mappings if label_mappings is not None else {LABEL_KEY: {}}
-        if label_mappings is not None and not regex_mapping:
+        self._label_mappings = dict(label_mappings) if label_mappings is not None else {LABEL_KEY: {}}
+        if label_mappings is not None and not (regex_mapping or map_with_regex_post):
             # add continuation/reference mappings if they aren't already there
-            for _target_mappings in label_mappings.values():
+            for _target_mappings in self._label_mappings.values():
                 c_mappings = {'C-' + k: v for k, v in _target_mappings.items()}
                 r_mappings = {'R-' + k: v for k, v in _target_mappings.items()}
                 _target_mappings.update(c_mappings)
                 _target_mappings.update(r_mappings)
         self._regex_mapping = regex_mapping
         self._map_with_regex_post = map_with_regex_post
-        self._sense_mappings = sense_mappings
+        self._sense_mappings = dict(sense_mappings)
         self._pred_filter = pred_filter if pred_filter is not None else lambda x: True
 
     def read_instances(self, rows):
