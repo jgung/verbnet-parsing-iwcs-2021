@@ -398,6 +398,7 @@ def cli():
         if len(globbed) > 1:
             tf.logging.info('Found %d test files from %s: %s' % (len(globbed), path, str(globbed)))
         test_paths.extend(globbed)
+    test_paths = sorted(test_paths)
 
     if mode not in TRAINING_MODES:
         raise ValueError("Unexpected mode type: {}".format(mode))

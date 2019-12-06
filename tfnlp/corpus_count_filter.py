@@ -106,7 +106,7 @@ def main(opts):
     for k in ks:
         test_count = 0
 
-        with open(opts.output + '/' + str(k) + '.txt', mode='wt') as out_file:
+        with open(opts.output + '/' + str(k).zfill(5) + '.txt', mode='wt') as out_file:
             for pred, devs in dev_instances.items():
                 train_count = train_instances.get(pred, [])
                 count = len(devs)
