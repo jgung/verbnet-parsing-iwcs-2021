@@ -123,11 +123,16 @@ def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False, map_
             return label_mappings.get(result, result)
         return result
 
-    def _map_with_regex(_label):
+    regex_mappings = []
+    if label_mappings and (map_with_regex or map_with_regex_post):
         for search, repl in label_mappings.items():
-            match = re.search(search, _label)
+            regex_mappings.append((re.compile(search), repl))
+
+    def _map_with_regex(_label):
+        for _search, _repl in regex_mappings:
+            match = _search.search(_label)
             if match is not None:
-                return re.sub(search, repl, _label)
+                return _search.sub(_repl, _label)
         return _label
 
     current = None
