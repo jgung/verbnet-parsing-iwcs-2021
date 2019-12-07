@@ -80,12 +80,10 @@ def string2index(feature_strings, feature):
         return lookup.lookup(feature_strings)
 
 
-def get_embedding_input(inputs, feature, training):
+def get_embedding_input(inputs, feature, training, weights=None):
     config = feature.config
 
     with tf.variable_scope(feature.name):
-        feature_ids = string2index(inputs, feature)
-
         with tf.variable_scope('embedding'):
             initializer = None
             if training:
@@ -102,8 +100,13 @@ def get_embedding_input(inputs, feature, training):
                                                shape=[feature.vocab_size(), config.dim],
                                                initializer=initializer,
                                                trainable=config.trainable)
-            result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
-                                            name='lookup')  # wrapper of gather
+
+            if weights is None:
+                feature_ids = string2index(inputs, feature)
+                result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
+                                                name='lookup')  # wrapper of gather
+            else:
+                result = tf.matmul(weights, embedding_matrix, name="weighted_lookup")
 
             if config.dropout > 0:
                 result = tf.layers.dropout(result,

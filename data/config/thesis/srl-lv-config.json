@@ -18,11 +18,19 @@
     "./encoder/bert-no-subtokens.json",
     "./encoder/bert-dropout.json",
     {
-      "name": "srl-inputs",
+      "name": "bert-and-marker",
       "type": "concat",
       "inputs": [
         "bert-dropout",
         "marker"
+      ]
+    },
+    {
+      "name": "srl-inputs",
+      "type": "repeat_and_concat",
+      "inputs": [
+        "sense",
+        "bert-and-marker"
       ]
     },
     "./encoder/srl-blstm.json",
@@ -39,7 +47,8 @@
       "mlp_layers": [
         300
       ],
-      "mlp_dropout": 0.1
+      "mlp_dropout": 0.1,
+      "weighted_embedding": true
     }
   ]
 }

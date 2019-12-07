@@ -51,6 +51,7 @@ class BaseNetworkConfig(Params):
         # Decay for exponential moving average (EMA) of parameters -- 0.998 or 0.999 is standard
         # "Temporal averaging for semi-supervised learning", Laine and Aila 2017. https://arxiv.org/abs/1610.02242
         self.ema_decay = config.get('ema_decay', 0)
+        self.weighted_embedding = config.get('weighted_embedding', False)
 
         # encoder settings
         self.encoders = [EncoderConfig(val) for val in config.get('encoders', [])]

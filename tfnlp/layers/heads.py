@@ -28,6 +28,7 @@ class ModelHead(object):
         self.logits = None
         self.loss = None
         self.predictions = None
+        self.scores = None
         self.evaluation_hooks = []
         self.metric_ops = {}
         self.metric = None
@@ -104,7 +105,6 @@ class ClassifierHead(ModelHead):
     def __init__(self, inputs, config, features, params, training):
         super().__init__(inputs, config, features, params, training)
         self._sequence_lengths = self.features[constants.LENGTH_KEY]
-        self.scores = None
 
     def _all(self):
         if len(self.inputs) == 2:
@@ -160,8 +160,8 @@ class ClassifierHead(ModelHead):
             tensors[constraint_key] = self.features[constraint_key]
 
         overall_score = tf.identity(self.metric)
-        self.metric_ops[append_label(constants.OVERALL_KEY, self.name)] = (overall_score, overall_score)
         overall_key = append_label(constants.OVERALL_KEY, self.name)
+        self.metric_ops[overall_key] = (overall_score, overall_score)
         # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
         eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 
@@ -313,8 +313,8 @@ class TaggerHead(ModelHead):
         }
 
         overall_score = tf.identity(self.metric)
-        self.metric_ops[append_label(constants.OVERALL_KEY, self.name)] = (overall_score, overall_score)
         overall_key = append_label(constants.OVERALL_KEY, self.name)
+        self.metric_ops[overall_key] = (overall_score, overall_score)
         # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
         eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 

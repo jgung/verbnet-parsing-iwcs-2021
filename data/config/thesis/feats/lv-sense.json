@@ -3,7 +3,8 @@
   "key": "sense",
   "indices": {
     "O": 0,
-    "LV": 1
+    "LV": 1,
+    "HN": 2
   },
   "unknown_word": "O",
   "pad_word": "O",
@@ -17,6 +18,11 @@
       "type": "sub",
       "input": "^\\d+$",
       "output": "O"
+    },
+    {
+      "type": "sub",
+      "input": "^LVV$",
+      "output": "LV"
     }
   ]
 }
