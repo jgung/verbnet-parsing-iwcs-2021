@@ -280,6 +280,9 @@ class ConllSrlReader(ConllReader):
                 instance[constants.ROLESET_KEY] = str(instance[SENSE_KEY][predicate_index])
 
                 sense = instance[constants.ROLESET_KEY]
+                if LABEL_KEY in instance and 'B-ARGM-LVB' in instance[LABEL_KEY]:
+                    sense = 'HN'
+
                 if self._sense_mappings:
                     if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
                         sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
@@ -577,7 +580,7 @@ def get_reader(reader_config, training_config=None, is_test=False):
                                         )
                 if SENSE_KEY in field_index_map and PREDICATE_KEY in field_index_map:
                     def is_predicate(line):
-                        return line[field_index_map[PREDICATE_KEY]] is not '-' and line[field_index_map[SENSE_KEY]] is not '-'
+                        return line[field_index_map[PREDICATE_KEY]] is not '-' and any('(V*' in f for f in line)
 
                     reader.is_predicate = is_predicate
             else:

@@ -11,5 +11,12 @@
   "config": {
     "dim": 100,
     "dropout": 0.1
-  }
+  },
+  "mapping_funcs": [
+    {
+      "type": "sub",
+      "input": "^\\d+$",
+      "output": "O"
+    }
+  ]
 }
