@@ -51,7 +51,6 @@ class BaseNetworkConfig(Params):
         # Decay for exponential moving average (EMA) of parameters -- 0.998 or 0.999 is standard
         # "Temporal averaging for semi-supervised learning", Laine and Aila 2017. https://arxiv.org/abs/1610.02242
         self.ema_decay = config.get('ema_decay', 0)
-        self.weighted_embedding = config.get('weighted_embedding', False)
 
         # encoder settings
         self.encoders = [EncoderConfig(val) for val in config.get('encoders', [])]
@@ -79,7 +78,6 @@ class BaseNetworkConfig(Params):
         optimizer_config = config.get('optimizer')
         if optimizer_config:
             self.optimizer = OptimizerConfig(optimizer_config)
-
 
 
 class OptimizerConfig(Params):
@@ -153,6 +151,7 @@ class HeadConfig(Params):
         # "Regularizing Neural Networks by Penalizing Confident Predictions", Pereyra et al. 2017 -- 1.0 is default
         self.confidence_penalty = config.get('confidence_penalty', 0)
         self.weight = config.get('weight', 1)
+        self.weighted_embedding = config.get('weighted_embedding', False)
 
         self.mlp_layers = config.get('mlp_layers', [])
         self.mlp_dropout = config.get('mlp_dropout', 0.0)

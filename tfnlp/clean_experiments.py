@@ -9,6 +9,7 @@ def clean_experiment_dir(dir_path):
     for root, dirs, files in os.walk(dir_path):
         for pattern in REMOVE:
             for file in filter(lambda x: re.match(pattern, x), files):
+                print("Deleting %s" % file)
                 os.remove(os.path.join(root, file))
 
 

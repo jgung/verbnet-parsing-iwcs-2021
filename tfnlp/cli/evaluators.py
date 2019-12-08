@@ -118,7 +118,7 @@ class TokenClassifierEvaluator(Evaluator):
             scores = {self.target.index_to_feat(i): score for i, score in enumerate(result[self.scores_name])}
             ck = instance[self.target.constraint_key]
             valid_scores = {label: score for label, score in scores.items() if label in self.target.constraints.get(ck, [])}
-            label = max(valid_scores.items(), key=lambda x: x[1], default=(constants.UNKNOWN_WORD, 0))[0]
+            label = max(valid_scores.items(), key=lambda x: x[1], default=(self.target.unknown_word, 0))[0]
             self.labels.append(label)
         else:
             result = result[self.target_key]
@@ -126,7 +126,12 @@ class TokenClassifierEvaluator(Evaluator):
                 result = result.decode('utf-8')
             self.labels.append(result)
 
-        self.gold.append(instance[self.labels_key])
+        # apply mappings to gold labels?
+        label = instance[self.labels_key]
+        for func in self.target.mapping_funcs:
+            label = func(label)
+
+        self.gold.append(label)
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
     def evaluate(self, identifier=None):
