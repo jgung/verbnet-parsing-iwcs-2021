@@ -187,9 +187,12 @@ class FeatureConfig(Params):
         config = feature.get('config', Params())
         self.config = FeatureHyperparameters(config, self)
         self.constraint_key = feature.get('constraint_key')
+
+        # BERT-specific feats
         self.drop_subtokens = feature.get('drop_subtokens', False)
         self.output_type = feature.get('output_type', 'sequence_output')
         self.segment_extractor = feature.get('segment_extractor', constants.PREDICATE_KEY)
+        self.predicate_extractor = feature.get('predicate_extractor', constants.PREDICATE_KEY)
 
 
 class FeaturesConfig(object):
@@ -232,23 +235,25 @@ def _get_feature(feature):
     return feat(**feature)
 
 
-def get_feature_extractor(config):
+def get_feature_extractor(init_config):
     """
     Create a `FeatureExtractor` from a given feature configuration.
-    :param config: feature configuration
+    :param init_config: feature configuration
     :return: feature extractor
     """
     # load default configurations
-    config = FeaturesConfig(config)
+    config = FeaturesConfig(init_config)
 
     bert_feat = next(iter([inp for inp in config.inputs if inp.name == constants.BERT_KEY]), None)
     if bert_feat:
         tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
         contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
-        return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=contains_marker,
+        is_srl = contains_marker or any('predicate_extractor' in inp for inp in init_config.inputs)
+        return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=is_srl,
                                     drop_subtokens=bert_feat.options['drop_subtokens'],
                                     output_type=bert_feat.options['output_type'],
-                                    segment_extractor=bert_feat.options['segment_extractor'])
+                                    segment_extractor=bert_feat.options['segment_extractor'],
+                                    predicate_extractor=bert_feat.options['predicate_extractor'])
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
@@ -932,12 +937,15 @@ class FeatureExtractor(BaseFeatureExtractor):
 
 
 class BertLengthFeature(Extractor):
-    def __init__(self, tokenizer, srl=False, name=LENGTH_KEY, segment_extractor=constants.PREDICATE_KEY):
+    def __init__(self, tokenizer, srl=False, name=LENGTH_KEY,
+                 segment_extractor=constants.PREDICATE_KEY,
+                 predicate_extractor=constants.PREDICATE_KEY):
         super().__init__(name=name, key=constants.WORD_KEY)
         self.srl = srl
         self.tokenizer = tokenizer
         self.counts = {}
         self.segment_extractor = segment_extractor
+        self.predicate_extractor = predicate_extractor
 
     def map(self, value):
         length = len(value)
@@ -947,7 +955,11 @@ class BertLengthFeature(Extractor):
     def get_values(self, sequence):
         vals = super().get_values(sequence)
         tokens = [BERT_CLS]
-        for val in vals:
+        for i, val in enumerate(vals):
+            if self.srl and i == sequence[constants.PREDICATE_INDEX_KEY]:
+                predicate_token = self.predicate_extractor(sequence)
+                tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
+                continue
             tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(val))
         tokens.append(BERT_SEP)
 
@@ -979,7 +991,9 @@ def get_bert_sequence_extractor(sequence):
 
 class BertFeatureExtractor(BaseFeatureExtractor):
     def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL, drop_subtokens=False,
-                 output_type="sequence_output", segment_extractor=constants.PREDICATE_KEY) -> None:
+                 output_type="sequence_output",
+                 segment_extractor=constants.PREDICATE_KEY,
+                 predicate_extractor=constants.PREDICATE_KEY) -> None:
         super().__init__()
         self.srl = srl
         self.label_subtokens = True
@@ -995,9 +1009,12 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         self.targets = {target.name: target for target in targets}
 
         self.segment_extractor = get_bert_sequence_extractor(segment_extractor)
+        self.predicate_extractor = get_bert_sequence_extractor(predicate_extractor)
         len_name = constants.BERT_LENGTH_KEY if self.drop_subtokens else constants.LENGTH_KEY
         self.features = {
-            len_name: BertLengthFeature(self.tokenizer, srl=srl, name=len_name, segment_extractor=self.segment_extractor),
+            len_name: BertLengthFeature(self.tokenizer, srl=srl, name=len_name,
+                                        segment_extractor=self.segment_extractor,
+                                        predicate_extractor=self.predicate_extractor),
             SENTENCE_INDEX: index_feature(),
             **{feature.name: feature for feature in features}
         }
@@ -1040,13 +1057,13 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         words = instance[constants.WORD_KEY]
         for i, word in enumerate(words):
-            if self.srl:
-                # get index of predicate
-                predicate_index = instance[constants.PREDICATE_INDEX_KEY]
-                if i == predicate_index:
-                    focus_index = predicate_index if self.drop_subtokens else len(split_tokens)
-
             sub_tokens = self.tokenizer.wordpiece_tokenizer.tokenize(word)
+            if self.srl and i == instance[constants.PREDICATE_INDEX_KEY]:
+                focus_index = instance[constants.PREDICATE_INDEX_KEY] if self.drop_subtokens else len(split_tokens)
+                pred_tokens = self.tokenizer.wordpiece_tokenizer.tokenize(self.predicate_extractor(instance))
+                if len(pred_tokens) > len(sub_tokens):
+                    mask.extend([0] * (len(pred_tokens) - len(sub_tokens)))
+                sub_tokens = pred_tokens
             split_tokens.extend(sub_tokens)
             mask.append(1)
             mask.extend([0] * (len(sub_tokens) - 1))
