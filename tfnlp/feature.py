@@ -458,7 +458,7 @@ class Feature(Extractor):
                 vocab[reserved_word] = len(vocab)
 
         # after adding reserved words to vocab, sort vocab by counts and add to pruned vocab
-        counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=self.counts.get, reverse=True)
+        counts = [(feat, self.counts[feat]) for feat in sorted(self.counts, key=lambda c: (self.counts.get(c), c), reverse=True)
                   if feat not in vocab and feat not in self.reserved_words]
         for feat, count in counts:
             # TODO: this is kind of a hack to ensure that threshold applies to IOB labels properly
@@ -856,7 +856,7 @@ def read_vocab(extractors, base_path):
             if initializer.embedding:
                 feature.embedding = deserialize(in_path=base_path, in_name=initializer.pkl_path)
         except NotFoundError:
-            return False
+            tf.logging.warn('Could not find embedding initializer %s' % initializer.pkl_path)
     return True
 
 

@@ -6,7 +6,7 @@
   "optimizer": "./optim/bert.json",
   "features": {
     "targets": [
-      "./feats/vn-srl.json"
+      "./feats/srl.json"
     ],
     "inputs": [
       "./feats/bert-with-sense.json",
@@ -24,6 +24,6 @@
     "./encoder/srl-mlp.json"
   ],
   "heads": [
-    "./heads/vn-srl-head.json"
+    "./heads/srl-head.json"
   ]
 }
