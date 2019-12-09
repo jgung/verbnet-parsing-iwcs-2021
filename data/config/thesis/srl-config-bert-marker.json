@@ -9,7 +9,8 @@
       "./feats/srl.json"
     ],
     "inputs": [
-      "./feats/bert-with-marker.json"
+      "./feats/bert-with-marker.json",
+      "./feats/marker.json"
     ]
   },
   "encoders": [
