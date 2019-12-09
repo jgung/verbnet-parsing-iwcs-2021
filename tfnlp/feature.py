@@ -982,6 +982,8 @@ def get_bert_sequence_extractor(sequence):
                 result.append(instance[constants.WORD_KEY][instance[constants.PREDICATE_INDEX_KEY]])
             elif token == constants.SENSE_KEY:
                 result.append(instance[constants.SENSE_KEY])
+            elif token == constants.PREDICATE_LEMMA:
+                result.append(instance[constants.PREDICATE_LEMMA])
             else:
                 result.append(token)
         return ' '.join(result)
