@@ -52,8 +52,16 @@ def build(features, mode, params):
                 # input from a model head
                 head_config = head_configs[encoder_input]
                 head = get_head(head_config)
-                weights = head.scores if head_config.weighted_embedding else None
-                encoder_features[encoder_input] = get_embedding_input(head.predictions, head.extractor, training, weights=weights)
+
+                weights = None
+                if training and head_config.teacher_forcing:
+                    predictions = features[head.name]
+                else:
+                    if head_config.weighted_embedding:
+                        weights = head.scores
+                    predictions = head.predictions
+
+                encoder_features[encoder_input] = get_embedding_input(predictions, head.extractor, training, weights=weights)
             else:
                 raise ValueError('Missing encoder input: %s' % encoder_input)
 
