@@ -6,8 +6,8 @@
   "optimizer": "./optim/bert.json",
   "features": {
     "targets": [
-      "./feats/srl.json",
-      "./feats/vn-sense-coarse-predict-0.json"
+      "./feats/vn-srl.json",
+      "./feats/vn-sense-predict.json"
     ],
     "inputs": [
       "./feats/bert.json",
@@ -40,7 +40,7 @@
     "./encoder/srl-mlp.json"
   ],
   "heads": [
-    "./heads/srl-head.json",
+    "./heads/vn-srl-head.json",
     {
       "encoder": "bert-dropout",
       "name": "sense",

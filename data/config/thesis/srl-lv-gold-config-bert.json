@@ -1,5 +1,5 @@
 {
-  "reader": "./reader/semlink-reader.json",
+  "reader": "./reader/ft-reader.json",
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
@@ -9,30 +9,15 @@
       "./feats/srl.json"
     ],
     "inputs": [
-      "./feats/bert.json",
+      "./feats/bert-with-sense.json",
       "./feats/marker.json",
-      "./feats/vn-sense-coarse.json"
+      "./feats/lv-sense.json"
     ]
   },
   "encoders": [
     "./encoder/bert-no-subtokens.json",
     "./encoder/bert-dropout.json",
-    {
-      "name": "bert-and-marker",
-      "type": "concat",
-      "inputs": [
-        "bert-dropout",
-        "marker"
-      ]
-    },
-    {
-      "name": "srl-inputs",
-      "type": "repeat_and_concat",
-      "inputs": [
-        "sense",
-        "bert-and-marker"
-      ]
-    },
+    "./encoder/srl-baseline-inputs.json",
     "./encoder/srl-blstm.json",
     "./encoder/srl-repeat-predicate.json",
     "./encoder/srl-concat-predicate.json",

@@ -7,7 +7,7 @@
   "features": {
     "targets": [
       "./feats/srl.json",
-      "./feats/vn-sense-coarse-predict.json"
+      "./feats/vn-sense-predict.json"
     ],
     "inputs": [
       "./feats/bert.json",
