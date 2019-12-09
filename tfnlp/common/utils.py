@@ -56,9 +56,15 @@ def read_json(json_path, as_params=True):
         return convert_to_attributes(json_dict)
 
 
+def set_default(obj):
+    if isinstance(obj, set):
+        return list(obj)
+    raise TypeError
+
+
 def write_json(value, json_path):
     with file_io.FileIO(json_path, 'w') as json_out:
-        json_out.write(json.dumps(value, indent=4, sort_keys=True))
+        json_out.write(json.dumps(value, indent=4, sort_keys=True, default=set_default))
 
 
 def serialize(serializable, out_path, out_name=None):

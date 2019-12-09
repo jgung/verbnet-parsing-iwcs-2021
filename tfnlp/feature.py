@@ -189,6 +189,7 @@ class FeatureConfig(Params):
         self.constraint_key = feature.get('constraint_key')
         self.drop_subtokens = feature.get('drop_subtokens', False)
         self.output_type = feature.get('output_type', 'sequence_output')
+        self.segment_extractor = feature.get('segment_extractor', constants.PREDICATE_KEY)
 
 
 class FeaturesConfig(object):
@@ -246,7 +247,8 @@ def get_feature_extractor(config):
         contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
         return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=contains_marker,
                                     drop_subtokens=bert_feat.options['drop_subtokens'],
-                                    output_type=bert_feat.options['output_type'])
+                                    output_type=bert_feat.options['output_type'],
+                                    segment_extractor=bert_feat.options['segment_extractor'])
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
@@ -930,11 +932,12 @@ class FeatureExtractor(BaseFeatureExtractor):
 
 
 class BertLengthFeature(Extractor):
-    def __init__(self, tokenizer, srl=False, name=LENGTH_KEY):
+    def __init__(self, tokenizer, srl=False, name=LENGTH_KEY, segment_extractor=constants.PREDICATE_KEY):
         super().__init__(name=name, key=constants.WORD_KEY)
         self.srl = srl
         self.tokenizer = tokenizer
         self.counts = {}
+        self.segment_extractor = segment_extractor
 
     def map(self, value):
         length = len(value)
@@ -950,16 +953,33 @@ class BertLengthFeature(Extractor):
 
         if self.srl:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
-            predicate_token = vals[sequence[constants.PREDICATE_INDEX_KEY]]
+            predicate_token = self.segment_extractor(sequence)
             tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
             tokens.append(BERT_SEP)
 
         return tokens
 
 
+def get_bert_sequence_extractor(sequence):
+    tokens = sequence.split()
+
+    def get_bert_sequence(instance):
+        result = []
+        for token in tokens:
+            if token == constants.PREDICATE_KEY:
+                result.append(instance[constants.WORD_KEY][instance[constants.PREDICATE_INDEX_KEY]])
+            elif token == constants.SENSE_KEY:
+                result.append(instance[constants.SENSE_KEY])
+            else:
+                result.append(token)
+        return ' '.join(result)
+
+    return get_bert_sequence
+
+
 class BertFeatureExtractor(BaseFeatureExtractor):
     def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL, drop_subtokens=False,
-                 output_type="sequence_output") -> None:
+                 output_type="sequence_output", segment_extractor=constants.PREDICATE_KEY) -> None:
         super().__init__()
         self.srl = srl
         self.label_subtokens = True
@@ -974,9 +994,10 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         self.tokenizer = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
         self.targets = {target.name: target for target in targets}
 
+        self.segment_extractor = get_bert_sequence_extractor(segment_extractor)
         len_name = constants.BERT_LENGTH_KEY if self.drop_subtokens else constants.LENGTH_KEY
         self.features = {
-            len_name: BertLengthFeature(self.tokenizer, srl=srl, name=len_name),
+            len_name: BertLengthFeature(self.tokenizer, srl=srl, name=len_name, segment_extractor=self.segment_extractor),
             SENTENCE_INDEX: index_feature(),
             **{feature.name: feature for feature in features}
         }
@@ -1054,7 +1075,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         if self.srl:
             segment_index = len(split_tokens)
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
-            predicate_token = words[instance[constants.PREDICATE_INDEX_KEY]]
+            predicate_token = self.segment_extractor(instance)
             predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
             split_tokens.extend(predicate_subtokens)
             split_tokens.append(BERT_SEP)

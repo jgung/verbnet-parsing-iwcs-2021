@@ -1,0 +1,5 @@
+{
+  "name": "bert",
+  "drop_subtokens": true,
+  "segment_extractor": "predicate [SEP] sense"
+}
