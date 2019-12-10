@@ -4,13 +4,13 @@ from typing import List
 
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import classification_report
 from tensorflow.python.lib.io import file_io
-
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
-from tfnlp.common.eval import conll_eval, conll_srl_eval, append_srl_prediction_output
-from tfnlp.common.eval import write_props_to_file, accuracy_eval, get_parse_prediction, \
+from tfnlp.common.eval import conll_eval, conll_srl_eval, append_prediction_output
+from tfnlp.common.eval import write_props_to_file, get_parse_prediction, \
     to_conll09_line, to_conllx_line, write_parse_result_to_file
 
 
@@ -134,8 +134,31 @@ class TokenClassifierEvaluator(Evaluator):
         self.gold.append(label)
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
-    def evaluate(self, identifier=None):
-        self.metric, self.summary = accuracy_eval(self.gold, self.labels, self.indices, output_file=self.output_path + '.txt'), ''
+    def evaluate(self, identifier='.'):
+        output_file = self.output_path + '.txt'
+
+        if len(self.gold) != len(self.labels):
+            raise ValueError("Predictions and gold labels must have the same length.")
+        if output_file:
+            with file_io.FileIO(output_file, 'w') as _out_file:
+                # sort by sentence index to maintain original order of instances
+                for predicted, index, gold in sorted(zip(self.labels, self.indices, self.gold), key=lambda k: k[1]):
+                    _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
+
+        report = classification_report(y_true=self.gold, y_pred=self.labels, digits=4)
+        tf.logging.info('\n%s' % report)
+
+        correct = sum(x == y for x, y in zip(self.gold, self.labels))
+        total = len(self.labels)
+        accuracy = correct / total
+        tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
+
+        append_prediction_output(identifier=self.target.name,
+                                 header='ID\tCorrect\tTotal\tAccuracy',
+                                 line='%s\t%d\t%d\t%f' % (identifier, correct, total, accuracy),
+                                 detailed=report,
+                                 output_dir=os.path.dirname(self.output_path))
+        self.metric, self.summary = accuracy, report
 
 
 class TaggerEvaluator(Evaluator):
@@ -161,6 +184,12 @@ class TaggerEvaluator(Evaluator):
     def evaluate(self, identifier=None):
         f1, result_str = conll_eval(self.gold, self.labels, self.indices, output_file=self.output_path + '.txt')
         tf.logging.info(result_str)
+
+        append_prediction_output(identifier=self.target.name,
+                                 header='ID\tF1',
+                                 line='%s\t%f' % (identifier, f1),
+                                 detailed=result_str,
+                                 output_dir=os.path.dirname(self.output_path))
         self.metric, self.summary = f1, result_str
 
 
@@ -228,6 +257,13 @@ class DepParserEvaluator(Evaluator):
         tf.logging.info('\n%s', res)
         lines = res.split('\n')
         las = float(lines[0].strip().split()[9])
+
+        append_prediction_output(identifier=self.target.name,
+                                 header='ID\tLAS',
+                                 line='%s\t%f' % (identifier, las),
+                                 detailed=res,
+                                 output_dir=os.path.dirname(self.output_path))
+
         self.metric, self.summary = las, res
 
 
@@ -244,19 +280,24 @@ class SrlEvaluator(TaggerEvaluator):
         super().accumulate(instance, result)
         self.markers.append(instance[constants.MARKER_KEY])
 
-    def evaluate(self, identifier=None):
-        if identifier is None:
-            identifier = '.'
+    def evaluate(self, identifier='.'):
         write_props_to_file(self.output_path + '.gold.txt', self.gold, self.markers, self.indices)
         write_props_to_file(self.output_path + '.txt', self.gold, self.markers, self.indices)
 
         result = conll_srl_eval(self.gold, self.labels, self.markers, self.indices)
         res = str(result)
         tf.logging.info(res)
+        p, r, f1 = result.evaluation.prec_rec_f1()
         if self.output_path is not None:
-            append_srl_prediction_output(identifier,
-                                         result,
-                                         os.path.dirname(self.output_path),
-                                         output_confusions=True)
+            line = '%s\t%d\t%f\t%f\t%f\t%f' % (identifier,
+                                               result.ntargets,
+                                               result.perfect_props(),
+                                               p, r, f1)
+            append_prediction_output(identifier=self.target.name,
+                                     header='ID\t# Props\t% Perfect\tPrecision\tRecall\tF1',
+                                     line=line,
+                                     detailed=res,
+                                     output_dir=os.path.dirname(self.output_path),
+                                     confusions=result.confusion_matrix())
 
-        self.metric, self.summary = result.evaluation.prec_rec_f1()[2], result
+        self.metric, self.summary = f1, result

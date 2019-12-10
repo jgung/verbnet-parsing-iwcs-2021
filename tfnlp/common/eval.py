@@ -5,19 +5,15 @@ from typing import Iterable, Tuple, Dict, List
 
 import numpy as np
 import tensorflow as tf
-from nltk import ConfusionMatrix
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.lib.io.file_io import get_matching_files
-
 from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
 from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
 
-from sklearn.metrics import classification_report
-
-SUMMARY_FILE = 'eval-summary.tsv'
+SUMMARY_FILE = 'eval-summary'
 EVAL_LOG = 'eval.log'
 PREDICTIONS_FILE = 'predictions.txt'
 GOLD_FILE = 'gold.txt'
@@ -138,53 +134,28 @@ def _get_predicates_and_props(labels: Iterable[Iterable[str]],
         yield predicates, props_by_predicate
 
 
-def append_srl_prediction_output(identifier, result, output_dir, output_confusions=False):
-    summary_file = os.path.join(output_dir, SUMMARY_FILE)
+def append_prediction_output(identifier, header, line, detailed, output_dir, confusions=None):
+    summary_file = os.path.join(output_dir, '%s.%s.tsv' % (SUMMARY_FILE, identifier))
     eval_log = os.path.join(output_dir, EVAL_LOG)
 
     exists = tf.gfile.Exists(summary_file) and tf.gfile.Exists(eval_log)
 
     if not exists:
         with file_io.FileIO(summary_file, 'w') as summary:
-            summary.write('ID\t# Props\t% Perfect\tPrecision\tRecall\tF1\n')
+            summary.write(header)
+            summary.write('\n')
         with file_io.FileIO(eval_log, 'w') as log:
             log.write('%s\n\n' % output_dir)
 
     with file_io.FileIO(summary_file, 'a') as summary:
-        p, r, f1 = result.evaluation.prec_rec_f1()
-        summary.write('%s\t%d\t%f\t%f\t%f\t%f\n' % (identifier,
-                                                    result.ntargets,
-                                                    result.perfect_props(),
-                                                    p, r, f1))
+        summary.write(line)
+        summary.write('\n')
 
-    with file_io.FileIO(eval_log, 'a') as eval_log:
-        eval_log.write('\nID: %s\n' % identifier)
-        eval_log.write(str(result) + '\n')
-        if output_confusions:
-            eval_log.write('\n%s\n\n' % result.confusion_matrix())
-
-
-def accuracy_eval(gold_labels, predicted_labels, indices, output_file=None):
-    if len(gold_labels) != len(predicted_labels):
-        raise ValueError("Predictions and gold labels must have the same length.")
-
-    if output_file:
-        with file_io.FileIO(output_file, 'w') as _out_file:
-            # sort by sentence index to maintain original order of instances
-            for predicted, index, gold in sorted(zip(predicted_labels, indices, gold_labels), key=lambda k: k[1]):
-                _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
-
-    cm = ConfusionMatrix(gold_labels, predicted_labels)
-
-    tf.logging.info('\n%s' % cm.pretty_format(sort_by_count=True, show_percents=True, truncate=9))
-    report = classification_report(y_true=gold_labels, y_pred=predicted_labels, digits=4)
-    tf.logging.info('\n%s' % report)
-
-    correct = sum(x == y for x, y in zip(gold_labels, predicted_labels))
-    total = len(predicted_labels)
-    accuracy = correct / total
-    tf.logging.info("Accuracy: %f (%d/%d)" % (accuracy, correct, total))
-    return accuracy
+    with file_io.FileIO(eval_log, 'a') as log:
+        log.write('\nID: %s\n' % identifier)
+        log.write(str(detailed) + '\n')
+        if confusions:
+            log.write('\n%s\n\n' % str(confusions))
 
 
 def get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat=None):
