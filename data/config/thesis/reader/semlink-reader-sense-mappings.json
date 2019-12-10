@@ -6,6 +6,15 @@
     "predicate": 5
   },
   "pred_start": 6,
+  "map_with_regex_post": true,
+  "label_mappings": {
+    "vn": {
+      "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
+    },
+    "gold": {
+      "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
+    }
+  },
   "sense_mappings": {
     "FedEx.01": [
       "11.1"
