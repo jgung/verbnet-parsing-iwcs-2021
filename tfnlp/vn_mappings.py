@@ -1,9 +1,24 @@
 import re
-from collections import Counter
+from collections import defaultdict, Counter
 
-from common.utils import write_json
+from tfnlp.common.utils import write_json
 
-if __name__ == '__main__':
+
+def generate_pbvn_sense_mappings():
+    file = 'pbvn_mappings.tsv'
+
+    vn_mappings = defaultdict(list)
+    with open(file, mode='r') as mappings:
+        for line in mappings:
+            fields = line.split('\t')
+            vncls = fields[1].strip()
+            pbrs = fields[0].strip()
+            vn_mappings[pbrs].append(vncls)
+
+    write_json(vn_mappings, 'pbvn_mappings.json')
+
+
+def generate_rs_mappings():
     file = 'pbvn_mappings.tsv'
 
     vn_mappings = {}
@@ -14,8 +29,8 @@ if __name__ == '__main__':
             pbrs = fields[1]
             pb = fields[2]
             vn = fields[3]
-            NM = ['NONE', 'NM']
-            if pb in NM or vn in NM:
+            nm = ['NONE', 'NM']
+            if pb in nm or vn in nm:
                 continue
             vncls = re.sub('-.*$', '', vncls)
 
@@ -25,4 +40,21 @@ if __name__ == '__main__':
             vn_roles = role_mappings.get(pb, Counter())
             role_mappings[pb] = vn_roles
             vn_roles[vn] += 1
+
     write_json(vn_mappings, 'pbvn_mappings.json')
+
+
+def add_rs():
+    with open('data/datasets/thesis/semlink/pb-dev.txt', mode='r') as rs, \
+            open('data/datasets/thesis/semlink/dev.txt', mode='r') as lines, \
+            open('data/datasets/thesis/semlink/dev.rs.txt', mode='w') as w:
+        for sense, line in zip(rs, lines):
+            line = line.strip()
+            fields = line.split()
+            if len(fields) > 4:
+                fields[4] = sense.strip()
+            w.write(' '.join(fields) + '\n')
+
+
+if __name__ == '__main__':
+    add_rs()

@@ -24,6 +24,7 @@ CHARACTERS = "chars"
 PREDICATE = "predicate"
 PADDING = "pad"
 CONV_PADDING = "conv"
+MAPPING = "mapping"
 
 
 def _get_reduce_function(config, dim, length):
@@ -84,10 +85,23 @@ def _get_mapping_function(func):
             if isinstance(raw, str):
                 return re.sub(func.get("input"), func.get("output"), raw)
             if isinstance(raw, list):
-                return [lower(l) for l in raw]
+                return [mapping(r) for r in raw]
             return [re.sub(func.get("input"), func.get("output"), word) for word in raw]
 
         return mapping
+    elif func.get("type") == MAPPING:
+        mappings_dict = func.get("mappings")
+        default_val = func.get("default", constants.UNKNOWN_WORD)
+
+        def mapping(raw):
+            if isinstance(raw, str):
+                return mappings_dict.get(raw, default_val)
+            if isinstance(raw, list):
+                return [mapping(r) for r in raw]
+            return [mappings_dict.get(word, default_val) for word in raw]
+
+        return mapping
+
     raise AssertionError("Unexpected function: {}".format(func))
 
 
@@ -981,7 +995,11 @@ def get_bert_sequence_extractor(sequence):
             if token == constants.PREDICATE_KEY:
                 result.append(instance[constants.WORD_KEY][instance[constants.PREDICATE_INDEX_KEY]])
             elif token == constants.SENSE_KEY:
-                result.append(instance[constants.SENSE_KEY])
+                sense = instance[constants.SENSE_KEY]
+                if isinstance(sense, list):
+                    sense = sorted(sense)
+                    sense = ' '.join(sense)
+                result.append(sense)
             elif token == constants.PREDICATE_LEMMA:
                 result.append(instance[constants.PREDICATE_LEMMA])
             else:

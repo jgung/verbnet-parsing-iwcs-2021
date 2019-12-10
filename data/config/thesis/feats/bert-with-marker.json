@@ -1,6 +1,0 @@
-{
-  "name": "bert",
-  "drop_subtokens": true,
-  "predicate_extractor": "[unused1] predicate",
-  "segment_extractor": "predicate"
-}

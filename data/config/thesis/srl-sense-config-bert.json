@@ -1,5 +1,5 @@
 {
-  "reader": "./reader/reader.json",
+  "reader": "./reader/semlink-reader-sense-mappings.json",
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
@@ -9,7 +9,7 @@
       "./feats/srl.json"
     ],
     "inputs": [
-      "./feats/bert-with-marker.json",
+      "./feats/bert-with-sense.json",
       "./feats/marker.json"
     ]
   },
