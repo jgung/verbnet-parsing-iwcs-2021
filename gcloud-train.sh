@@ -78,7 +78,7 @@ case ${key} in
 esac
 done
 
-if [[ -z "CONFIG" ]] || [[ -z "$train_file" ]] || [[ -z "$valid_file" ]]; then
+if [[ -z "CONFIG" ]] || [[ -z "$train_file" ]] || [[ -z "$valid_file" ]] || [[ -z "$bucket_name" ]]; then
     usage
     exit
 fi

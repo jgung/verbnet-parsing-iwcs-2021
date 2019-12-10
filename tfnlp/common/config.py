@@ -152,7 +152,7 @@ class HeadConfig(Params):
         self.confidence_penalty = config.get('confidence_penalty', 0)
         self.weight = config.get('weight', 1)
         self.weighted_embedding = config.get('weighted_embedding', False)
-        self.teacher_forcing = config.get('teacher_forcing', True)
+        self.teacher_forcing = config.get('teacher_forcing', False)
 
         self.mlp_layers = config.get('mlp_layers', [])
         self.mlp_dropout = config.get('mlp_dropout', 0.0)
