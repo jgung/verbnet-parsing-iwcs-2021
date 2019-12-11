@@ -258,6 +258,9 @@ class ConllSrlReader(ConllReader):
         self._map_with_regex_post = map_with_regex_post
         self._sense_mappings = dict(sense_mappings) if sense_mappings else None
         self._pred_filter = pred_filter if pred_filter is not None else lambda x: True
+        if sense_mappings:
+            self._no_mappings = set()
+            self._is_rs_mapping = re.match("^\\S+\\.\\d+$", next(iter(self._sense_mappings.keys())))
 
     def read_instances(self, rows):
         instances = []
@@ -284,9 +287,20 @@ class ConllSrlReader(ConllReader):
                     sense = 'HN'
 
                 if self._sense_mappings:
-                    if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
-                        sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
-                    sense = self._sense_mappings.get(sense, ['None'])
+                    if self._is_rs_mapping:
+                        if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
+                            sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01
+                    else:
+                        sense = instance[constants.PREDICATE_LEMMA]
+
+                    mapped = self._sense_mappings.get(sense)
+                    if not mapped:
+                        if sense not in self._no_mappings:
+                            # don't spam logs, but warn for missing mappings
+                            tf.logging.warn("No mapping for %s" % sense)
+                            self._no_mappings.add(sense)
+                        mapped = ['None']
+                    sense = mapped
                 instance[SENSE_KEY] = sense
 
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0'

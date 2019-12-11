@@ -13,7 +13,9 @@ def generate_pbvn_sense_mappings():
             fields = line.split('\t')
             vncls = fields[1].strip()
             pbrs = fields[0].strip()
-            vn_mappings[pbrs].append(vncls)
+            mappings = vn_mappings[pbrs]
+            if vncls not in mappings:
+                mappings.append(vncls)
 
     write_json(vn_mappings, 'pbvn_mappings.json')
 
@@ -57,4 +59,4 @@ def add_rs():
 
 
 if __name__ == '__main__':
-    add_rs()
+    generate_pbvn_sense_mappings()
