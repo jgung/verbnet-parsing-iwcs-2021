@@ -7,13 +7,13 @@ outpath=${out}
 
 mkdir -p ${outpath}
 
-gsutil cp ${jobpath}/config.json ${outpath}
-gsutil cp ${jobpath}/predictions.* ${outpath}
-gsutil cp ${jobpath}/eval-summary.tsv ${outpath}
-gsutil cp ${jobpath}/train.log ${outpath}
-gsutil cp ${jobpath}/eval.log ${outpath}
-gsutil cp ${jobpath}/*.eval*.txt ${outpath}
-gsutil cp -R ${jobpath}/vocab ${outpath}
+gsutil cp -n ${jobpath}/config.json ${outpath}
+gsutil cp -n ${jobpath}/predictions.* ${outpath}
+gsutil cp -n ${jobpath}/eval-summary.*.tsv ${outpath}
+gsutil cp -n ${jobpath}/train.log ${outpath}
+gsutil cp -n ${jobpath}/eval.log ${outpath}
+gsutil cp -n ${jobpath}/*.eval*.txt ${outpath}
+gsutil cp -R -n ${jobpath}/vocab ${outpath}
 
 mkdir -p ${outpath}/model
-gsutil -m cp -R ${jobpath}/model/export ${outpath}/model/
+gsutil -m cp -R -n ${jobpath}/model/export ${outpath}/model/
