@@ -297,7 +297,7 @@ class ConllSrlReader(ConllReader):
                     if not mapped:
                         if sense not in self._no_mappings:
                             # don't spam logs, but warn for missing mappings
-                            tf.logging.warn("No mapping for %s" % sense)
+                            tf.logging.warning("No mapping for %s" % sense)
                             self._no_mappings.add(sense)
                         mapped = ['None']
                     sense = mapped

@@ -980,8 +980,9 @@ class BertLengthFeature(Extractor):
         if self.srl:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = self.segment_extractor(sequence)
-            tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
-            tokens.append(BERT_SEP)
+            if len(predicate_token) > 0:
+                tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
+                tokens.append(BERT_SEP)
 
         return tokens
 
@@ -999,6 +1000,12 @@ def get_bert_sequence_extractor(sequence):
                 if isinstance(sense, list):
                     sense = sorted(sense)
                     sense = ' '.join(sense)
+                result.append(sense)
+            elif token == constants.SENSE_KEY + "-delim":
+                sense = instance[constants.SENSE_KEY]
+                if isinstance(sense, list):
+                    sense = sorted(sense)
+                    sense = ' [SEP] '.join(sense)
                 result.append(sense)
             elif token == constants.PREDICATE_LEMMA:
                 result.append(instance[constants.PREDICATE_LEMMA])
@@ -1113,13 +1120,14 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             segment_index = len(split_tokens)
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = self.segment_extractor(instance)
-            predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
-            split_tokens.extend(predicate_subtokens)
-            split_tokens.append(BERT_SEP)
-            mask.extend((1 + len(predicate_subtokens)) * [0])
-            if train and not self.drop_subtokens:
-                for target, labels in split_labels.items():
-                    labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
+            if len(predicate_token) > 0:
+                predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
+                split_tokens.extend(predicate_subtokens)
+                split_tokens.append(BERT_SEP)
+                mask.extend((1 + len(predicate_subtokens)) * [0])
+                if train and not self.drop_subtokens:
+                    for target, labels in split_labels.items():
+                        labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
 
         ids = self.tokenizer.convert_tokens_to_ids(split_tokens)
 

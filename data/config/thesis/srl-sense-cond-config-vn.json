@@ -46,7 +46,7 @@
       "name": "sense",
       "type": "token-classifier",
       "mlp_layers": [
-        300
+        768
       ],
       "mlp_dropout": 0.1,
       "weighted_embedding": true

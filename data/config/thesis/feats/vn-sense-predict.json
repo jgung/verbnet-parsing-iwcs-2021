@@ -17,12 +17,5 @@
       "restrict_vocab": false
     }
   },
-  "constraint_key": "predicate_lemma",
-  "mapping_funcs": [
-    {
-      "type": "sub",
-      "input": "-.*$",
-      "output": ""
-    }
-  ]
+  "constraint_key": "predicate_lemma"
 }
