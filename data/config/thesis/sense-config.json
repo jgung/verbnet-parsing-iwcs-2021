@@ -1,16 +1,17 @@
 {
-  "reader": "./reader/ft-reader.json",
+  "reader": "./reader/semlink-reader.json",
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
   "optimizer": "./optim/bert.json",
   "features": {
     "targets": [
-      "./feats/lv-sense.json"
+      "./feats/vn-sense-predict.json"
     ],
     "inputs": [
       "./feats/bert.json",
-      "./feats/predicate_index.json"
+      "./feats/predicate_index.json",
+      "./feats/predicate_lemma.json"
     ]
   },
   "encoders": [
@@ -21,7 +22,12 @@
     {
       "encoder": "bert-dropout",
       "name": "sense",
-      "type": "token-classifier"
+      "type": "token-classifier",
+      "mlp_layers": [
+        768
+      ],
+      "mlp_dropout": 0.1,
+      "weighted_embedding": true
     }
   ]
 }

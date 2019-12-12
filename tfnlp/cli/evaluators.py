@@ -282,7 +282,7 @@ class SrlEvaluator(TaggerEvaluator):
 
     def evaluate(self, identifier='.'):
         write_props_to_file(self.output_path + '.gold.txt', self.gold, self.markers, self.indices)
-        write_props_to_file(self.output_path + '.txt', self.gold, self.markers, self.indices)
+        write_props_to_file(self.output_path + '.txt', self.labels, self.markers, self.indices)
 
         result = conll_srl_eval(self.gold, self.labels, self.markers, self.indices)
         res = str(result)
