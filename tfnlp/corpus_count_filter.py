@@ -104,11 +104,9 @@ def main(opts):
     if opts.ranges:
         def _format(rng):
             return "%d-%d" % (rng[0], rng[1])
-        maximum = max(ks, key=lambda x: len(_format(x)))
-        maximum = _format(maximum)
         for start, end in ks:
             test_count = 0
-            with open(opts.output + '/' + _format((start, end)).zfill(len(maximum)) + '.txt', mode='wt') as out_file:
+            with open(opts.output + '/' + _format((start, end)) + '.txt', mode='wt') as out_file:
                 for pred, devs in dev_instances.items():
                     train_count = train_instances.get(pred, [])
                     count = len(devs)
@@ -117,7 +115,7 @@ def main(opts):
                         for inst in devs:
                             write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
                                            ner=opts.reader != "semlink")
-            print("Count for %s: %d" % (maximum, test_count))
+            print("Count for %s: %d" % (_format((start, end)), test_count))
 
         pass
     else:
