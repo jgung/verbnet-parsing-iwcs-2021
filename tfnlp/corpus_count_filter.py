@@ -75,11 +75,18 @@ def write_instance(inst, writer, fields=None, ner=True):
 def main(opts):
     os.makedirs(opts.output, exist_ok=True)
 
-    if '-' in opts.k:
-        start, end = opts.k.split('-')
-        ks = range(int(start), int(end) + 1)
+    if opts.ranges:
+        ranges = opts.k.split(',')
+        ks = []
+        for r in ranges:
+            start, end = r.split("-")
+            ks.append((int(start), int(end)))
     else:
-        ks = [int(k) for k in opts.k.split(',')]
+        if '-' in opts.k:
+            start, end = opts.k.split('-')
+            ks = range(int(start), int(end) + 1)
+        else:
+            ks = [int(k) for k in opts.k.split(',')]
     print('Processing on following thresholds: {}'.format(', '.join([str(k) for k in ks])))
     try:
         if opts.reader == "semlink":
@@ -94,19 +101,39 @@ def main(opts):
     print("Reading corpus at %s..." % opts.dev)
     dev_instances = props_by_pred(reader, opts.dev)
 
-    for k in ks:
-        test_count = 0
+    if opts.ranges:
+        def _format(rng):
+            return "%d-%d" % (rng[0], rng[1])
+        maximum = max(ks, key=lambda x: len(_format(x)))
+        maximum = _format(maximum)
+        for start, end in ks:
+            test_count = 0
+            with open(opts.output + '/' + _format((start, end)).zfill(len(maximum)) + '.txt', mode='wt') as out_file:
+                for pred, devs in dev_instances.items():
+                    train_count = train_instances.get(pred, [])
+                    count = len(devs)
+                    if start <= len(train_count) < end:
+                        test_count += count
+                        for inst in devs:
+                            write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
+                                           ner=opts.reader != "semlink")
+            print("Count for %s: %d" % (maximum, test_count))
 
-        with open(opts.output + '/' + str(k).zfill(len(str(max(ks)))) + '.txt', mode='wt') as out_file:
-            for pred, devs in dev_instances.items():
-                train_count = train_instances.get(pred, [])
-                count = len(devs)
-                if len(train_count) <= k:
-                    test_count += count
-                    for inst in devs:
-                        write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
-                                       ner=opts.reader != "semlink")
-        print("Count for %d: %d" % (k, test_count))
+        pass
+    else:
+        for k in ks:
+            test_count = 0
+
+            with open(opts.output + '/' + str(k).zfill(len(str(max(ks)))) + '.txt', mode='wt') as out_file:
+                for pred, devs in dev_instances.items():
+                    train_count = train_instances.get(pred, [])
+                    count = len(devs)
+                    if len(train_count) <= k:
+                        test_count += count
+                        for inst in devs:
+                            write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
+                                           ner=opts.reader != "semlink")
+            print("Count for %d: %d" % (k, test_count))
 
 
 if __name__ == '__main__':
@@ -117,4 +144,6 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=str, help='Output path', required=True)
     parser.add_argument('--reader', type=str, help='Reader type')
     parser.add_argument('--k', type=str, default='0', help='Thresholds to use for count in training data (0, or OOV by default)')
+    parser.add_argument('--ranges', type=bool, default=False,
+                        help='Instead of generating corpora incrementally, use ranges.')
     main(parser.parse_args())
