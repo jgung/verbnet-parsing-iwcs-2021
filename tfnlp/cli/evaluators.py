@@ -104,6 +104,7 @@ class TokenClassifierEvaluator(Evaluator):
         self.labels = None
         self.gold = None
         self.indices = None
+        self.token_indices = None
         self.target_key = constants.LABEL_KEY if not self.target.name else self.target.name
         self.labels_key = constants.LABEL_KEY if not self.target.key else self.target.key
         self.scores_name = append_label(constants.LABEL_SCORES, self.target_key)
@@ -112,6 +113,7 @@ class TokenClassifierEvaluator(Evaluator):
         self.labels = []
         self.gold = []
         self.indices = []
+        self.token_indices = []
 
     def accumulate(self, instance, result):
         if self.target.constraints:
@@ -133,6 +135,8 @@ class TokenClassifierEvaluator(Evaluator):
 
         self.gold.append(label)
         self.indices.append(instance[constants.SENTENCE_INDEX])
+        if constants.INSTANCE_INDEX in instance:
+            self.token_indices.append(instance[constants.INSTANCE_INDEX])
 
     def evaluate(self, identifier='.'):
         output_file = self.output_path + '.txt'
@@ -141,11 +145,16 @@ class TokenClassifierEvaluator(Evaluator):
             raise ValueError("Predictions and gold labels must have the same length.")
         if output_file:
             with file_io.FileIO(output_file, 'w') as _out_file:
-                # sort by sentence index to maintain original order of instances
-                for predicted, index, gold in sorted(zip(self.labels, self.indices, self.gold), key=lambda k: k[1]):
-                    _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
+                if len(self.token_indices) > 0:
+                    for predicted, index, token_idx, gold in sorted(
+                            zip(self.labels, self.indices, self.token_indices, self.gold), key=lambda k: (k[1], k[2])):
+                        _out_file.write("{}\t{}\t{}\t{}\n".format(token_idx, gold, predicted, '-' if gold != predicted else ''))
+                else:
+                    # sort by sentence index to maintain original order of instances
+                    for predicted, index, gold in sorted(zip(self.labels, self.indices, self.gold), key=lambda k: k[1]):
+                        _out_file.write("{}\t{}\t{}\t{}\n".format(index, gold, predicted, '-' if gold != predicted else ''))
 
-        report = classification_report(y_true=self.gold, y_pred=self.labels, digits=4)
+        report = classification_report(y_true=self.gold, y_pred=self.labels, digits=4, zero_division=0)
         tf.logging.info('\n%s' % report)
 
         correct = sum(x == y for x, y in zip(self.gold, self.labels))

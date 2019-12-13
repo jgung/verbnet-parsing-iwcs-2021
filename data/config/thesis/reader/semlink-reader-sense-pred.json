@@ -1,0 +1,19 @@
+{
+  "field_index_map": {
+    "word": 2,
+    "pos": 3,
+    "sense": 4,
+    "predicate": 5
+  },
+  "pred_start": 6,
+  "sense_predictions_suffix": ".eval.sense.txt",
+  "map_with_regex_post": true,
+  "label_mappings": {
+    "vn": {
+      "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
+    },
+    "gold": {
+      "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
+    }
+  }
+}

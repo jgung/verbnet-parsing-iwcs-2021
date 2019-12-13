@@ -222,7 +222,9 @@ class ConllSrlReader(ConllReader):
                  regex_mapping=False,
                  map_with_regex_post=False,
                  sense_mappings=None,
-                 pred_filter=None):
+                 pred_filter=None,
+
+                 sense_predictions_suffix=None):
         """
         Construct an CoNLL reader for SRL.
         :param index_field_map: map from indices to corresponding fields
@@ -261,6 +263,30 @@ class ConllSrlReader(ConllReader):
         if sense_mappings:
             self._no_mappings = set()
             self._is_rs_mapping = re.match("^\\S+\\.\\d+$", next(iter(self._sense_mappings.keys())))
+
+        self._sense_predictions_suffix = sense_predictions_suffix
+        self._sense_predictions = {}
+
+    def read_file(self, path):
+        if self._sense_predictions_suffix is not None and file_io.file_exists(path + self._sense_predictions_suffix):
+            with file_io.FileIO(path + self._sense_predictions_suffix, 'r') as lines:
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    fields = line.split()
+                    if len(fields) < 3:
+                        tf.logging.warning("Unexpected format for predicted senses: %s" % line)
+                        continue
+                    instance_id, _, pred = fields[:3]
+                    self._sense_predictions[int(instance_id)] = pred
+        for instance in super(ConllSrlReader, self).read_file(path):
+            if self._sense_predictions_suffix is not None:
+                if instance[constants.INSTANCE_INDEX] in self._sense_predictions:
+                    instance[constants.SENSE_PRED_KEY] = self._sense_predictions[instance[constants.INSTANCE_INDEX]]
+                else:
+                    instance[constants.SENSE_PRED_KEY] = instance[constants.SENSE_KEY]
+            yield instance
 
     def read_instances(self, rows):
         instances = []
@@ -590,8 +616,8 @@ def get_reader(reader_config, training_config=None, is_test=False):
                                         regex_mapping=reader_config.get('map_with_regex', False),
                                         map_with_regex_post=reader_config.get('map_with_regex_post', False),
                                         sense_mappings=reader_config.get('sense_mappings'),
-                                        pred_filter=reader_config.get('pred_filter')
-                                        )
+                                        pred_filter=reader_config.get('pred_filter'),
+                                        sense_predictions_suffix=reader_config.get('sense_predictions_suffix'))
                 if SENSE_KEY in field_index_map and PREDICATE_KEY in field_index_map:
                     def is_predicate(line):
                         return line[field_index_map[PREDICATE_KEY]] is not '-' and any('(V*' in f for f in line)
