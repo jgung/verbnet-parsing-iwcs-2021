@@ -106,16 +106,18 @@ def main(opts):
             return "%d-%d" % (rng[0], rng[1])
         for start, end in ks:
             test_count = 0
+            types = 1
             with open(opts.output + '/' + _format((start, end)) + '.txt', mode='wt') as out_file:
                 for pred, devs in dev_instances.items():
                     train_count = train_instances.get(pred, [])
                     count = len(devs)
                     if start <= len(train_count) < end:
+                        types += 1
                         test_count += count
                         for inst in devs:
                             write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
                                            ner=opts.reader != "semlink")
-            print("Count for %s: %d" % (_format((start, end)), test_count))
+            print("Count for %s: %d instances, %d types" % (_format((start, end)), test_count, types))
 
         pass
     else:

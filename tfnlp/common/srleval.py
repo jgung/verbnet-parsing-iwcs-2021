@@ -8,8 +8,8 @@ SE_START = "("
 SE_CONT = "*"
 SE_END = ")"
 CONTINUATION_PATTERN = re.compile("^C-")
-START_TAG_PATTERN = re.compile("^\\(([^*(]+)")
-END_TAG_PATTERN = re.compile("^([^)]*)\\)")
+START_TAG_PATTERN = re.compile("^\\(([^*(_]+)(?:_[^*(]+)?")  # added a modification to ignore groupings, e.g. ARG2_G1 -> ARG2
+END_TAG_PATTERN = re.compile("^([^)_]*)(?:_[^)]+)?\\)")
 OKAY_KEY = "ok"
 EXCESS_KEY = "op"
 MISS_KEY = "ms"
@@ -133,10 +133,11 @@ class Evaluation(object):
 
 
 class SrlEvaluation(object):
-    def __init__(self, ns=0, ntargets=0, evaluation=Evaluation()):
+    def __init__(self, ns=0, ntargets=0, evaluation=Evaluation(), ind_results=None):
         self.ns = ns
         self.ntargets = ntargets
         self.evaluation = evaluation
+        self.ind_results = ind_results if ind_results else []
 
     def confusion_matrix(self):
         return self.evaluation.display_confusion_matrix()
@@ -542,6 +543,7 @@ def evaluate(gold: Iterable[Dict[int, List[str]]], pred: Iterable[Dict[int, List
     """
     ntargets, ns, e = 0, 0, Evaluation()
 
+    ind_results = []
     for sent_id, (gold_sent, pred_sent) in enumerate(zip(gold, pred)):
         gold_targets = gold_sent[0]
         pred_targets = pred_sent[0]
@@ -552,6 +554,7 @@ def evaluate(gold: Iterable[Dict[int, List[str]]], pred: Iterable[Dict[int, List
         sent.pred = SrlSentence.load_props(sent_id, pred_sent)
         sent.words = len(gold_targets)
 
+        sent_results = Evaluation()
         for i in range(len(sent.gold)):
             gprop = sent.gold.get(i)
             pprop = sent.pred.get(i)
@@ -573,6 +576,11 @@ def evaluate(gold: Iterable[Dict[int, List[str]]], pred: Iterable[Dict[int, List
             e.ms += results.ms
             e.ptv += results.ptv
 
+            sent_results.ok += results.ok
+            sent_results.op += results.op
+            sent_results.ms += results.ms
+            sent_results.ptv += results.ptv
+
             for key, val in results.types.items():
                 e.types[key][OKAY_KEY] += val[OKAY_KEY]
                 e.types[key][EXCESS_KEY] += val[EXCESS_KEY]
@@ -581,10 +589,11 @@ def evaluate(gold: Iterable[Dict[int, List[str]]], pred: Iterable[Dict[int, List
                 e.excluded[key][OKAY_KEY] += val[OKAY_KEY]
                 e.excluded[key][EXCESS_KEY] += val[EXCESS_KEY]
                 e.excluded[key][MISS_KEY] += val[MISS_KEY]
-
             e.update_confusion_matrix(gprop, pprop)
+
+        ind_results.append(sent_results)
         ns += 1
-    return SrlEvaluation(ns, ntargets, e)
+    return SrlEvaluation(ns, ntargets, e, ind_results)
 
 
 def eval_from_files(gold_path, pred_path):
@@ -598,13 +607,14 @@ def eval_from_files(gold_path, pred_path):
     return evaluate(gold=gold_props, pred=pred_props)
 
 
-def get_perl_output(gold_path, pred_path, latex=False, confusions=False):
+def get_perl_output(gold_path, pred_path, latex=False, confusions=False, sent_scores=False):
     """
     Return a string equivalent to original CoNLL 2005 perl script output.
     :param gold_path: path to gold props
     :param pred_path: path to predicted props
     :param latex: if `True`, output in LaTeX format
     :param confusions: if `True`, output confusion matrix
+    :param sent_scores: if `True`, output sentence level scores
     :return: evaluation output string
     """
     evaluation_results = eval_from_files(gold_path=gold_path, pred_path=pred_path)
@@ -615,6 +625,12 @@ def get_perl_output(gold_path, pred_path, latex=False, confusions=False):
         results.append(str(evaluation_results))
     if confusions:
         results.append(evaluation_results.confusion_matrix())
+    if sent_scores:
+        with open(pred_path + '.scores.txt', 'w') as scores:
+            for ind_result in evaluation_results.ind_results:
+                scores.write(str(ind_result.prec_rec_f1()[2]))
+                scores.write('\n')
+
     return '\n'.join(results)
 
 
@@ -624,6 +640,8 @@ def options(args=None):
     parser.add_argument('--pred', type=str, required=True, help='Path to file containing predicted propositions.')
     parser.add_argument('--latex', dest='latex', action='store_true',
                         help='Produce a results table in LaTeX')
+    parser.add_argument('--sentence-scores', dest='sentence_scores', action='store_true',
+                        help='Output F1 scores for each sentence.')
     parser.add_argument('-C', dest='confusions', action='store_true',
                         help='Produce a confusion matrix of gold vs. predicted arguments, wrt. their role')
     parser.set_defaults(confusions=False)
@@ -633,7 +651,7 @@ def options(args=None):
 
 def main():
     _opts = options()
-    print(get_perl_output(_opts.gold, _opts.pred, _opts.latex, _opts.confusions))
+    print(get_perl_output(_opts.gold, _opts.pred, _opts.latex, _opts.confusions, _opts.sentence_scores))
 
 
 if __name__ == '__main__':
