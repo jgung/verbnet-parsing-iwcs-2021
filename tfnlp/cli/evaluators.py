@@ -1,4 +1,3 @@
-import os
 import subprocess
 from typing import List
 
@@ -166,7 +165,7 @@ class TokenClassifierEvaluator(Evaluator):
                                  header='ID\tCorrect\tTotal\tAccuracy',
                                  line='%s\t%d\t%d\t%f' % (identifier, correct, total, accuracy),
                                  detailed=report,
-                                 output_dir=os.path.dirname(self.output_path))
+                                 output_path=self.output_path)
         self.metric, self.summary = accuracy, report
 
 
@@ -198,7 +197,7 @@ class TaggerEvaluator(Evaluator):
                                  header='ID\tF1',
                                  line='%s\t%f' % (identifier, f1),
                                  detailed=result_str,
-                                 output_dir=os.path.dirname(self.output_path))
+                                 output_path=self.output_path)
         self.metric, self.summary = f1, result_str
 
 
@@ -271,8 +270,7 @@ class DepParserEvaluator(Evaluator):
                                  header='ID\tLAS',
                                  line='%s\t%f' % (identifier, las),
                                  detailed=res,
-                                 output_dir=os.path.dirname(self.output_path))
-
+                                 output_path=self.output_path)
         self.metric, self.summary = las, res
 
 
@@ -306,7 +304,7 @@ class SrlEvaluator(TaggerEvaluator):
                                      header='ID\t# Props\t% Perfect\tPrecision\tRecall\tF1',
                                      line=line,
                                      detailed=res,
-                                     output_dir=os.path.dirname(self.output_path),
+                                     output_path=self.output_path,
                                      confusions=result.confusion_matrix())
 
         self.metric, self.summary = f1, result

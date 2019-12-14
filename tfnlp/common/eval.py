@@ -134,7 +134,8 @@ def _get_predicates_and_props(labels: Iterable[Iterable[str]],
         yield predicates, props_by_predicate
 
 
-def append_prediction_output(identifier, header, line, detailed, output_dir, confusions=None):
+def append_prediction_output(identifier, header, line, detailed, output_path, confusions=None):
+    output_dir = os.path.dirname(output_path)
     summary_file = os.path.join(output_dir, '%s.%s.tsv' % (SUMMARY_FILE, identifier))
     eval_log = os.path.join(output_dir, EVAL_LOG)
 
@@ -145,14 +146,14 @@ def append_prediction_output(identifier, header, line, detailed, output_dir, con
             summary.write(header)
             summary.write('\n')
         with file_io.FileIO(eval_log, 'w') as log:
-            log.write('%s\n\n' % output_dir)
+            log.write('%s\n\n' % output_path)
 
     with file_io.FileIO(summary_file, 'a') as summary:
         summary.write(line)
         summary.write('\n')
 
     with file_io.FileIO(eval_log, 'a') as log:
-        log.write('\nID: %s\n' % identifier)
+        log.write('\nID: %s\n' % output_path)
         log.write(str(detailed) + '\n')
         if confusions:
             log.write('\n%s\n\n' % str(confusions))
