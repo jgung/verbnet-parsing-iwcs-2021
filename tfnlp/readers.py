@@ -309,8 +309,8 @@ class ConllSrlReader(ConllReader):
                 instance[constants.ROLESET_KEY] = str(instance[SENSE_KEY][predicate_index])
 
                 sense = instance[constants.ROLESET_KEY]
-                if LABEL_KEY in instance and 'B-ARGM-LVB' in instance[LABEL_KEY]:
-                    sense = 'HN'
+                # if LABEL_KEY in instance and 'B-ARGM-LVB' in instance[LABEL_KEY]:
+                #     sense = 'HN'
 
                 if self._sense_mappings:
                     if self._is_rs_mapping:

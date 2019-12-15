@@ -278,20 +278,25 @@ class SrlEvaluator(TaggerEvaluator):
     def __init__(self, target=None, output_path=None, script_path=None):
         super().__init__(target, output_path, script_path)
         self.markers = None
+        self.senses = []
 
     def start(self):
         super().start()
         self.markers = []
+        self.senses = []
 
     def accumulate(self, instance, result):
         super().accumulate(instance, result)
         self.markers.append(instance[constants.MARKER_KEY])
+        if constants.SENSE_KEY in instance:
+            self.senses.append((instance[constants.PREDICATE_INDEX_KEY],
+                                instance[constants.PREDICATE_LEMMA] + '.' + instance[constants.SENSE_KEY]))
 
     def evaluate(self, identifier='.'):
         write_props_to_file(self.output_path + '.gold.txt', self.gold, self.markers, self.indices)
         write_props_to_file(self.output_path + '.txt', self.labels, self.markers, self.indices)
 
-        result = conll_srl_eval(self.gold, self.labels, self.markers, self.indices)
+        result = conll_srl_eval(self.gold, self.labels, self.markers, self.indices, self.senses)
         res = str(result)
         tf.logging.info(res)
         p, r, f1 = result.evaluation.prec_rec_f1()

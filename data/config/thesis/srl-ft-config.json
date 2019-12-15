@@ -1,0 +1,32 @@
+{
+  "reader": "./reader/ft-reader.json",
+  "checkpoint_epochs": 0.5,
+  "max_epochs": 8,
+  "batch_size": 16,
+  "optimizer": "./optim/bert.json",
+  "features": {
+    "targets": [
+      "./feats/ft.json"
+    ],
+    "inputs": [
+      "./feats/bert.json",
+      "./feats/marker.json"
+    ]
+  },
+  "encoders": [
+    "./encoder/bert-no-subtokens.json",
+    "./encoder/bert-dropout.json",
+    "./encoder/srl-baseline-inputs.json",
+    "./encoder/srl-blstm.json",
+    "./encoder/srl-repeat-predicate.json",
+    "./encoder/srl-concat-predicate.json",
+    "./encoder/srl-mlp.json"
+  ],
+  "heads": [
+    {
+      "encoder": "srl-mlp",
+      "name": "ft",
+      "type": "srl"
+    }
+  ]
+}

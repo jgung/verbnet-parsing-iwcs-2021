@@ -5,6 +5,7 @@ from typing import Iterable, Tuple, Dict, List
 
 import numpy as np
 import tensorflow as tf
+from common.utils import read_json
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.lib.io.file_io import get_matching_files
 from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
@@ -49,41 +50,73 @@ def conll_eval(gold_batches, predicted_batches, indices, output_file=None):
     return float(re.split('\\s+', re.split('\n', result)[1].strip())[7]), result
 
 
-def conll_srl_eval(gold_batches, predicted_batches, markers, ids):
+def conll_srl_eval(gold_batches, predicted_batches, markers, ids, senses=None, mappings_file=None):
     """
     Run the CoNLL-2005 evaluation script on provided predicted sequences.
     :param gold_batches: list of gold label sequences
     :param predicted_batches: list of predicted label sequences
     :param markers: list of predicate marker sequences
     :param ids: list of sentence indices
+    :param senses: list of per-instance gold senses for mappings
+    :param mappings_file: optional predicate sense label mappings file
     :return: tuple of (overall F-score, script_output, confusion_matrix)
     """
-    gold_props = _convert_to_sentences(labels=gold_batches, markers=markers, sentence_ids=ids)
-    pred_props = _convert_to_sentences(labels=predicted_batches, markers=markers, sentence_ids=ids)
+    mappings = {}
+    if mappings_file and file_io.file_exists(mappings_file):
+        mappings = read_json(mappings_file, as_params=False)
+    gold_props = _convert_to_sentences(labels=gold_batches, markers=markers, sentence_ids=ids, senses=senses,
+                                       mappings=mappings, gold=True)
+    pred_props = _convert_to_sentences(labels=predicted_batches, markers=markers, sentence_ids=ids, senses=senses,
+                                       mappings=mappings)
     return evaluate(gold_props, pred_props)
 
 
-def _convert_to_sentences(labels: Iterable[Iterable[str]],
-                          markers: Iterable[Iterable[str]],
-                          sentence_ids: Iterable[int]) -> List[Dict[int, List[str]]]:
+def _convert_to_sentences(labels: List[Iterable[str]],
+                          markers: List[Iterable[str]],
+                          sentence_ids: List[int],
+                          senses: List[Tuple], mappings=None, gold=False) -> List[Dict[int, List[str]]]:
     sentences = []
 
-    for predicates, props_by_predicate in _get_predicates_and_props(labels, markers, sentence_ids):
+    for predicates, props_by_predicate in _get_predicates_and_props(labels, markers, sentence_ids, senses):
         current_sentence = defaultdict(list)
-        props = list(props_by_predicate.values())
+        props = [v for k, v in sorted(props_by_predicate.items(), key=lambda x: x[0])]
         for tok, predicate in enumerate(predicates):
             current_sentence[0].append(predicate)
             for i, prop in enumerate(props):
                 current_sentence[i + 1].append(prop[tok])
+        if mappings:
+            label_matcher = re.compile("^\\((?:[CR]-)?([^*(_]+)(?:_[^*(]+)?")
+            senses = [x for x in predicates if x is not '-']
+            for sense, sent in zip(senses, [current_sentence[i] for i in range(1, len(current_sentence))]):
+                if sense == 'x':
+                    continue
+                roleset_mappings = mappings.get(sense, {})
+                for index, label in enumerate(sent):
+                    match = label_matcher.match(label)
+                    if match:
+                        val = match.group(1)
+                        mapped = roleset_mappings.get(val)
+                        if not mapped:
+                            if gold and not (val.startswith("ARGM") or val == "V"):
+                                tf.logging.info('Missing mapping for %s / %s' % (sense, label))
+                        if not mapped:
+                            if val == "PAG":
+                                mapped = "0"
+                            elif val == "PPT":
+                                mapped = "1"
+                            else:
+                                mapped = val
+                        sent[index] = label.replace(val, mapped)
+
         sentences.append(current_sentence)
 
     return sentences
 
 
 def write_props_to_file(output_file,
-                        labels: Iterable[Iterable[str]],
-                        markers: Iterable[Iterable[str]],
-                        sentence_ids: Iterable[int]):
+                        labels: List[Iterable[str]],
+                        markers: List[Iterable[str]],
+                        sentence_ids: List[int]):
     """
     Write PropBank predictions to a file.
     :param output_file: output file
@@ -101,13 +134,17 @@ def write_props_to_file(output_file,
             output_file.write(line + '\n')
 
 
-def _get_predicates_and_props(labels: Iterable[Iterable[str]],
-                              markers: Iterable[Iterable[str]],
-                              sentence_ids: Iterable[int]) -> Iterable[Tuple[Iterable[str], Dict[int, List[str]]]]:
+def _get_predicates_and_props(labels: List[Iterable[str]],
+                              markers: List[Iterable[str]],
+                              sentence_ids: List[int],
+                              senses: List[Tuple] = None) -> Iterable[Tuple[Iterable[str], Dict[int, List[str]]]]:
     prev_sent_idx = -1  # previous sentence's index
     predicates = []  # list of '-' or 'x', with one per token ('x' indicates the token is a predicate)
     props_by_predicate = {}  # dict from predicate indices to list of predicted or gold argument labels (1 per token)
-    for labels, markers, curr_sent_idx in sorted(zip(labels, markers, sentence_ids), key=lambda x: x[2]):
+    if not senses or len(senses) == 0:
+        senses = [''] * len(labels)
+    sense_dict = {}
+    for labels, markers, curr_sent_idx, sense in sorted(zip(labels, markers, sentence_ids, senses), key=lambda x: x[2]):
 
         filtered_labels = []
         filtered_markers = []
@@ -121,16 +158,23 @@ def _get_predicates_and_props(labels: Iterable[Iterable[str]],
             prev_sent_idx = curr_sent_idx
 
             if predicates:
+                for key, val in sense_dict.items():
+                    predicates[key] = val
                 yield predicates, props_by_predicate
 
             predicates = ["-"] * len(filtered_markers)
+            sense_dict = {}
             props_by_predicate = {}
 
+        if sense and sense is not '':
+            sense_dict[sense[0]] = sense[1]
         predicate_idx = filtered_markers.index('1')  # index of predicate in tokens
-        predicates[predicate_idx] = 'x'  # official eval script requires predicate to be a character other than '-'
+        predicates[predicate_idx] = 'x'  # eval script requires predicate to be a character other than '-'
         props_by_predicate[predicate_idx] = chunk(filtered_labels, conll=True)  # assign SRL labels for this predicate
 
     if predicates:
+        for key, val in sense_dict.items():
+            predicates[key] = val
         yield predicates, props_by_predicate
 
 
@@ -146,7 +190,7 @@ def append_prediction_output(identifier, header, line, detailed, output_path, co
             summary.write(header)
             summary.write('\n')
         with file_io.FileIO(eval_log, 'w') as log:
-            log.write('%s\n\n' % output_path)
+            log.write('%s\n\n' % output_dir)
 
     with file_io.FileIO(summary_file, 'a') as summary:
         summary.write(line)
