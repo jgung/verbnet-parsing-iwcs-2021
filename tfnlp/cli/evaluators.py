@@ -288,7 +288,7 @@ class SrlEvaluator(TaggerEvaluator):
     def accumulate(self, instance, result):
         super().accumulate(instance, result)
         self.markers.append(instance[constants.MARKER_KEY])
-        if constants.SENSE_KEY in instance:
+        if constants.SENSE_KEY in instance and isinstance(instance[constants.SENSE_KEY], str):
             self.senses.append((instance[constants.PREDICATE_INDEX_KEY],
                                 instance[constants.PREDICATE_LEMMA] + '.' + instance[constants.SENSE_KEY]))
 
