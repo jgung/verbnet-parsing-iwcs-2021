@@ -10,10 +10,9 @@
   "label_mappings": {
     "vn": {
       "^([RC]-)?\\S+\\$(Experiencer|Material|Patient1|Patient)$": "\\1Patient",
-      "^([RC]-)?\\S+\\$(Topic|Theme)$": "\\1Theme",
       "^([RC]-)?\\S+\\$(Cause|Stimulus|Actor1|Agent|Agent1|Actor)$": "\\1Actor",
       "^([RC]-)?\\S+\\$(Recipient|Goal|Destination)$": "\\1Destination",
-      "^([RC]-)?\\S+\\$(Actor2|Asset|Attribute|Beneficiary|Extent|Instrument|Location|Patient2|Predicate|Product|Proposition|Source|Theme1|Theme2|Value)$": "\\1\\2"
+      "^([RC]-)?\\S+\\$(Topic|Theme|Actor2|Asset|Attribute|Beneficiary|Extent|Instrument|Location|Patient2|Predicate|Product|Proposition|Source|Theme1|Theme2|Value)$": "\\1\\2"
     },
     "gold": {
       "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"

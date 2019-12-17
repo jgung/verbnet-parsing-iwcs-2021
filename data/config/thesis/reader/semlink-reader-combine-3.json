@@ -9,10 +9,13 @@
   "map_with_regex_post": true,
   "label_mappings": {
     "vn": {
-      "^([RC]-)?\\S+\\$(Experiencer|Material|Patient1|Patient)$": "\\1Patient",
-      "^([RC]-)?\\S+\\$(Cause|Stimulus|Actor1|Agent|Agent1|Actor)$": "\\1Actor",
-      "^([RC]-)?\\S+\\$(Recipient|Goal|Destination)$": "\\1Destination",
-      "^([RC]-)?\\S+\\$(Topic|Theme|Actor2|Asset|Attribute|Beneficiary|Extent|Instrument|Location|Patient2|Predicate|Product|Proposition|Source|Theme1|Theme2|Value)$": "\\1\\2"
+      "^([RC]-)?\\S+\\$(Agent|Agent1)$": "\\1Agent",
+      "^([RC]-)?\\S+\\$(Patient)$": "\\1Patient",
+      "^([RC]-)?\\S+\\$(Goal|Recipient|Destination|Location|Source|Material|Beneficiary)$": "\\1Goal",
+      "^([RC]-)?\\S+\\$(Extent|Asset|Value)$": "\\1Extent",
+      "^([RC]-)?\\S+\\$(Predicate|Attribute|Theme|Theme1|Theme2|Topic|Stimulus|Proposition)$": "\\1PredAtt",
+      "^([RC]-)?\\S+\\$(Patient1|Patient2|Product)$": "\\1Product",
+      "^([RC]-)?\\S+\\$(Instrument|Cause|Experiencer|Actor|Actor1|Actor2)$": "\\1InstrCau"
     },
     "gold": {
       "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"

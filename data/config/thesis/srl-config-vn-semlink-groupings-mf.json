@@ -7,7 +7,7 @@
   "features": {
     "targets": [
       "./feats/vn-srl.json",
-      "./feats/vn-srl-coarse.json"
+      "./feats/vn-srl-medium.json"
     ],
     "inputs": [
       "./feats/bert.json",
@@ -25,6 +25,6 @@
   ],
   "heads": [
     "./heads/vn-srl-head.json",
-    "./heads/vn-srl-head-coarse.json"
+    "./heads/vn-srl-head-medium.json"
   ]
 }

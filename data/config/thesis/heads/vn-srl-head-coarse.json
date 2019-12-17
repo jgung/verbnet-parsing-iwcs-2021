@@ -1,5 +1,5 @@
 {
   "encoder": "srl-mlp",
-  "name": "vn",
+  "name": "coarse",
   "type": "srl"
 }

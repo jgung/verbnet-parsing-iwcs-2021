@@ -7,14 +7,33 @@
   },
   "pred_start": 6,
   "map_with_regex_post": true,
+
   "label_mappings": {
-    "vn": {
+    "coarse": {
       "^([RC]-)?\\S+\\$(Agent|Agent1|Actor|Actor1|Actor2|Cause|Stimulus)$": "\\1Actor",
       "^([RC]-)?\\S+\\$(Patient|Patient1|Patient2|Experiencer|Beneficiary|Instrument)$": "\\1Patient",
       "^([RC]-)?\\S+\\$(Theme|Theme1|Theme2|Topic|Predicate|Proposition|Attribute)$": "\\1Theme",
       "^([RC]-)?\\S+\\$(Asset|Extent|Value)$": "\\1Value",
       "^([RC]-)?\\S+\\$(Recipient|Destination|Goal|Location|Result|Product)$": "\\1Goal",
       "^([RC]-)?\\S+\\$(Source|Material)$": "\\1Source"
+    },
+    "medium": {
+      "^([RC]-)?\\S+\\$(Agent|Agent1|Actor|Actor1|Actor2)$": "\\1Agent",
+      "^([RC]-)?\\S+\\$(Patient|Patient1|Patient2|Experiencer)$": "\\1Patient",
+      "^([RC]-)?\\S+\\$(Theme|Theme1|Theme2|Topic)$": "\\1Theme",
+      "^([RC]-)?\\S+\\$(Asset|Extent|Value)$": "\\1Value",
+      "^([RC]-)?\\S+\\$(Recipient|Destination|Goal|Location)$": "\\1Goal",
+      "^([RC]-)?\\S+\\$(Source|Material)$": "\\1Source",
+      "^([RC]-)?\\S+\\$(Stimulus|Cause)$": "\\1Cause",
+      "^([RC]-)?\\S+\\$(Product)$": "\\1\\2",
+      "^([RC]-)?\\S+\\$(Instrument)$": "\\1\\2",
+      "^([RC]-)?\\S+\\$(Beneficiary)$": "\\1\\2",
+      "^([RC]-)?\\S+\\$(Predicate)$": "\\1\\2",
+      "^([RC]-)?\\S+\\$(Attribute)$": "\\1\\2",
+      "^([RC]-)?\\S+\\$(Proposition)$": "\\1\\2"
+    },
+    "vn": {
+      "^([RC]-)?\\S+\\$(\\S+)$": "\\1\\2"
     },
     "gold": {
       "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
