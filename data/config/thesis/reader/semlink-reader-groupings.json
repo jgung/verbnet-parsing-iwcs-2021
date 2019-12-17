@@ -1,0 +1,23 @@
+{
+  "field_index_map": {
+    "word": 2,
+    "pos": 3,
+    "sense": 4,
+    "predicate": 5
+  },
+  "pred_start": 6,
+  "map_with_regex_post": true,
+  "label_mappings": {
+    "vn": {
+      "^([RC]-)?\\S+\\$(Agent|Agent1|Actor|Actor1|Actor2|Cause|Stimulus)$": "\\1Actor",
+      "^([RC]-)?\\S+\\$(Patient|Patient1|Patient2|Experiencer|Beneficiary|Instrument)$": "\\1Patient",
+      "^([RC]-)?\\S+\\$(Theme|Theme1|Theme2|Topic|Predicate|Proposition|Attribute)$": "\\1Theme",
+      "^([RC]-)?\\S+\\$(Asset|Extent|Value)$": "\\1Value",
+      "^([RC]-)?\\S+\\$(Recipient|Destination|Goal|Location|Result|Product)$": "\\1Goal",
+      "^([RC]-)?\\S+\\$(Source|Material)$": "\\1Source"
+    },
+    "gold": {
+      "^([RC]-)?(\\S+)\\$\\S+$": "\\1\\2"
+    }
+  }
+}

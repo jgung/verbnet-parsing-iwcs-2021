@@ -1,0 +1,9 @@
+{
+  "name": "coarse",
+  "key": "coarse",
+  "indices": {
+    "O": 0
+  },
+  "unknown_word": "O",
+  "pad_word": "O"
+}
