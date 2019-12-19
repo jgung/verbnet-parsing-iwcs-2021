@@ -1,5 +1,5 @@
 {
-  "reader": "./reader/semlink-reader-combine-4.json",
+  "reader": "./reader/semlink-reader-combine-5.json",
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
   "batch_size": 16,
