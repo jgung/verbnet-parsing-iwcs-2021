@@ -47,17 +47,17 @@ def main(opts):
 
     print("Reading corpus at %s..." % opts.train)
     train_instances = read_corpus(reader, opts.train)
-    bin_size = len(train_instances) // opts.k
-    print("bin size: %d" % bin_size)
-    for i, cur_bin in enumerate(range(0, bin_size * (opts.k - 1), bin_size)):
+
+    sizes = [float(x) for x in opts.k.split(',') if x.strip()]
+    for size in sizes:
         test_count = 0
 
-        with open(opts.output + '/' + str(i).zfill(len(str(opts.k))) + '.txt', mode='wt') as out_file:
-            for inst in train_instances[:cur_bin + bin_size]:
+        with open(opts.output + '/' + str(size).replace(".", "_") + '.txt', mode='wt') as out_file:
+            for inst in train_instances[:int(len(train_instances) * size)]:
                 test_count += 1
                 write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
                                ner=opts.reader != "semlink")
-        print("Count %d: %d" % (i, test_count))
+        print("Count %d: %d" % (size, test_count))
 
 
 if __name__ == '__main__':
@@ -65,5 +65,6 @@ if __name__ == '__main__':
     parser.add_argument('--train', type=str, help='Training corpus for computing predicate counts', required=True)
     parser.add_argument('--output', type=str, help='Output path', required=True)
     parser.add_argument('--reader', type=str, help='Reader type')
-    parser.add_argument('--k', type=int, default=10, help='Number of bins (10 by default)')
+    parser.add_argument('--k', type=str, default='0.01,0.033,0.066,0.1,0.333,0.666',
+                        help='Percentages to bin by (default="0.01,0.033,0.066,0.1,0.333,0.666")')
     main(parser.parse_args())
