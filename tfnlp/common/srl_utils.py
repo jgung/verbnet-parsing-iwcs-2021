@@ -7,7 +7,7 @@ from typing import Dict, Optional, Callable, Any, List, TextIO
 from xml.etree import ElementTree
 
 from tfnlp.common.chunk import labels_to_spans, convert_conll_to_bio, spans_to_conll_labels
-from tfnlp.common.utils import read_json
+from tfnlp.common.utils import read_json, write_json
 
 _PREDICATE = 'predicate'
 _ROLESET = 'roleset'
@@ -46,10 +46,10 @@ def get_argument_function_mappings(frames_dir: str,
     mappings = defaultdict(dict)
     for framefile in glob.glob(os.path.join(frames_dir, '*.xml')):
         frame = ElementTree.parse(framefile).getroot()
-        lemma = re.findall('(\S+)\.xml', os.path.basename(framefile))[0]
+        lemma = re.findall('(\\S+)\\.xml', os.path.basename(framefile))[0]
         for predicate in frame.findall(_PREDICATE):
             for roleset in predicate.findall(_ROLESET):
-                rs_id = lemma + '.' + re.findall('^\S+\.(\S+)$', roleset.get(_ID))[0]
+                rs_id = lemma + '.' + re.findall('^\\S+\\.(\\S+)$', roleset.get(_ID))[0]
                 rs_mappings = mappings[rs_id]
                 for roles in roleset.findall(_ROLES):
                     # sometimes, there will be multiple of the same FT, e.g. two PAGs, in which case we add 'PAG2'
