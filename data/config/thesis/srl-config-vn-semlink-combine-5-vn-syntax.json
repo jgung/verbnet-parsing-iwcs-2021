@@ -1,0 +1,34 @@
+{
+  "reader": "./reader/semlink-reader-combine-5-all-dep.json",
+  "checkpoint_epochs": 0.5,
+  "max_epochs": 8,
+  "batch_size": 16,
+  "optimizer": "./optim/bert.json",
+  "features": {
+    "targets": [
+      "./feats/vn-srl.json",
+      "./feats/dep-arc.json",
+      "./feats/dep-rel.json"
+    ],
+    "inputs": [
+      "./feats/bert-with-sense.json",
+      "./feats/marker.json"
+    ]
+  },
+  "encoders": [
+    "./encoder/bert-no-subtokens.json",
+    "./encoder/bert-dropout.json",
+    "./encoder/srl-baseline-inputs.json",
+    "./encoder/srl-blstm.json",
+    "./encoder/srl-repeat-predicate.json",
+    "./encoder/srl-concat-predicate.json",
+    "./encoder/srl-mlp.json",
+
+    "./encoder/dep-sentinel.json",
+    "./encoder/dep-blstm.json"
+  ],
+  "heads": [
+    "./heads/vn-srl-head.json",
+    "./heads/dep-head.json"
+  ]
+}

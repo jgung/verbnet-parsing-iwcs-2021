@@ -5,6 +5,7 @@ from typing import List
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import classification_report
+from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
 from tfnlp.common.utils import read_json
 from tfnlp.common import constants
@@ -26,7 +27,7 @@ PROPS = {
 def read_senses(file='senses.json'):
     try:
         return read_json(file, as_params=False)
-    except FileNotFoundError:
+    except NotFoundError:
         tf.logging.warning("Unable to read senses file: %s" % file)
         return defaultdict(list)
 
