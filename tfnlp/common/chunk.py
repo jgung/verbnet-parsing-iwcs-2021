@@ -124,15 +124,26 @@ def convert_conll_to_bio(labels, label_mappings=None, map_with_regex=False, map_
         return result
 
     regex_mappings = []
+    default_search = None
+    default_repl = None
     if label_mappings and (map_with_regex or map_with_regex_post):
         for search, repl in label_mappings.items():
-            regex_mappings.append((re.compile(search), repl))
+            if "<default>" in search:
+                # hacky way to add defaults without changing lots of code
+                default_search, default_repl = (re.compile(search), repl)
+            else:
+                regex_mappings.append((re.compile(search), repl))
 
     def _map_with_regex(_label):
         for _search, _repl in regex_mappings:
             match = _search.search(_label)
             if match is not None:
                 return _search.sub(_repl, _label)
+        if default_search and default_repl:
+            # check for default search/replace if no match found
+            match = default_search.search(_label)
+            if match is not None:
+                return default_search.sub(default_repl, _label)
         return _label
 
     current = None
