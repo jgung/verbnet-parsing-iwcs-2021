@@ -1,8 +1,10 @@
 import subprocess
+from collections import defaultdict
 from typing import List
 
 import numpy as np
 import tensorflow as tf
+from common.utils import read_json
 from sklearn.metrics import classification_report
 from tensorflow.python.lib.io import file_io
 from tfnlp.common import constants
@@ -11,6 +13,25 @@ from tfnlp.common.config import append_label
 from tfnlp.common.eval import conll_eval, conll_srl_eval, append_prediction_output
 from tfnlp.common.eval import write_props_to_file, get_parse_prediction, \
     to_conll09_line, to_conllx_line, write_parse_result_to_file
+
+MONOSEMOUS = "MONOSEMOUS"
+POLYSEMOUS = "POLYSEMOUS"
+
+PROPS = {
+    MONOSEMOUS: False,
+    POLYSEMOUS: False
+}
+
+
+def read_senses(file='senses.json'):
+    try:
+        return read_json(file, as_params=False)
+    except FileNotFoundError:
+        tf.logging.warning("Unable to read senses file: %s" % file)
+        return defaultdict(list)
+
+
+SENSES = read_senses()
 
 
 def get_evaluator(heads, feature_extractor, output_path, script_path):
@@ -286,11 +307,19 @@ class SrlEvaluator(TaggerEvaluator):
         self.senses = []
 
     def accumulate(self, instance, result):
-        super().accumulate(instance, result)
-        self.markers.append(instance[constants.MARKER_KEY])
-        if constants.SENSE_KEY in instance and isinstance(instance[constants.SENSE_KEY], str):
+        lemma = instance.get(constants.PREDICATE_LEMMA)
+        if lemma is not None:
+            if PROPS.get(MONOSEMOUS) and len(SENSES.get(lemma, [])) > 1:
+                return
+            elif PROPS.get(POLYSEMOUS) and len(SENSES.get(lemma, [])) <= 1:
+                return
+
+        sense = instance.get(constants.SENSE_KEY)
+        if sense is not None and isinstance(sense, str):
             self.senses.append((instance[constants.PREDICATE_INDEX_KEY],
-                                instance[constants.PREDICATE_LEMMA] + '.' + instance[constants.SENSE_KEY]))
+                                instance[constants.PREDICATE_LEMMA] + '.' + sense))
+        self.markers.append(instance[constants.MARKER_KEY])
+        super().accumulate(instance, result)
 
     def evaluate(self, identifier='.'):
         write_props_to_file(self.output_path + '.gold.txt', self.gold, self.markers, self.indices)
@@ -301,6 +330,10 @@ class SrlEvaluator(TaggerEvaluator):
         tf.logging.info(res)
         p, r, f1 = result.evaluation.prec_rec_f1()
         if self.output_path is not None:
+            if PROPS.get(MONOSEMOUS):
+                identifier = identifier + ".mono"
+            elif PROPS.get(POLYSEMOUS):
+                identifier = identifier + ".poly"
             line = '%s\t%d\t%f\t%f\t%f\t%f' % (identifier,
                                                result.ntargets,
                                                result.perfect_props(),

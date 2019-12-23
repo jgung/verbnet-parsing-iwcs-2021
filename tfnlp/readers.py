@@ -313,6 +313,7 @@ class ConllSrlReader(ConllReader):
                 #     sense = 'HN'
 
                 if self._sense_mappings:
+                    instance[constants.SENSE_PRED_KEY] = sense
                     if self._is_rs_mapping:
                         if re.match("^\\d\\d$", sense):  # PropBank roleset, e.g. 01
                             sense = instance[constants.PREDICATE_LEMMA] + '.' + sense  # e.g. swim.01

@@ -11,7 +11,10 @@
   "map_with_regex_post": true,
   "label_mappings": {
     "gold": {
-      "^(?![RC]-)(\\S+)\\$(\\S*ARG2\\S*)$": "\\2_\\1",
+      "^(?![RC]-)(PRD|PPT|PPT2|PRD2)\\$(\\S*ARG2\\S*)$": "\\2_PRD",
+      "^(?![RC]-)(GOL|LOC|DIR|COM|TMP|ADV|ADJ|GOL2|REC)\\$(\\S*ARG2\\S*)$": "\\2_GOL",
+      "^(?![RC]-)(EXT|VSP|EXT2)\\$(\\S*ARG2\\S*)$": "\\2_EXT",
+      "^(?![RC]-)(MNR|PRP|CAU|PAG|PAG2)\\$(\\S*ARG2\\S*)$": "\\2_CAU",
       "^([RC]-)(\\S+)\\$(\\S*ARG2\\S*)$": "\\3",
       "^(\\S+)\\$(\\S*ARG[^2]\\S*)$": "\\2",
       "^(\\S+)\\$([CR]-)?V$": "\\1"
