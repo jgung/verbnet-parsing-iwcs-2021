@@ -57,7 +57,7 @@ def main(opts):
                 test_count += 1
                 write_instance(inst, out_file, SEMLINK_OUTPUT_FIELDS if opts.reader == "semlink" else None,
                                ner=opts.reader != "semlink")
-        print("Count %d: %d" % (size, test_count))
+        print("Count %f: %d" % (size, test_count))
 
 
 if __name__ == '__main__':

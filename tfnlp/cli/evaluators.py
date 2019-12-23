@@ -4,9 +4,9 @@ from typing import List
 
 import numpy as np
 import tensorflow as tf
-from common.utils import read_json
 from sklearn.metrics import classification_report
 from tensorflow.python.lib.io import file_io
+from tfnlp.common.utils import read_json
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
