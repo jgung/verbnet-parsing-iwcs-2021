@@ -287,10 +287,12 @@ class DepParserEvaluator(Evaluator):
         tf.logging.info('\n%s', res)
         lines = res.split('\n')
         las = float(lines[0].strip().split()[9])
+        uas = float(lines[1].strip().split()[9])
+        la = float(lines[2].strip().split()[9])
 
         append_prediction_output(identifier=self.target.name,
-                                 header='ID\tLAS',
-                                 line='%s\t%f' % (identifier, las),
+                                 header='ID\tLA\tUAS\tLAS',
+                                 line='%s\t%f\t%f\t%f' % (identifier, la, uas, las),
                                  detailed=res,
                                  output_path=self.output_path)
         self.metric, self.summary = las, res
