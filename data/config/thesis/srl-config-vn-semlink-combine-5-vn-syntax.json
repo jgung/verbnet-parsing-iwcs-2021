@@ -29,6 +29,6 @@
   ],
   "heads": [
     "./heads/vn-srl-head.json",
-    "./heads/dep-head.json"
+    "./heads/dep-head-0.1.json"
   ]
 }
