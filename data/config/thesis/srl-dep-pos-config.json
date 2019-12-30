@@ -30,7 +30,7 @@
   ],
   "heads": [
     "./heads/srl-head.json",
-    "./heads/dep-head.json",
-    "./heads/pos-head.json"
+    "./heads/dep-head-0.1.json",
+    "./heads/pos-head-0.1.json"
   ]
 }
