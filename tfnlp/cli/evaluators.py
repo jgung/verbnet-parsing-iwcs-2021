@@ -1,4 +1,5 @@
 import subprocess
+import unicodedata
 from collections import defaultdict
 from typing import List
 
@@ -7,13 +8,14 @@ import tensorflow as tf
 from sklearn.metrics import classification_report
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
-from tfnlp.common.utils import read_json
+
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
 from tfnlp.common.eval import conll_eval, conll_srl_eval, append_prediction_output
 from tfnlp.common.eval import write_props_to_file, get_parse_prediction, \
     to_conll09_line, to_conllx_line, write_parse_result_to_file
+from tfnlp.common.utils import read_json
 
 MONOSEMOUS = "MONOSEMOUS"
 POLYSEMOUS = "POLYSEMOUS"
@@ -22,6 +24,8 @@ PROPS = {
     MONOSEMOUS: False,
     POLYSEMOUS: False
 }
+
+PUNCT_CAT = {"Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po"}
 
 
 def read_senses(file='senses.json'):
@@ -226,17 +230,23 @@ class TaggerEvaluator(Evaluator):
 class DepParserEvaluator(Evaluator):
     def __init__(self, target=None, output_path=None, script_path=None):
         super().__init__(target, output_path, script_path)
-        if not script_path:
-            raise AssertionError('Dependency parse evaluation requires a script script to be provided.')
         self._sent_index = None
         self._sent_arc_probs, self._sent_rel_probs = None, None
         self._sent_gold_arc, self._sent_gold_rel = None, None
+        self._sent_words = None
         self._count = None
+        self._sys_arcs = None
+        self._sys_rels = None
+        self._gold_arcs = None
+        self._gold_rels = None
+        self._words = None
 
         self._gold_path = self.output_path + '.gold.txt'
         self._system_path = self.output_path + '.txt'
         self._system_file = None
         self._gold_file = None
+        if not self.script_path:
+            self.script_path = ''
         self._line_func = to_conllx_line if 'conllx' in self.script_path else to_conll09_line
 
     def start(self):
@@ -245,7 +255,13 @@ class DepParserEvaluator(Evaluator):
         self._sent_index = -1
         self._sent_arc_probs, self._sent_rel_probs = None, None
         self._sent_gold_arc, self._sent_gold_rel = None, None
+        self._sent_words = []
         self._count = 0
+        self._sys_arcs = []
+        self._sys_rels = []
+        self._gold_arcs = []
+        self._gold_rels = []
+        self._words = []
 
     def accumulate(self, instance, result):
         # here, we aggregate multiple predictions over the same sentence, as in a product of experts
@@ -263,6 +279,8 @@ class DepParserEvaluator(Evaluator):
             self._sent_rel_probs = rel_probs
             self._sent_gold_arc = [0] + instance[constants.HEAD_KEY]
             self._sent_gold_rel = ['<ROOT>'] + instance[constants.DEPREL_KEY]
+            if constants.WORD_KEY in instance:
+                self._sent_words = instance[constants.WORD_KEY]
         else:
             self._sent_arc_probs += arc_probs
             self._sent_rel_probs += rel_probs
@@ -273,8 +291,23 @@ class DepParserEvaluator(Evaluator):
             self._sent_rel_probs /= np.sum(self._sent_rel_probs, axis=1, keepdims=True)
             sys_arc, sys_rel = get_parse_prediction(self._sent_arc_probs, self._sent_rel_probs, self.target)
 
-            write_parse_result_to_file(sys_arc, sys_rel, self._system_file, self._line_func)
-            write_parse_result_to_file(self._sent_gold_arc, self._sent_gold_rel, self._gold_file, self._line_func)
+            write_parse_result_to_file(sys_arc, sys_rel, self._system_file, self._line_func, words=self._sent_words)
+            write_parse_result_to_file(self._sent_gold_arc, self._sent_gold_rel, self._gold_file, self._line_func,
+                                       words=self._sent_words)
+
+            if not self.script_path:
+                self._sys_arcs.append(sys_arc)
+                self._sys_rels.append(sys_rel)
+                self._gold_arcs.append(self._sent_gold_arc)
+                self._gold_rels.append(self._sent_gold_rel)
+                if len(self._sent_words) > 0:
+                    self._words.append(self._sent_words)
+                else:
+                    self._words.append(['x'] * (len(self._sent_gold_arc) - 1))
+
+    @staticmethod
+    def _all_punct(word):
+        return all(unicodedata.category(x) in PUNCT_CAT for x in word)
 
     def evaluate(self, identifier=None):
         self._write_result()
@@ -282,14 +315,36 @@ class DepParserEvaluator(Evaluator):
         self._system_file.close()
         self._gold_file.close()
 
-        res = subprocess.check_output(['perl', self.script_path, '-g', self._gold_path, '-s', self._system_path, '-q'],
-                                      universal_newlines=True)
-        tf.logging.info('\n%s', res)
-        lines = res.split('\n')
-        las = float(lines[0].strip().split()[9])
-        uas = float(lines[1].strip().split()[9])
-        la = float(lines[2].strip().split()[9])
+        if self.script_path:
+            res = subprocess.check_output(['perl', self.script_path, '-g', self._gold_path, '-s', self._system_path, '-q'],
+                                          universal_newlines=True)
+            lines = res.split('\n')
+            las = float(lines[0].strip().split()[9])
+            uas = float(lines[1].strip().split()[9])
+            la = float(lines[2].strip().split()[9])
+        else:
+            corr_uas = 0
+            corr_la = 0
+            corr_las = 0
+            total = 0
+            for words, sys_arc, sys_rel, gold_arc, gold_rel in zip(self._words, self._sys_arcs, self._sys_rels, self._gold_arcs,
+                                                                   self._gold_rels):
+                for word, arc, rel, garc, grel in zip(words, sys_arc[1:], sys_rel[1:], gold_arc[1:], gold_rel[1:]):
+                    if DepParserEvaluator._all_punct(word):
+                        continue
+                    total += 1
+                    if arc == garc:
+                        corr_uas += 1
+                    if rel == grel:
+                        corr_la += 1
+                    if arc == garc and rel == grel:
+                        corr_las += 1
+            la = corr_la / total
+            las = corr_las / total
+            uas = corr_uas / total
+            res = 'LA: %f\nUAS: %f\nLAS: %f' % (la, uas, las)
 
+        tf.logging.info('\n%s', res)
         append_prediction_output(identifier=self.target.name,
                                  header='ID\tLA\tUAS\tLAS',
                                  line='%s\t%f\t%f\t%f' % (identifier, la, uas, las),

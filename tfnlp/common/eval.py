@@ -214,21 +214,23 @@ def get_parse_prediction(arc_prob_matrix, rel_prob_tensor, rel_feat=None):
     return arc_preds, rel_preds
 
 
-def to_conllx_line(index, arc_pred, rel_pred):
+def to_conllx_line(index, word, arc_pred, rel_pred):
     # ID FORM LEMMA CPOS POS FEAT HEAD DEPREL PHEAD PDEPREL
     fields = ['_'] * 10
     fields[0] = str(index + 1)
-    fields[1] = 'x'
+    fields[1] = word
+    fields[2] = word
     fields[6] = str(arc_pred)
     fields[7] = rel_pred
     return fields
 
 
-def to_conll09_line(index, arc_pred, rel_pred):
+def to_conll09_line(index, word, arc_pred, rel_pred):
     # ID FORM LEMMA PLEMMA POS PPOS FEAT PFEAT HEAD PHEAD DEPREL PDEPREL FILLPRED PRED APREDs
     fields = ['_'] * 15
     fields[0] = str(index + 1)
-    fields[1] = '_'
+    fields[1] = word
+    fields[2] = word
     fields[8] = str(arc_pred)
     fields[9] = str(arc_pred)
     fields[10] = rel_pred
@@ -236,9 +238,11 @@ def to_conll09_line(index, arc_pred, rel_pred):
     return fields
 
 
-def write_parse_result_to_file(sentence_heads, sentence_rels, file, line_func=to_conllx_line):
-    for index, (arc_pred, rel_pred) in enumerate(zip(sentence_heads[1:], sentence_rels[1:])):
-        fields = line_func(index, arc_pred, rel_pred)
+def write_parse_result_to_file(sentence_heads, sentence_rels, file, line_func=to_conllx_line, words=None):
+    if not words or len(words) == 0:
+        words = ['x'] * (len(sentence_rels) - 1)
+    for index, (word, arc_pred, rel_pred) in enumerate(zip(words, sentence_heads[1:], sentence_rels[1:])):
+        fields = line_func(index, word, arc_pred, rel_pred)
         file.write('\t'.join(fields) + '\n')
     file.write('\n')
 
