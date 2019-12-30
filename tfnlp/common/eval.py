@@ -5,14 +5,15 @@ from typing import Iterable, Tuple, Dict, List
 
 import numpy as np
 import tensorflow as tf
-from common.utils import read_json
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.lib.io.file_io import get_matching_files
+
 from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
 from tfnlp.common.conlleval import conll_eval_lines
 from tfnlp.common.parsing import nonprojective
 from tfnlp.common.srleval import evaluate
+from tfnlp.common.utils import read_json
 
 SUMMARY_FILE = 'eval-summary'
 EVAL_LOG = 'eval.log'
