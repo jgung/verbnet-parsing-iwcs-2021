@@ -91,8 +91,9 @@ class Trainer(object):
             return
 
         # compute steps per epoch/checkpoint and early stopping steps
-        max_steps, patience, checkpoint_steps = self._compute_steps(train, valid)
+        max_steps, patience, checkpoint_steps, steps_per_epoch = self._compute_steps(train, valid)
         self._training_config.max_steps = max_steps  # update config value for learning rate calculation
+        self._training_config.steps_per_epoch = steps_per_epoch
 
         # train and evaluate using Estimator API
         estimator = self._init_estimator(checkpoint_steps)
@@ -251,7 +252,7 @@ class Trainer(object):
                             % (self._training_config.patience_epochs, patience))
         tf.logging.info('Evaluating every %d steps, %d epoch(s)' % (checkpoint_steps, self._training_config.checkpoint_epochs))
 
-        return max_steps, patience, checkpoint_steps
+        return max_steps, patience, checkpoint_steps, steps_per_epoch
 
     def _init_estimator(self, checkpoint_steps):
         return tfe.estimator.Estimator(model_fn=self._model_fn,

@@ -276,7 +276,7 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
     output_keep_prob = (1.0 - config.encoder_output_dropout) if training else 1.0
 
     def highway_lstm_cell(size):
-        _cell = HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer)
+        _cell = HighwayLSTMCell(size, highway=True, initializer=numpy_orthogonal_initializer, use_layer_norm=config.layer_norm)
         return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
                               state_keep_prob=keep_prob,
                               input_keep_prob=input_keep_prob,
@@ -374,7 +374,7 @@ class HighwayLSTMCell(LayerRNNCell):
                  cell_clip=None,
                  initializer=None,
                  forget_bias=1.0,
-                 activation=None, reuse=None, name=None):
+                 activation=None, reuse=None, name=None, use_layer_norm=False):
         """Initialize the parameters for an LSTM cell with simplified highway connections as described in
         'Deep Semantic Role Labeling: What works and what's next' (He et al. 2017).
 
@@ -395,6 +395,7 @@ class HighwayLSTMCell(LayerRNNCell):
           name: String, the name of the layer. Layers with the same name will
             share weights, but to avoid mistakes we require reuse=True in such
             cases.
+          use_layer_norm: (optional) Python boolean describing whether to use layer normalization
         """
         super(HighwayLSTMCell, self).__init__(_reuse=reuse, name=name)
         # Inputs must be 2-dimensional.
@@ -415,6 +416,7 @@ class HighwayLSTMCell(LayerRNNCell):
         self._input_kernel = None
         self._hidden_kernel = None
         self._bias = None
+        self.use_layer_norm = use_layer_norm
 
     @property
     def state_size(self):
@@ -462,9 +464,12 @@ class HighwayLSTMCell(LayerRNNCell):
 
         # i = input_gate, j = new_input, f = forget_gate, o = output_gate, r = transform gate
         input_matrix = math_ops.matmul(inputs, self._input_kernel)
-        input_matrix = nn_ops.bias_add(input_matrix, self._bias)
-
+        if self.use_layer_norm:
+            input_matrix = layer_norm(input_matrix)
         hidden_matrix = math_ops.matmul(m_prev, self._hidden_kernel)
+        if self.use_layer_norm:
+            hidden_matrix = layer_norm(hidden_matrix)
+        input_matrix = nn_ops.bias_add(input_matrix, self._bias)
 
         if self._highway:
             i, j, f, o, r = array_ops.split(hidden_matrix + input_matrix[:, :-self._num_units], num_or_size_splits=5, axis=1)
@@ -479,7 +484,10 @@ class HighwayLSTMCell(LayerRNNCell):
                 c = clip_ops.clip_by_value(c, -self._cell_clip, self._cell_clip)
 
             t = sigmoid(r)
-            _m = o * self._activation(c)
+            _c = c
+            if self.use_layer_norm:
+                _c = layer_norm(_c)
+            _m = o * self._activation(_c)
             m = t * _m + (1 - t) * hx
 
         else:
@@ -492,8 +500,10 @@ class HighwayLSTMCell(LayerRNNCell):
 
             if self._cell_clip is not None:
                 c = clip_ops.clip_by_value(c, -self._cell_clip, self._cell_clip)
-
-            m = o * self._activation(c)
+            _c = c
+            if self.use_layer_norm:
+                _c = layer_norm(_c)
+            m = o * self._activation(_c)
 
         new_state = (LSTMStateTuple(c, m))
         return m, new_state

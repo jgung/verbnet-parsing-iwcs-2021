@@ -1,9 +1,24 @@
 {
   "reader": "conll_2005_phrase",
-  "max_epochs": 500,
-  "patience_epochs": 200,
+  "max_epochs": 16,
+  "patience_epochs": 16,
   "batch_size": 80,
-  "optimizer": "../srl/optim/adadelta.json",
+  "optimizer": {
+    "name": "LazyAdam",
+    "params": {
+      "beta1": 0.9,
+      "beta2": 0.9
+    },
+    "lr": {
+      "name": "clr",
+      "rate": 0.0001,
+      "params": {
+        "max_lr": 0.001,
+        "step_size": 4
+      }
+    },
+    "clip": 1.0
+  },
   "features": {
     "targets": [
       "../srl/feats/gold.json"
@@ -56,7 +71,8 @@
       "type": "dblstm",
       "state_size": 300,
       "encoder_output_dropout": 0.1,
-      "encoder_layers": 8
+      "encoder_layers": 8,
+      "layer_norm": true
     }
   ],
   "heads": [
