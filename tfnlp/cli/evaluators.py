@@ -339,9 +339,9 @@ class DepParserEvaluator(Evaluator):
                         corr_la += 1
                     if arc == garc and rel == grel:
                         corr_las += 1
-            la = corr_la / total
-            las = corr_las / total
-            uas = corr_uas / total
+            la = 100 * (corr_la / total)
+            las = 100 * (corr_las / total)
+            uas = 100 * (corr_uas / total)
             res = 'LA: %f\nUAS: %f\nLAS: %f' % (la, uas, las)
 
         tf.logging.info('\n%s', res)
