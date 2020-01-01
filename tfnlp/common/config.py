@@ -3,12 +3,13 @@ import re
 
 import tensorflow as tf
 from bert.optimization import AdamWeightDecayOptimizer
-from optim.clr import cyclic_learning_rate
+
 from tensorflow.contrib.opt import LazyAdamOptimizer
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
 
 from tfnlp.common import constants
 from tfnlp.common.utils import Params
+from tfnlp.optim.clr import cyclic_learning_rate
 from tfnlp.optim.lazy_adam import LazyAdamOptimizer as LazyNadamOptimizer
 from tfnlp.optim.nadam import NadamOptimizerSparse
 
