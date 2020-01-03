@@ -8,7 +8,6 @@ outpath=${out}
 mkdir -p ${outpath}
 
 gsutil cp -n ${jobpath}/config.json ${outpath}
-gsutil cp -n ${jobpath}/predictions.* ${outpath}
 gsutil cp -n ${jobpath}/eval-summary.*.tsv ${outpath}
 gsutil cp -n ${jobpath}/train.log ${outpath}
 gsutil cp -n ${jobpath}/eval.log ${outpath}

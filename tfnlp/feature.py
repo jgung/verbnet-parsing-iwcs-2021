@@ -21,6 +21,7 @@ SUB = "sub"
 LOWER = "lower"
 NORMALIZE_DIGITS = "digit_norm"
 CHARACTERS = "chars"
+PHRASE_CHARS = "phrase_chars"
 PREDICATE = "predicate"
 PADDING = "pad"
 CONV_PADDING = "conv"
@@ -63,6 +64,19 @@ def characters(value):
     return list(value)
 
 
+def phrase_chars(value, size=60, sep="##"):
+    chars = ' '.join(value)
+    result = chars
+    if len(chars) > size:
+        half = (size - len(sep)) // 2
+        result = chars[0:half] + sep
+        if half * 2 < size:
+            half += 1
+        result += chars[-half:]
+
+    return list(result)[:size]
+
+
 def is_predicate(value):
     return '0' if value == '-' else '1'
 
@@ -77,6 +91,8 @@ def _get_mapping_function(func):
             return characters
         elif func == PREDICATE:
             return is_predicate
+        elif func == PHRASE_CHARS:
+            return phrase_chars
         else:
             raise AssertionError("Unexpected function name: {}".format(func))
 
