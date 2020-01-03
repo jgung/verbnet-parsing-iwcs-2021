@@ -520,7 +520,7 @@ class Feature(Extractor):
         indices = {}
         with file_io.FileIO(path, mode='r') as vocab:
             for line in vocab:
-                line = line.strip()
+                line = line.strip('\n\r')
                 if line:
                     if line in indices:
                         raise AssertionError('Duplicate entry in vocabulary given at {}: {}'.format(path, line))

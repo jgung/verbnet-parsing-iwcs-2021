@@ -1,6 +1,6 @@
 {
   "reader": "conll_2005_phrase",
-  "max_epochs": 16,
+  "max_epochs": 32,
   "patience_epochs": 16,
   "batch_size": 80,
   "optimizer": {
