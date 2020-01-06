@@ -1,7 +1,7 @@
 {
   "field_index_map": {
     "word": 2,
-    "pos": 3,
+    "xpos": 3,
     "deprel": 4,
     "head": 5,
     "sense": 6,
