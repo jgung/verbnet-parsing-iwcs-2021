@@ -66,6 +66,8 @@ class ParserHead(ModelHead):
         _rel_logits = select_logits(self.rel_logits, self.arc_targets, self.n_steps)
         rel_loss = compute_loss(_rel_logits, self.targets, "rel_bilinear_loss")
 
+        arc_loss = self.config.get('arc_loss_weight', 1) * arc_loss
+        rel_loss = self.config.get('rel_loss_weight', 1) * rel_loss
         self.loss = arc_loss + rel_loss
         self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 

@@ -1,0 +1,86 @@
+{
+  "reader": "conll_2005_phrase",
+  "max_epochs": 128,
+  "checkpoint_epochs": 32,
+  "patience_epochs": 64,
+  "batch_size": 80,
+  "optimizer": {
+    "name": "LazyAdam",
+    "params": {
+      "beta1": 0.9,
+      "beta2": 0.9
+    },
+    "lr": {
+      "name": "clr",
+      "rate": 0.0001,
+      "params": {
+        "max_lr": 0.001,
+        "step_size": 16
+      }
+    },
+    "clip": 1.0
+  },
+  "features": {
+    "targets": [
+      "../srl/feats/gold.json"
+    ],
+    "inputs": [
+      {
+        "name": "word",
+        "key": "word",
+        "rank": 3,
+        "mapping_funcs": [
+          "lower",
+          "digit_norm"
+        ],
+        "left_padding": 2,
+        "right_padding": 2,
+        "max_len": 15,
+        "config": {
+          "dim": 100,
+          "initializer": {
+            "embedding": "vectors/glove.6B.100d.txt",
+            "pkl_path": "word-vectors.pkl",
+            "include_in_vocab": 400000,
+            "restrict_vocab": true
+          },
+          "function": {
+            "name": "ConvNet",
+            "kernel_size": 3,
+            "num_filters": 100
+          }
+        }
+      },
+      "../srl/feats/marker.json"
+    ]
+  },
+  "encoders": [
+    {
+      "name": "words_and_chars",
+      "type": "concat",
+      "inputs": [
+        "word",
+        "marker"
+      ],
+      "input_dropout": 0.0
+    },
+    {
+      "name": "blstm",
+      "inputs": [
+        "words_and_chars"
+      ],
+      "type": "dblstm",
+      "state_size": 300,
+      "encoder_output_dropout": 0.1,
+      "encoder_layers": 8,
+      "layer_norm": true
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "blstm",
+      "name": "gold",
+      "type": "srl"
+    }
+  ]
+}
