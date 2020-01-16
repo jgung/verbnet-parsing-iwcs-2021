@@ -1,7 +1,0 @@
-{
-  "name": "dep-sentinel",
-  "type": "sentinel",
-  "inputs": [
-    "bert-dropout"
-  ]
-}

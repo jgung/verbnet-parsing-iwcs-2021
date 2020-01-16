@@ -1,9 +1,0 @@
-{
-  "encoder": "dep-blstm",
-  "name": "deprel",
-  "type": "parser",
-  "rel_mlp_size": 100,
-  "arc_mlp_size": 500,
-  "mlp_dropout": 0.33,
-  "weight": 0.1
-}

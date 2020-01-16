@@ -1,8 +1,0 @@
-{
-  "name": "srl-mlp-input",
-  "type": "concat",
-  "inputs": [
-    "predicate",
-    "srl-blstm"
-  ]
-}
