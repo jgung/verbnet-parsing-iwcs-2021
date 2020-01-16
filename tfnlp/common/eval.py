@@ -6,7 +6,6 @@ from typing import Iterable, Tuple, Dict, List
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io
-from tensorflow.python.lib.io.file_io import get_matching_files
 
 from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
@@ -222,21 +221,3 @@ def log_trainable_variables():
     tf.logging.log_first_n(tf.logging.INFO, "Trainable variables:\n%s\n", 1, '\n'.join(weights))
     return total_size
 
-
-CKPT_PATTERN = re.compile('(\\S+\\.ckpt-(\\d+))\\.index')
-
-
-def get_earliest_checkpoint(model_dir):
-    """
-    Returns the path to the earliest checkpoint in a particular model directory.
-    :param model_dir: base model directory containing checkpoints
-    :return: path to earliest checkpoint
-    """
-    ckpts = get_matching_files(os.path.join(model_dir, '*.index'))
-    path_step_ckpts = []
-    for ckpt in ckpts:
-        match = CKPT_PATTERN.search(ckpt)
-        if match:
-            path_step_ckpts.append((match.group(1), int(match.group(2))))
-    # noinspection PyTypeChecker
-    return min(path_step_ckpts, key=lambda x: x[1], default=(None, None))[0]
