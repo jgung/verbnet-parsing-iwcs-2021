@@ -329,7 +329,8 @@ class ConllSrlReader(ConllReader):
                         mapped = ['None']
                     sense = mapped
                 instance[SENSE_KEY] = sense
-
+                instance[constants.SENSE_SEQ_KEY] = [index == predicate_index and sense or constants.OUT
+                                                     for index in range(0, len(all_labels[LABEL_KEY]))]
             instance[MARKER_KEY] = [index == predicate_index and '1' or '0'
                                     for index in range(0, len(all_labels[LABEL_KEY]))]
 

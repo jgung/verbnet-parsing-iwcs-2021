@@ -48,7 +48,6 @@
         "words_and_chars"
       ],
       "type": "transformer",
-      "state_size": 300,
       "encoder_dropout": 0.1,
       "num_heads": 8,
       "head_dim": 25,
