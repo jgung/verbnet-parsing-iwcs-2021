@@ -1,0 +1,5 @@
+{
+  "encoder": "srl-input",
+  "name": "gold",
+  "type": "srl"
+}

@@ -1,0 +1,39 @@
+{
+  "reader": "./reader/semlink-all.json",
+  "max_epochs": 48,
+  "patience_epochs": 48,
+  "batch_size": 80,
+  "optimizer": "./optim/clr-4-1e-4.json",
+  "features": {
+    "targets": [
+      "./feats/vn-srl.json"
+    ],
+    "inputs": [
+      "./feats/glove-100d.json",
+      "./feats/marker.json",
+      "./feats/vn-sense-all.json"
+    ]
+  },
+  "encoders": [
+    {
+      "name": "words",
+      "type": "concat",
+      "inputs": [
+        "word",
+        "marker"
+      ]
+    },
+    {
+      "name": "tokens",
+      "type": "repeat_and_concat",
+      "inputs": [
+        "sense",
+        "words"
+      ]
+    },
+    "./encoders/he-dblstm.json"
+  ],
+  "heads": [
+    "./heads/vn-head.json"
+  ]
+}

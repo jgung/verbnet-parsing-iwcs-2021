@@ -1,0 +1,29 @@
+{
+  "name": "sense",
+  "key": "sense_seq",
+  "indices": {
+    "O": 0,
+    "None": 1
+  },
+  "unknown_word": "None",
+  "pad_word": "O",
+  "rank": 2,
+  "config": {
+    "dim": 100,
+    "dropout": 0.1,
+    "initializer": {
+      "embedding": "vectors/vn.glove.6B.100d.txt",
+      "pkl_path": "vn-vectors.pkl",
+      "zero_init": true,
+      "restrict_vocab": true
+    }
+  },
+  "mapping_funcs": [
+    {
+      "type": "sub",
+      "input": "-.*$",
+      "output": ""
+    }
+  ],
+  "threshold": 10
+}

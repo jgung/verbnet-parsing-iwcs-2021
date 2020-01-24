@@ -1,0 +1,11 @@
+{
+  "name": "srl-input",
+  "inputs": [
+    "tokens"
+  ],
+  "type": "dblstm",
+  "state_size": 300,
+  "encoder_output_dropout": 0.1,
+  "encoder_layers": 8,
+  "layer_norm": true
+}

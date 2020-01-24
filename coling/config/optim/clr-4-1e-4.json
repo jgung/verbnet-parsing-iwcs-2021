@@ -1,0 +1,16 @@
+{
+  "name": "LazyAdam",
+  "params": {
+    "beta1": 0.9,
+    "beta2": 0.9
+  },
+  "lr": {
+    "name": "clr",
+    "rate": 0.0001,
+    "params": {
+      "max_lr": 0.001,
+      "step_size": 4
+    }
+  },
+  "clip": 1.0
+}
