@@ -1,0 +1,39 @@
+{
+  "reader": "./reader/semlink.json",
+  "max_epochs": 48,
+  "patience_epochs": 48,
+  "batch_size": 32,
+  "optimizer": {
+    "name": "LazyNadam",
+    "params": {
+      "beta1": 0.9,
+      "beta2": 0.98,
+      "epsilon": 1e-12,
+      "use_nesterov": true
+    },
+    "lr": {
+      "name": "vaswani",
+      "rate": 0.04,
+      "warmup_steps": 8000,
+      "decay_rate": 1.5,
+      "decay_steps": 5000
+    },
+    "clip": 1.0
+  },
+  "features": {
+    "targets": [
+      "./feats/srl.json"
+    ],
+    "inputs": [
+      "./feats/glove-100d.json",
+      "./feats/marker.json"
+    ]
+  },
+  "encoders": [
+    "./encoders/token-marker-concat.json",
+    "./encoders/strubell-transformer.json"
+  ],
+  "heads": [
+    "./heads/pb-head.json"
+  ]
+}
