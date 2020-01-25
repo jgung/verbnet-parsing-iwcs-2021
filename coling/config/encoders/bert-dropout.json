@@ -1,0 +1,8 @@
+{
+  "name": "bert-dropout",
+  "type": "identity",
+  "inputs": [
+    "bert-no-subtokens"
+  ],
+  "dropout": 0.1
+}

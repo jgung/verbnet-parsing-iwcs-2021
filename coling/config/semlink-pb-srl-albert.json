@@ -1,0 +1,32 @@
+{
+  "reader": "./reader/semlink.json",
+  "checkpoint_epochs": 0.5,
+  "max_epochs": 8,
+  "batch_size": 16,
+  "optimizer": "./optim/bert.json",
+  "features": {
+    "targets": [
+      "./feats/srl.json"
+    ],
+    "inputs": [
+      {
+        "name": "bert",
+        "drop_subtokens": true,
+        "model": "https://tfhub.dev/google/albert_large/3"
+      },
+      "./feats/marker.json"
+    ]
+  },
+  "encoders": [
+    "./encoders/bert-no-subtokens.json",
+    "./encoders/bert-dropout.json",
+    "./encoders/srl-baseline-inputs.json",
+    "./encoders/srl-blstm.json",
+    "./encoders/srl-repeat-predicate.json",
+    "./encoders/srl-concat-predicate.json",
+    "./encoders/srl-mlp.json"
+  ],
+  "heads": [
+    "./heads/pb-head.json"
+  ]
+}

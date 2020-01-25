@@ -1,0 +1,8 @@
+{
+  "name": "tokens",
+  "type": "concat",
+  "inputs": [
+    "bert-dropout",
+    "marker"
+  ]
+}

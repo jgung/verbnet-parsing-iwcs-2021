@@ -1,7 +1,9 @@
 numpy
-tensorflow-gpu==1.13.1
+tensorflow-gpu==1.15
 nltk
 tensorflow-hub
 tensor2tensor
 bert-tensorflow
+albert-tensorflow==1.1
+sentencepiece
 sklearn

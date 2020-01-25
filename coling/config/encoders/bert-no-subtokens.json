@@ -1,0 +1,7 @@
+{
+  "name": "bert-no-subtokens",
+  "type": "remove_subtokens",
+  "inputs": [
+    "bert"
+  ]
+}

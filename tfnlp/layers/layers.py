@@ -17,7 +17,6 @@ from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, 
 from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 
 from tfnlp.common import constants
-from tfnlp.common.bert import BERT_S_CASED_URL
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
@@ -32,11 +31,12 @@ def embedding(features, feature_config, training):
                                      as_dict=True)['elmo']
         return elmo_embedding
     elif feature_config.name == constants.BERT_KEY:
-        tf.logging.info("Using BERT module at %s", BERT_S_CASED_URL)
+        model = feature_config.options.get("model")
+        tf.logging.info("Using BERT module at %s", model)
         tags = set()
         if training:
             tags.add("train")
-        bert_module = hub.Module(BERT_S_CASED_URL, tags=tags, trainable=True)
+        bert_module = hub.Module(model, tags=tags, trainable=True)
 
         lens = features[constants.LENGTH_KEY]
         if constants.BERT_LENGTH_KEY in features:
