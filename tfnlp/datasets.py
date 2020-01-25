@@ -1,8 +1,7 @@
 from typing import List, Iterable, Union
 
 import tensorflow as tf
-from tensorflow.python.data.experimental import shuffle_and_repeat, bucket_by_sequence_length
-from tensorflow.python.data.experimental.ops.optimization import AUTOTUNE
+from tensorflow.python.data.experimental import bucket_by_sequence_length, AUTOTUNE
 from tensorflow.python.data.ops.dataset_ops import DatasetV1Adapter
 
 from tfnlp.common.constants import LENGTH_KEY
@@ -39,7 +38,8 @@ def make_dataset(extractor,
 
     if not evaluate:
         # shuffle TF records
-        dataset = shuffle_and_repeat(buffer_size=buffer_size, count=max_epochs)(dataset)
+        dataset = dataset.shuffle(buffer_size)
+        dataset = dataset.repeat(max_epochs)
 
     # parse serialized TF records into dictionaries of Tensors for each feature
     dataset = dataset.map(extractor.parse, num_parallel_calls=num_parallel_calls)
@@ -65,6 +65,6 @@ def padded_batch(extractor, placeholder, batch_size=64):
     dataset = tf.data.Dataset.from_tensor_slices(placeholder)
     dataset = dataset.map(lambda x: extractor.parse(x, train=False))
     dataset = dataset.padded_batch(batch_size, extractor.get_shapes(train=False), extractor.get_padding(train=False))
-    iterator = dataset.make_initializable_iterator()
+    iterator = tf.compat.v1.data.make_initializable_iterator(dataset)
     with tf.control_dependencies([iterator.initializer]):
         return iterator.get_next()

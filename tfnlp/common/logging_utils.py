@@ -4,7 +4,8 @@ import tensorflow as tf
 from tensorflow.python.platform import tf_logging
 
 
-def set_up_logging(log_path=None, level=tf.logging.INFO, formatter='%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
+def set_up_logging(log_path=None, level=tf.compat.v1.logging.INFO,
+                   formatter='%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
     tf_logging.set_verbosity(level)
     # create file handler which logs even debug messages
     if log_path:
