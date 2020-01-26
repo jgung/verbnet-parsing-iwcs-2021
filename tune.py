@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     override_vals = {
         "max_epochs": [3, 4, 5],
-        "batch_size": [16, 24, 32],
+        "batch_size": [16],
         "optimizer.lr.rate": [0.00003, 0.00004, 0.00005],
     }
 

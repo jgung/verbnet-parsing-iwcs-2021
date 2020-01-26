@@ -1061,7 +1061,10 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         tokenizer = albert_tokenizer if 'albert' in model else bert_tokenization.FullTokenizer
         tokenizer = tokenizer(vocab_file, do_lower_case)
-        self.tokenizer = lambda word: tokenizer.tokenize(word)
+        if 'albert' in model:
+            self.tokenizer = lambda word: tokenizer.tokenize(albert_tokenization.preprocess_text(word, False, do_lower_case))
+        else:
+            self.tokenizer = lambda word: tokenizer.tokenize(word)
         self.targets = {target.name: target for target in targets}
         self.convert_to_ids = lambda split: tokenizer.convert_tokens_to_ids(split)
 
@@ -1079,10 +1082,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             self.features[LENGTH_KEY] = LengthFeature(SequenceFeature(LENGTH_KEY, constants.WORD_KEY))
 
     def tok(self, word):
-        if 'albert' in self.model:
-            return self.tokenizer(word)
-        else:
-            return self.tokenizer(word)
+        return self.tokenizer(word)
 
     def extractors(self, train=True):
         if train:
