@@ -8,3 +8,4 @@ sentencepiece
 sklearn
 numpy
 nltk
+six>=1.13.0

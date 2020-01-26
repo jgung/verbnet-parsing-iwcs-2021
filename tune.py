@@ -2,18 +2,16 @@ import random
 import subprocess
 
 if __name__ == '__main__':
-    base_dir = "optim/"
+    base_dir = "optim"
 
-    job_id = 1
-    base_config = "data/config/experimental/srl-phrase-config.json"
-    train_file = "data/datasets/conll05-srl/train-set.txt"
-    valid_file = "data/datasets/conll05-srl/dev-set.txt"
+    base_config = "coling/config/semlink-pb-srl-albert-base.json"
+    train_file = "coling/datasets/semlink/train.txt"
+    valid_file = "coling/datasets/semlink/dev.txt"
 
     override_vals = {
-        "max_epochs": [32],
-        "optimizer.lr.rate": [0.0001, 0.00005],
-        "optimizer.lr.params.max_lr": [0.001, 0.002],
-        "optimizer.lr.params.step_size": [4]
+        "max_epochs": [3, 4, 5],
+        "batch_size": [16, 24, 32],
+        "optimizer.lr.rate": [0.00003, 0.00004, 0.00005],
     }
 
     overrides = []
@@ -37,7 +35,7 @@ if __name__ == '__main__':
     for job_id, override in enumerate(overrides):
         params = [
             "python", "tfnlp/trainer.py",
-            "--job-dir", "optim/%s" % job_id,
+            "--job-dir", "%s/%s" % (base_dir, job_id),
             "--config", base_config,
             "--resources", "data",
             "--train", train_file,
@@ -45,15 +43,5 @@ if __name__ == '__main__':
             "--param_overrides", ','.join(override)
         ]
         print(' '.join(params))
-        subprocess.call(
-            [
-                "python", "tfnlp/trainer.py",
-                "--job-dir", "optim/%s" % job_id,
-                "--config", base_config,
-                "--resources", "data",
-                "--train", train_file,
-                "--valid", valid_file,
-                "--param_overrides", ','.join(override)
-            ]
-        )
+        subprocess.call(params)
         print(' '.join(params))
