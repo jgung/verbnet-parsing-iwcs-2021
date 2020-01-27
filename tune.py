@@ -4,14 +4,13 @@ import subprocess
 if __name__ == '__main__':
     base_dir = "optim"
 
-    base_config = "coling/config/semlink-pb-srl-albert-base.json"
+    base_config = "coling/config/semlink-pb-srl-albert.json"
     train_file = "coling/datasets/semlink/train.txt"
     valid_file = "coling/datasets/semlink/dev.txt"
 
     override_vals = {
-        "max_epochs": [3, 4, 5],
-        "batch_size": [16],
-        "optimizer.lr.rate": [0.00003, 0.00004, 0.00005],
+        "max_epochs": [8, 16],
+        "optimizer.lr.rate": [0.00004, 0.00005, 0.00006],
     }
 
     overrides = []

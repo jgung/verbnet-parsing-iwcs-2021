@@ -12,7 +12,8 @@
       {
         "name": "bert",
         "drop_subtokens": true,
-        "model": "https://tfhub.dev/google/albert_large/3"
+        "model": "https://tfhub.dev/google/albert_large/3",
+        "seg_ids": "pred_marker"
       },
       "./feats/marker.json"
     ]
@@ -20,11 +21,7 @@
   "encoders": [
     "./encoders/bert-no-subtokens.json",
     "./encoders/bert-dropout.json",
-    "./encoders/srl-baseline-inputs.json",
-    "./encoders/srl-blstm.json",
-    "./encoders/srl-repeat-predicate.json",
-    "./encoders/srl-concat-predicate.json",
-    "./encoders/srl-mlp.json"
+    "./encoders/bert-srl-input.json"
   ],
   "heads": [
     "./heads/pb-head.json"

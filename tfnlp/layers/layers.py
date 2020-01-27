@@ -42,7 +42,10 @@ def embedding(features, feature_config, training):
         lens = features[constants.LENGTH_KEY]
         if constants.BERT_LENGTH_KEY in features:
             lens = features[constants.BERT_LENGTH_KEY]
-        if constants.BERT_SPLIT_INDEX in features:
+
+        if constants.BERT_SEG_ID in features:
+            segment_ids = tf.cast(features[constants.BERT_SEG_ID], dtype=tf.int32)
+        elif constants.BERT_SPLIT_INDEX in features:
             max_sequence_length = tf.reduce_max(lens)
             mask = tf.sequence_mask(features[constants.BERT_SPLIT_INDEX], maxlen=max_sequence_length)  # e.g. [1, 1, ..., 0, 0]
             segment_ids = tf.cast(tf.math.logical_not(mask), dtype=tf.int32)  # e.g. [0, 0, ..., 1, 1]
@@ -141,7 +144,7 @@ def encoder(features, inputs, mode, config):
                 raise AssertionError
             inputs = inputs[0]
             if training:
-                return tf.nn.dropout(get_encoder_input(inputs), rate=config.dropout)
+                return tf.nn.dropout(get_encoder_input(inputs), rate=config.get('dropout', 0))
             return inputs
         elif constants.ENCODER_CONCAT == encoder_type:
             return concat(inputs, training, config)
