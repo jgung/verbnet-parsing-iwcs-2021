@@ -1004,7 +1004,7 @@ class BertLengthFeature(Extractor):
             tokens.extend(self.tokenizer(val))
         tokens.append(BERT_SEP)
 
-        if self.srl:
+        if self.srl and self.segment_extractor is not None:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = self.segment_extractor(sequence)
             if len(predicate_token) > 0:
@@ -1015,6 +1015,8 @@ class BertLengthFeature(Extractor):
 
 
 def get_bert_sequence_extractor(sequence):
+    if not sequence:
+        return None
     tokens = sequence.split()
 
     def get_bert_sequence(instance):
@@ -1079,7 +1081,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         self.predicate_extractor = get_bert_sequence_extractor(predicate_extractor)
         len_name = constants.BERT_LENGTH_KEY if self.drop_subtokens else constants.LENGTH_KEY
         self.features = {
-            len_name: BertLengthFeature(self.tokenizer, srl=srl and seg_ids != PRED_MARKER, name=len_name,
+            len_name: BertLengthFeature(self.tokenizer, srl=srl, name=len_name,
                                         segment_extractor=self.segment_extractor,
                                         predicate_extractor=self.predicate_extractor),
             SENTENCE_INDEX: index_feature(),
@@ -1162,7 +1164,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         if self.srl:
             segment_index = len(split_tokens)
-            if not self.seg_ids == PRED_MARKER:
+            if self.segment_extractor is not None:
                 # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
                 predicate_token = self.segment_extractor(instance)
                 if len(predicate_token) > 0:
@@ -1189,7 +1191,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
                 feature_list[name] = str_feature_list(labels)
 
         if self.seg_ids == PRED_MARKER:
-            seg_ids = [1 if i == focus_index else 0 for i in range(len(ids))]
+            seg_ids = [1 if i == focus_index or i >= segment_index else 0 for i in range(len(ids))]
             feature_list[constants.BERT_SEG_ID] = int64_feature_list(seg_ids)
         feature_list[constants.BERT_KEY] = int64_feature_list(ids)  # BERT wordpiece token indices
         feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
