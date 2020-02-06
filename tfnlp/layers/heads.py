@@ -242,11 +242,7 @@ class TaggerHead(ModelHead):
 
     def __init__(self, inputs, config, features, params, training=False):
         super().__init__(inputs, config, features, params, training)
-        if constants.BERT_SPLIT_INDEX in self.features and constants.BERT_LENGTH_KEY not in self.features:
-            self._sequence_lengths = self.features[constants.BERT_SPLIT_INDEX]
-        else:
-            self._sequence_lengths = self.features[constants.LENGTH_KEY]
-
+        self._sequence_lengths = self.features[constants.LENGTH_KEY]
         self._tag_transitions = None
 
     def training(self):
@@ -320,7 +316,10 @@ class TaggerHead(ModelHead):
         eval_placeholder = tf.compat.v1.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 
         if constants.SRL_KEY in self.config.task:
-            eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
+            if constants.MARKER_KEY in self.features:
+                eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
+            else:
+                eval_tensors[constants.PREDICATE_INDEX_KEY] = self.features[constants.PREDICATE_INDEX_KEY]
 
             self.evaluation_hooks.append(
                 SrlEvalHook(

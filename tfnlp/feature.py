@@ -1087,6 +1087,9 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             SENTENCE_INDEX: index_feature(),
             **{feature.name: feature for feature in features}
         }
+        if constants.PREDICATE_INDEX_KEY not in self.features:
+            self.features[constants.PREDICATE_INDEX_KEY] = Extractor(name=constants.PREDICATE_INDEX_KEY,
+                                                                     key=constants.PREDICATE_INDEX_KEY)
         self.seg_ids = seg_ids
         if drop_subtokens:
             self.features[LENGTH_KEY] = LengthFeature(SequenceFeature(LENGTH_KEY, constants.WORD_KEY))
@@ -1200,10 +1203,9 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             pred_idx = focus_index
             if self.drop_subtokens:
                 pred_idx = instance[constants.PREDICATE_INDEX_KEY]
-            features[constants.PREDICATE_INDEX_KEY] = int64_feature(pred_idx)
-            features[constants.BERT_SPLIT_INDEX] = int64_feature(segment_index)
-            markers = ['1' if i == pred_idx else '0' for i in range(len(words if self.drop_subtokens else ids))]
-            feature_list[constants.MARKER_KEY] = str_feature_list(markers)
+            if not self.seg_ids == PRED_MARKER:
+                markers = ['1' if i == pred_idx else '0' for i in range(len(words if self.drop_subtokens else ids))]
+                feature_list[constants.MARKER_KEY] = str_feature_list(markers)
 
         if train:
             target_labels = {target.name: target.get_values(instance) for target in self.targets.values() if target.rank == 1}
@@ -1231,7 +1233,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
         if self.srl:
             context_features[constants.PREDICATE_INDEX_KEY] = tf.io.FixedLenFeature([], dtype=tf.int64)
-            context_features[constants.BERT_SPLIT_INDEX] = tf.io.FixedLenFeature([], dtype=tf.int64)
         if self.seg_ids == PRED_MARKER:
             sequence_features[constants.BERT_SEG_ID] = int64_sequence_feature()
 
@@ -1253,7 +1254,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         shapes[constants.SEQUENCE_MASK] = vector_shape()
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
-            shapes[constants.BERT_SPLIT_INDEX] = tf.TensorShape([])
         if self.seg_ids == PRED_MARKER:
             shapes[constants.BERT_SEG_ID] = vector_shape()
 
@@ -1269,7 +1269,6 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         padding[constants.SEQUENCE_MASK] = zero_padding()
         if self.srl:
             padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
-            padding[constants.BERT_SPLIT_INDEX] = zero_padding()
         if self.seg_ids == PRED_MARKER:
             padding[constants.BERT_SEG_ID] = zero_padding()
 

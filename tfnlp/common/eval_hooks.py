@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training.session_run_hook import SessionRunArgs
 from tfnlp.common.config import append_label
-from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES
+from tfnlp.common.constants import ARC_PROBS, DEPREL_KEY, HEAD_KEY, PREDICT_KEY, REL_PROBS, LABEL_SCORES, PREDICATE_INDEX_KEY
 from tfnlp.common.constants import LABEL_KEY, LENGTH_KEY, MARKER_KEY, SENTENCE_INDEX
 from tfnlp.common.utils import binary_np_array_to_unicode
 
@@ -113,9 +113,14 @@ class SrlEvalHook(SequenceEvalHook):
 
     def _create_instances(self, run_context, run_values):
         instances, results = super()._create_instances(run_context, run_values)
-        for instance, markers in zip(instances, run_values.results[MARKER_KEY]):
+        # support both BERT-based models passing predicate index, and other SRL models with predicate marker, backwards compat
+        marker_feat = MARKER_KEY if MARKER_KEY in run_values.results else PREDICATE_INDEX_KEY
+        for instance, markers in zip(instances, run_values.results[marker_feat]):
             seq_len = instance[LENGTH_KEY]
-            instance[MARKER_KEY] = binary_np_array_to_unicode(markers[:seq_len])
+            if marker_feat == MARKER_KEY:
+                instance[MARKER_KEY] = binary_np_array_to_unicode(markers[:seq_len]).index("1")
+            else:
+                instance[MARKER_KEY] = markers
         return instances, results
 
     def end(self, session):

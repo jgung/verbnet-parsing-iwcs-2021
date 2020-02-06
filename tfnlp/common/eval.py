@@ -66,20 +66,20 @@ def conll_srl_eval(gold_batches, predicted_batches, markers, ids, senses=None, m
     mappings = {}
     if mappings_file and file_io.file_exists(mappings_file):
         mappings = read_json(mappings_file, as_params=False)
-    gold_props = _convert_to_sentences(labels=gold_batches, markers=markers, sentence_ids=ids, senses=senses,
+    gold_props = _convert_to_sentences(labels=gold_batches, pred_indices=markers, sentence_ids=ids, senses=senses,
                                        mappings=mappings, gold=True)
-    pred_props = _convert_to_sentences(labels=predicted_batches, markers=markers, sentence_ids=ids, senses=senses,
+    pred_props = _convert_to_sentences(labels=predicted_batches, pred_indices=markers, sentence_ids=ids, senses=senses,
                                        mappings=mappings)
     return evaluate(gold_props, pred_props)
 
 
 def _convert_to_sentences(labels: List[Iterable[str]],
-                          markers: List[Iterable[str]],
+                          pred_indices: List[int],
                           sentence_ids: List[int],
                           senses: List[Tuple], mappings=None, gold=False) -> List[Dict[int, List[str]]]:
     sentences = []
 
-    for predicates, props_by_predicate in _get_predicates_and_props(labels, markers, sentence_ids, senses):
+    for predicates, props_by_predicate in _get_predicates_and_props(labels, pred_indices, sentence_ids, senses):
         current_sentence = defaultdict(list)
         props = [v for k, v in sorted(props_by_predicate.items(), key=lambda x: x[0])]
         for tok, predicate in enumerate(predicates):
@@ -117,7 +117,7 @@ def _convert_to_sentences(labels: List[Iterable[str]],
 
 def write_props_to_file(output_file,
                         labels: List[Iterable[str]],
-                        markers: List[Iterable[str]],
+                        markers: List[int],
                         sentence_ids: List[int]):
     """
     Write PropBank predictions to a file.
@@ -137,7 +137,7 @@ def write_props_to_file(output_file,
 
 
 def _get_predicates_and_props(labels: List[Iterable[str]],
-                              markers: List[Iterable[str]],
+                              pred_indices: List[int],
                               sentence_ids: List[int],
                               senses: List[Tuple] = None) -> Iterable[Tuple[Iterable[str], Dict[int, List[str]]]]:
     prev_sent_idx = -1  # previous sentence's index
@@ -146,15 +146,13 @@ def _get_predicates_and_props(labels: List[Iterable[str]],
     if not senses or len(senses) == 0:
         senses = [''] * len(labels)
     sense_dict = {}
-    for labels, markers, curr_sent_idx, sense in sorted(zip(labels, markers, sentence_ids, senses), key=lambda x: x[2]):
+    for labels, pred_idx, curr_sent_idx, sense in sorted(zip(labels, pred_indices, sentence_ids, senses), key=lambda x: x[2]):
 
         filtered_labels = []
-        filtered_markers = []
-        for label, marker in zip(labels, markers):
+        for label in labels:
             if label == BERT_SUBLABEL:
                 continue
             filtered_labels.append(label)
-            filtered_markers.append(marker)
 
         if prev_sent_idx != curr_sent_idx:  # either first sentence, or a new sentence
             prev_sent_idx = curr_sent_idx
@@ -164,15 +162,14 @@ def _get_predicates_and_props(labels: List[Iterable[str]],
                     predicates[key] = val
                 yield predicates, props_by_predicate
 
-            predicates = ["-"] * len(filtered_markers)
+            predicates = ["-"] * len(filtered_labels)
             sense_dict = {}
             props_by_predicate = {}
 
         if sense and sense is not '':
             sense_dict[sense[0]] = sense[1]
-        predicate_idx = filtered_markers.index('1')  # index of predicate in tokens
-        predicates[predicate_idx] = 'x'  # eval script requires predicate to be a character other than '-'
-        props_by_predicate[predicate_idx] = chunk(filtered_labels, conll=True)  # assign SRL labels for this predicate
+        predicates[pred_idx] = 'x'  # eval script requires predicate to be a character other than '-'
+        props_by_predicate[pred_idx] = chunk(filtered_labels, conll=True)  # assign SRL labels for this predicate
 
     if predicates:
         for key, val in sense_dict.items():

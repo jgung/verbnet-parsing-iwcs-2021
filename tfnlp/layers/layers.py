@@ -45,10 +45,6 @@ def embedding(features, feature_config, training):
 
         if constants.BERT_SEG_ID in features:
             segment_ids = tf.cast(features[constants.BERT_SEG_ID], dtype=tf.int32)
-        elif constants.BERT_SPLIT_INDEX in features:
-            max_sequence_length = tf.reduce_max(lens)
-            mask = tf.sequence_mask(features[constants.BERT_SPLIT_INDEX], maxlen=max_sequence_length)  # e.g. [1, 1, ..., 0, 0]
-            segment_ids = tf.cast(tf.math.logical_not(mask), dtype=tf.int32)  # e.g. [0, 0, ..., 1, 1]
         else:
             segment_ids = tf.zeros(tf.shape(features[constants.BERT_KEY]), dtype=tf.int32)
 
