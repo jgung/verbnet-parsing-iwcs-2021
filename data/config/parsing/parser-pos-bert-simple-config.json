@@ -1,0 +1,103 @@
+{
+  "reader": "conllx",
+  "checkpoint_epochs": 0.25,
+  "max_epochs": 4,
+  "batch_size": 16,
+  "optimizer": {
+    "name": "bert",
+    "lr": {
+      "name": "bert",
+      "rate": 0.00005,
+      "warmup_proportion": 0.1
+    },
+    "clip": 1.0
+  },
+  "features": {
+    "targets": [
+      {
+        "name": "head",
+        "key": "head",
+        "numeric": true,
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": 0
+          }
+        ]
+      },
+      {
+        "name": "deprel",
+        "key": "deprel",
+        "indices": {
+          "O": 0
+        },
+        "unknown_word": "dep",
+        "pad_word": "O",
+        "padding_funcs": [
+          {
+            "type": "pad",
+            "count": 1,
+            "value": "<ROOT>"
+          }
+        ]
+      },
+      {
+        "name": "pos",
+        "key": "xpos",
+        "indices": {
+          "O": 0
+        },
+        "unknown_word": "NN",
+        "pad_word": "O"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "bert",
+        "drop_subtokens": true
+      }
+    ]
+  },
+  "encoders": [
+    {
+      "name": "bert-no-subtokens",
+      "type": "remove_subtokens",
+      "inputs": [
+        "bert"
+      ]
+    },
+    {
+      "name": "identity",
+      "inputs": [
+        "bert-no-subtokens"
+      ],
+      "dropout": 0.1,
+      "type": "identity"
+    },
+    {
+      "name": "with-sentinel",
+      "type": "sentinel",
+      "inputs": [
+        "identity"
+      ]
+    }
+  ],
+  "heads": [
+    {
+      "encoder": "with-sentinel",
+      "name": "deprel",
+      "type": "parser",
+      "rel_mlp_size": 100,
+      "arc_mlp_size": 500,
+      "mlp_dropout": 0.33
+    },
+    {
+      "encoder": "identity",
+      "name": "pos",
+      "type": "tagger",
+      "metric": "Accuracy",
+      "mlp_dropout": 0.33
+    }
+  ]
+}
