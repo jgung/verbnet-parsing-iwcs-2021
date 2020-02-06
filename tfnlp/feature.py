@@ -1089,7 +1089,7 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             SENTENCE_INDEX: index_feature(),
             **{feature.name: feature for feature in features}
         }
-        if constants.PREDICATE_INDEX_KEY not in self.features:
+        if srl and constants.PREDICATE_INDEX_KEY not in self.features:
             self.features[constants.PREDICATE_INDEX_KEY] = Extractor(name=constants.PREDICATE_INDEX_KEY,
                                                                      key=constants.PREDICATE_INDEX_KEY)
         self.seg_ids = seg_ids
