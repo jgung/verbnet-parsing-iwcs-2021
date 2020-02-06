@@ -274,10 +274,11 @@ def _get_feature(feature):
     return feat(**feature)
 
 
-def get_feature_extractor(init_config):
+def get_feature_extractor(init_config, heads=None):
     """
     Create a `FeatureExtractor` from a given feature configuration.
     :param init_config: feature configuration
+    :param heads: head configurations
     :return: feature extractor
     """
     # load default configurations
@@ -286,8 +287,9 @@ def get_feature_extractor(init_config):
     bert_feat = next(iter([inp for inp in config.inputs if inp.name == constants.BERT_KEY]), None)
     if bert_feat:
         logging.info("BERT feature found in inputs, using BERT feature extractor")
-        contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
-        is_srl = contains_marker or any('predicate_extractor' in inp for inp in init_config.inputs)
+        is_srl = heads and any(head.task == constants.SRL_KEY for head in heads)
+        if is_srl:
+            logging.info("Extracting BERT features for SRL")
         return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=is_srl,
                                     model=bert_feat.options['model'],
                                     drop_subtokens=bert_feat.options['drop_subtokens'],
