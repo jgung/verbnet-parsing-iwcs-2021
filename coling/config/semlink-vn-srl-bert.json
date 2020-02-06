@@ -2,18 +2,18 @@
   "reader": "./reader/semlink.json",
   "checkpoint_epochs": 0.5,
   "max_epochs": 8,
-  "batch_size": 8,
-  "patience_epochs": 2,
+  "batch_size": 16,
+  "patience_epochs": 4,
   "optimizer": "./optim/bert.json",
   "features": {
     "targets": [
-      "./feats/srl.json"
+      "./feats/vn-srl.json"
     ],
     "inputs": [
       {
         "name": "bert",
         "drop_subtokens": true,
-        "model": "https://tfhub.dev/google/albert_large/3",
+        "model": "https://tfhub.dev/google/bert_cased_L-12_H-768_A-12/1",
         "seg_ids": "pred_marker"
       },
       "./feats/marker.json"
@@ -25,6 +25,6 @@
     "./encoders/bert-srl-input.json"
   ],
   "heads": [
-    "./heads/pb-head.json"
+    "./heads/vn-head.json"
   ]
 }
