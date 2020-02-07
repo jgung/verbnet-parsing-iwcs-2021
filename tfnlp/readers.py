@@ -510,6 +510,10 @@ def conllx_reader():
                           label_field=DEPREL_KEY)
 
 
+def pb_dep_reader():
+    return ConllDepReader(index_field_map={3: WORD_KEY, 4: XPOS_KEY, 8: DEPREL_KEY, 9: HEAD_KEY}, label_field=DEPREL_KEY)
+
+
 def conll_2005_reader(phrase=False):
     fields = {0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: SENSE_KEY, 5: PREDICATE_KEY}
     if phrase:
@@ -588,6 +592,8 @@ def get_reader(reader_config, training_config=None, is_test=False):
             return conll_2009_reader()
         elif reader_name == 'conllx':
             return conllx_reader()
+        elif reader_name == 'pb_dep':
+            return pb_dep_reader()
         elif reader_name == 'conll_2005':
             return conll_2005_reader()
         elif reader_name == 'conll_2005_phrase':
