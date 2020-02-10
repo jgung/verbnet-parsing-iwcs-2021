@@ -1,6 +1,6 @@
 {
   "reader": "pb_dep",
-  "checkpoint_epochs": 0.25,
+  "checkpoint_epochs": 0.5,
   "max_epochs": 4,
   "batch_size": 16,
   "duplicate_uncased": 2,

@@ -1,12 +1,13 @@
 {
   "reader": "tsv",
-  "max_epochs": 4,
-  "batch_size": 32,
+  "max_epochs": 8,
+  "checkpoint_epochs": 0.5,
+  "batch_size": 16,
   "optimizer": {
     "name": "bert",
     "lr": {
       "name": "bert",
-      "rate": 0.00005,
+      "rate": 0.00001,
       "warmup_proportion": 0.1
     },
     "clip": 1.0
@@ -17,14 +18,14 @@
         "name": "gold",
         "key": "gold",
         "rank": 1,
-        "unknown_word": "0",
-        "pad_word": "0"
+        "unknown_word": "2",
+        "pad_word": "2"
       }
     ],
     "inputs": [
       {
         "name": "bert",
-        "model": "https://tfhub.dev/google/bert_cased_L-12_H-768_A-12/1",
+        "model": "https://tfhub.dev/google/albert_base/3",
         "output_type": "pooled_output"
       }
     ]

@@ -2,7 +2,6 @@ import fnmatch
 import os
 import re
 from collections import defaultdict
-from nltk.tokenize import word_tokenize
 import tensorflow as tf
 from tensorflow.python.lib.io import file_io
 
@@ -19,6 +18,7 @@ class TsvReader(object):
     def __init__(self, line_filter=lambda line: False):
         super(TsvReader, self).__init__()
         self.line_filter = line_filter
+        self._sentence_count = 0
 
     def read_file(self, path):
         """
@@ -36,8 +36,9 @@ class TsvReader(object):
     def _process_fields(self, fields):
         if len(fields) != 2:
             raise AssertionError('Incorrect number of fields (was expecting 2) in line: %s' % '\t'.join(fields))
-
-        return {LABEL_KEY: fields[0], WORD_KEY: word_tokenize(fields[1])}
+        result = {LABEL_KEY: fields[0], WORD_KEY: fields[1].split(), constants.SENTENCE_INDEX: self._sentence_count}
+        self._sentence_count += 1
+        return result
 
 
 class SemlinkReader(TsvReader):

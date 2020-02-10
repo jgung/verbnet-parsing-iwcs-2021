@@ -1235,8 +1235,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
         if self.srl:
             context_features[constants.PREDICATE_INDEX_KEY] = tf.io.FixedLenFeature([], dtype=tf.int64)
-        if self.seg_ids == PRED_MARKER:
-            sequence_features[constants.BERT_SEG_ID] = int64_sequence_feature()
+            if self.seg_ids == PRED_MARKER:
+                sequence_features[constants.BERT_SEG_ID] = int64_sequence_feature()
 
         context_parsed, sequence_parsed = tf.io.parse_single_sequence_example(
             serialized=example,
@@ -1256,8 +1256,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         shapes[constants.SEQUENCE_MASK] = vector_shape()
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
-        if self.seg_ids == PRED_MARKER:
-            shapes[constants.BERT_SEG_ID] = vector_shape()
+            if self.seg_ids == PRED_MARKER:
+                shapes[constants.BERT_SEG_ID] = vector_shape()
 
         return shapes
 
@@ -1271,8 +1271,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         padding[constants.SEQUENCE_MASK] = zero_padding()
         if self.srl:
             padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
-        if self.seg_ids == PRED_MARKER:
-            padding[constants.BERT_SEG_ID] = zero_padding()
+            if self.seg_ids == PRED_MARKER:
+                padding[constants.BERT_SEG_ID] = zero_padding()
 
         return padding
 

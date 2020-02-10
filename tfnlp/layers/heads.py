@@ -108,12 +108,16 @@ class ClassifierHead(ModelHead):
         self._sequence_lengths = self.features[constants.LENGTH_KEY]
 
     def _all(self):
-        if len(self.inputs) == 2:
-            inputs = tf.squeeze(self.inputs[0], axis=1)
+        if tf.is_tensor(self.inputs):
+            inputs = self.inputs
+            if len(self.inputs.shape) != 2:
+                inputs = tf.squeeze(inputs, 1)
         else:
-            inputs = self.inputs[2]
-            inputs = tf.layers.dropout(inputs, training=self._training)
-
+            if len(self.inputs) == 2:
+                inputs = tf.squeeze(self.inputs[0], axis=1)
+            else:
+                inputs = self.inputs[2]
+                inputs = tf.layers.dropout(inputs, training=self._training)
         with tf.compat.v1.variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
             self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
