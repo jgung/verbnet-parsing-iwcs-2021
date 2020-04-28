@@ -3,10 +3,11 @@ import re
 
 import tensorflow as tf
 from bert.optimization import AdamWeightDecayOptimizer
-
+from tensorflow.compat.v1 import logging
+from tensorflow.compat.v1 import train
+from tensorflow.compat.v1 import trainable_variables
 from tensorflow.contrib.opt import LazyAdamOptimizer
 from tensorflow.python.training.learning_rate_decay import exponential_decay, inverse_time_decay
-from tensorflow.compat.v1 import logging
 
 from tfnlp.common import constants
 from tfnlp.common.utils import Params
@@ -240,7 +241,7 @@ def _transformer_learning_rate(lr_config, global_step):
             return lr
 
 
-def get_optimizer(network_config, default_optimizer=tf.compat.v1.train.AdadeltaOptimizer(learning_rate=1.0)):
+def get_optimizer(network_config, default_optimizer=train.AdadeltaOptimizer(learning_rate=1.0)):
     """
     Return the optimizer given by the input network configuration, or a default optimizer.
     :param network_config: network configuration
@@ -257,22 +258,22 @@ def get_optimizer(network_config, default_optimizer=tf.compat.v1.train.AdadeltaO
     else:
         optimizer.lr.num_train_steps = network_config.max_steps
         optimizer.lr.steps_per_epoch = network_config.steps_per_epoch
-        lr = get_learning_rate(optimizer.lr, tf.compat.v1.train.get_global_step())
+        lr = get_learning_rate(optimizer.lr, train.get_global_step())
 
     name = optimizer.name
     params = optimizer.params
     if "Adadelta" == name:
-        opt = tf.compat.v1.train.AdadeltaOptimizer(lr, **params)
+        opt = train.AdadeltaOptimizer(lr, **params)
     elif "Adam" == name:
-        opt = tf.compat.v1.train.AdamOptimizer(lr, **params)
+        opt = train.AdamOptimizer(lr, **params)
     elif "LazyAdam" == name:
         opt = LazyAdamOptimizer(lr, **params)
     elif "LazyNadam" == name:
         opt = LazyNadamOptimizer(lr, **params)
     elif "SGD" == name:
-        opt = tf.compat.v1.train.GradientDescentOptimizer(lr)
+        opt = train.GradientDescentOptimizer(lr)
     elif "Momentum" == name:
-        opt = tf.compat.v1.train.MomentumOptimizer(lr, **params)
+        opt = train.MomentumOptimizer(lr, **params)
     elif "Nadam" == name:
         opt = NadamOptimizerSparse(lr, **params)
     elif "bert" == name:
@@ -307,7 +308,7 @@ def train_op_from_config(config, loss):
     optimizer = get_optimizer(config)
     clip_norm = config.optimizer.clip
 
-    parameters = tf.compat.v1.trainable_variables()
+    parameters = trainable_variables()
 
     # optionally add L2 loss to specific weights, or globally
     l2_loss = get_l2_loss(config, parameters)
@@ -317,7 +318,7 @@ def train_op_from_config(config, loss):
     gradients = tf.gradients(loss, parameters)
     gradients = tf.clip_by_global_norm(gradients, clip_norm=clip_norm)[0]
 
-    global_step = tf.compat.v1.train.get_global_step()
+    global_step = train.get_global_step()
     result = optimizer.apply_gradients(grads_and_vars=zip(gradients, parameters), global_step=global_step)
     if isinstance(optimizer, AdamWeightDecayOptimizer):
         # AdamWeightDecayOptimizer does not update the global step, unlike other optimizers

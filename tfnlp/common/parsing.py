@@ -90,6 +90,7 @@ def greedy(probs):
             new_root_in_cycle = np.argmax(backoff_probs / cycle_probs)
             new_cycle_root = cycle_vertices[new_root_in_cycle]
             # Set the new root
+            # noinspection PyUnresolvedReferences
             probs[new_cycle_root, cycle_edges[new_root_in_cycle]] = 0
             edges[new_cycle_root] = backoff_edges[new_root_in_cycle]
     return edges

@@ -1,9 +1,10 @@
 import os
 from typing import Callable, Iterable, List, Union, Tuple
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 from tensorflow.contrib.predictor import from_saved_model
+from tensorflow.io import gfile
 
 from tfnlp.cli.formatters import get_formatter
 from tfnlp.cli.parsers import get_parser
@@ -115,7 +116,7 @@ def get_latest_savedmodel_from_jobdir(job_dir: str) -> type(Predictor):
     """
     export_dir = os.path.join(job_dir, constants.MODEL_PATH, 'export', 'best_exporter')
     latest = os.path.join(export_dir, max(
-        [path for path in tf.io.gfile.listdir(export_dir) if not path.startswith('temp')]))
+        [path for path in gfile.listdir(export_dir) if not path.startswith('temp')]))
     return latest
 
 

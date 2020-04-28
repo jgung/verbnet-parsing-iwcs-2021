@@ -1,7 +1,7 @@
-from tfnlp.common.eval import get_parse_prediction
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.constants import WORD_KEY
+from tfnlp.common.eval import get_parse_prediction
 from tfnlp.common.utils import binary_np_array_to_unicode
 
 

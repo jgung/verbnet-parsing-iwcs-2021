@@ -1,6 +1,7 @@
 from typing import List, Iterable, Union
 
 import tensorflow as tf
+from tensorflow.compat.v1.data.experimental import get_single_element
 from tensorflow.python.data.experimental import bucket_by_sequence_length, AUTOTUNE
 from tensorflow.python.data.ops.dataset_ops import DatasetV1Adapter
 
@@ -65,4 +66,4 @@ def padded_batch(extractor, placeholder, batch_size=64):
     dataset = tf.data.Dataset.from_tensor_slices(placeholder)
     dataset = dataset.map(lambda x: extractor.parse(x, train=False))
     dataset = dataset.padded_batch(batch_size, extractor.get_shapes(train=False), extractor.get_padding(train=False))
-    return tf.compat.v1.data.experimental.get_single_element(dataset)
+    return get_single_element(dataset)

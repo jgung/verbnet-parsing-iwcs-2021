@@ -5,8 +5,9 @@ from typing import Iterable, Tuple, Dict, List
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.lib.io import file_io
 from tensorflow.compat.v1 import logging
+from tensorflow.compat.v1 import trainable_variables
+from tensorflow.python.lib.io import file_io
 
 from tfnlp.common.bert import BERT_SUBLABEL, BERT_CLS, BERT_SEP
 from tfnlp.common.chunk import chunk
@@ -206,7 +207,7 @@ def log_trainable_variables():
     Log every trainable variable name and shape and return the total number of trainable variables.
     :return: total number of trainable variables
     """
-    all_weights = {variable.name: variable for variable in tf.compat.v1.trainable_variables()}
+    all_weights = {variable.name: variable for variable in trainable_variables()}
     total_size = 0
     weights = []
     for variable_name in sorted(list(all_weights)):
@@ -218,4 +219,3 @@ def log_trainable_variables():
     weights.append("Total trainable variables size: %d" % total_size)
     logging.log_first_n(logging.INFO, "Trainable variables:\n%s\n", 1, '\n'.join(weights))
     return total_size
-

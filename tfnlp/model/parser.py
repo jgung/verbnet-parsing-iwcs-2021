@@ -1,6 +1,7 @@
 import os
 
 import tensorflow as tf
+from tensorflow.compat.v1 import Variable
 
 import tfnlp.common.constants as constants
 from tfnlp.cli.evaluators import DepParserEvaluator
@@ -69,7 +70,7 @@ class ParserHead(ModelHead):
         arc_loss = self.config.get('arc_loss_weight', 1) * arc_loss
         rel_loss = self.config.get('rel_loss_weight', 1) * rel_loss
         self.loss = arc_loss + rel_loss
-        self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
+        self.metric = Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
         # compute relations, and arc/prob probabilities for use in MST algorithm

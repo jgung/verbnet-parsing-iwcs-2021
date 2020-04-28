@@ -8,6 +8,7 @@ import tensorflow_estimator as tfe
 from tensorflow.compat.v1 import logging
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.contrib.training import HParams
+from tensorflow.io import gfile
 from tensorflow.python.estimator.export.export import ServingInputReceiver
 from tensorflow.python.estimator.run_config import RunConfig
 from tensorflow.python.estimator.training import train_and_evaluate
@@ -55,7 +56,7 @@ class Trainer(object):
         self._job_dir = save_dir_path
 
         config_path = os.path.join(self._job_dir, constants.CONFIG_PATH)
-        if not tf.io.gfile.exists(config_path):
+        if not gfile.exists(config_path):
             write_json(config, config_path)
         if not config:
             config = read_json(config_path)
@@ -191,7 +192,7 @@ class Trainer(object):
             logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)
         elif train_path:
             logging.info("No valid pre-existing vocabulary found at %s "
-                            "(this is normal when not loading from an existing model)", self._vocab_path)
+                         "(this is normal when not loading from an existing model)", self._vocab_path)
             self._train_vocab(train_path)
         else:
             raise ValueError('No feature vocabulary available at %s and unable to train new vocabulary' % self._vocab_path)
@@ -218,7 +219,7 @@ class Trainer(object):
 
     def _extract_and_write(self, path: str, test: bool = False):
         output_path = self._data_path_fn(path)
-        if tf.io.gfile.exists(output_path):
+        if gfile.exists(output_path):
             logging.info("Using pre-existing features for %s from %s", path, output_path)
             return
         examples = self._extract_features(path, test)
@@ -244,12 +245,12 @@ class Trainer(object):
         checkpoint_steps = self._training_config.checkpoint_epochs * steps_per_epoch
 
         logging.info('Training on %d instances at %s, validating on %d instances at %s'
-                        % (train_count, train, valid_count, valid))
+                     % (train_count, train, valid_count, valid))
         logging.info('Training for a maximum of %d epoch(s) (%d steps w/ batch_size=%d)'
-                        % (self._training_config.max_epochs, max_steps, self._training_config.batch_size))
+                     % (self._training_config.max_epochs, max_steps, self._training_config.batch_size))
         if patience < max_steps:
             logging.info('Early stopping after %d epoch(s) (%d steps) with no improvement on validation set'
-                            % (self._training_config.patience_epochs, patience))
+                         % (self._training_config.patience_epochs, patience))
         logging.info('Evaluating every %d steps, %d epoch(s)' % (checkpoint_steps, self._training_config.checkpoint_epochs))
 
         return max_steps, patience, checkpoint_steps, steps_per_epoch
@@ -374,11 +375,11 @@ def cli():
 
     # write configuration file to model path, applying any updates/overrides if this is the first time training
     config_path = os.path.join(opts.save, constants.CONFIG_PATH)
-    if not tf.io.gfile.exists(config_path):
+    if not gfile.exists(config_path):
         if not opts.config:
             raise AssertionError('trainer configuration is required when training for the first time')
         config = read_config(opts.config, opts.config_overrides, opts.param_overrides)
-        tf.io.gfile.makedirs(opts.save)
+        gfile.makedirs(opts.save)
         write_json(config, config_path)
 
     trainer = Trainer(save_dir_path=opts.save,

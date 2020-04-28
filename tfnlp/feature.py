@@ -7,9 +7,9 @@ import tensorflow as tf
 import tensorflow_hub as hub
 from albert import tokenization as albert_tokenization
 from bert import tokenization as bert_tokenization
+from tensorflow.compat.v1 import logging
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
-from tensorflow.compat.v1 import logging
 
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_S_CASED_URL, BERT_CLS, BERT_SEP, BERT_SUBLABEL

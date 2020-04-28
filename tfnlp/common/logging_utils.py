@@ -1,10 +1,11 @@
 import logging
 
 import tensorflow as tf
+from tensorflow.compat.v1 import logging
 from tensorflow.python.platform import tf_logging
 
 
-def set_up_logging(log_path=None, level=tf.compat.v1.logging.INFO,
+def set_up_logging(log_path=None, level=logging.INFO,
                    formatter='%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
     tf_logging.set_verbosity(level)
     # create file handler which logs even debug messages

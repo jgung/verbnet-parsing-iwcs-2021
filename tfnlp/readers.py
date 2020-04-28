@@ -2,8 +2,9 @@ import fnmatch
 import os
 import re
 from collections import defaultdict
-from nltk.tokenize import word_tokenize
+
 import tensorflow as tf
+from nltk.tokenize import word_tokenize
 from tensorflow.python.lib.io import file_io
 
 from tfnlp.common import constants
