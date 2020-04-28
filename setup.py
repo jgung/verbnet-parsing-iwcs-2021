@@ -1,11 +1,11 @@
 from setuptools import find_packages, setup
 
 REQUIRED_PACKAGES = [
-    "tensorflow-gpu==1.13.1",
+    "tensorflow-gpu==1.15.0",
     "tensorflow-hub==0.2.0",
-    "tensor2tensor==1.11.0",
+    "tensor2tensor==1.14.1",
     "bert-tensorflow==1.0.1",
-    "tensorflow-probability==0.5.0",
+    "tensorflow-probability==0.7.0",
     "numpy>=1.14.2",
     "nltk>=3.2.5",
 ]
