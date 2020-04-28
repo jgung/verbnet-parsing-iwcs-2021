@@ -185,7 +185,7 @@ class Trainer(object):
         return from_saved_model(latest)
 
     def _init_feature_extractor(self, train_path: str = None):
-        self._feature_extractor = get_feature_extractor(self._training_config.features)
+        self._feature_extractor = get_feature_extractor(self._training_config.features, self._training_config.heads)
         logging.info("Checking for pre-existing vocabulary at vocabulary at %s", self._vocab_path)
         if self._feature_extractor.read_vocab(self._vocab_path):
             logging.info("Loaded pre-existing vocabulary at %s", self._vocab_path)

@@ -92,4 +92,6 @@ def deserialize(in_path, in_name=None):
 
 
 def binary_np_array_to_unicode(np_string_array):
+    if isinstance(np_string_array, list):
+        return np_string_array
     return [bstr.decode('utf-8') for bstr in np_string_array.tolist()]

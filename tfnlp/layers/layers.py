@@ -18,7 +18,6 @@ from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, 
 from tensorflow.compat.v1 import logging
 
 from tfnlp.common import constants
-from tfnlp.common.bert import BERT_S_CASED_URL
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
@@ -33,19 +32,19 @@ def embedding(features, feature_config, training):
                                      as_dict=True)['elmo']
         return elmo_embedding
     elif feature_config.name == constants.BERT_KEY:
-        logging.info("Using BERT module at %s", BERT_S_CASED_URL)
+        model = feature_config.options.get("model")
+        logging.info("Using BERT module at %s", model)
         tags = set()
         if training:
             tags.add("train")
-        bert_module = hub.Module(BERT_S_CASED_URL, tags=tags, trainable=True)
+        bert_module = hub.Module(model, tags=tags, trainable=True)
 
         lens = features[constants.LENGTH_KEY]
         if constants.BERT_LENGTH_KEY in features:
             lens = features[constants.BERT_LENGTH_KEY]
-        if constants.BERT_SPLIT_INDEX in features:
-            max_sequence_length = tf.reduce_max(lens)
-            mask = tf.sequence_mask(features[constants.BERT_SPLIT_INDEX], maxlen=max_sequence_length)  # e.g. [1, 1, ..., 0, 0]
-            segment_ids = tf.cast(tf.math.logical_not(mask), dtype=tf.int32)  # e.g. [0, 0, ..., 1, 1]
+
+        if constants.BERT_SEG_ID in features:
+            segment_ids = tf.cast(features[constants.BERT_SEG_ID], dtype=tf.int32)
         else:
             segment_ids = tf.zeros(tf.shape(features[constants.BERT_KEY]), dtype=tf.int32)
 
@@ -141,7 +140,7 @@ def encoder(features, inputs, mode, config):
                 raise AssertionError
             inputs = inputs[0]
             if training:
-                return tf.nn.dropout(get_encoder_input(inputs), rate=config.dropout)
+                return tf.nn.dropout(get_encoder_input(inputs), rate=config.get('dropout', 0))
             return inputs
         elif constants.ENCODER_CONCAT == encoder_type:
             return concat(inputs, training, config)

@@ -1,7 +1,11 @@
-numpy
-tensorflow-gpu==1.15.0
-nltk
-tensorflow-hub
-tensor2tensor
+tensorflow-gpu==1.15.2
+tensorflow_hub==0.7.0
+tensor2tensor==1.15.4
+tensorflow-probability==0.7.0
+albert-tensorflow
 bert-tensorflow
+sentencepiece
 sklearn
+numpy
+nltk
+six>=1.13.0

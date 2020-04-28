@@ -27,19 +27,9 @@
     "inputs": [
       {
         "name": "bert",
-        "drop_subtokens": true
-      },
-      {
-        "name": "marker",
-        "key": "marker",
-        "config": {
-          "dim": 10
-        },
-        "indices": {
-          "0": 0
-        },
-        "unknown_word": "0",
-        "pad_word": "0"
+        "drop_subtokens": true,
+        "model": "https://tfhub.dev/google/bert_cased_L-12_H-768_A-12/1",
+        "seg_ids": "pred_marker"
       }
     ]
   },
@@ -52,55 +42,24 @@
       ]
     },
     {
-      "name": "tokens",
-      "type": "concat",
+      "name": "bert-dropout",
+      "type": "identity",
       "inputs": [
-        "bert-no-subtokens",
-        "marker"
+        "bert-no-subtokens"
       ],
-      "input_dropout": 0.1
+      "dropout": 0.1
     },
     {
-      "name": "blstm",
+      "name": "srl-input",
+      "type": "identity",
       "inputs": [
-        "tokens"
-      ],
-      "type": "lstm",
-      "state_size": 768,
-      "encoder_dropout": 0.1,
-      "encoder_output_dropout": 0.1,
-      "encoder_layers": 1
-    },
-    {
-      "name": "predicate",
-      "type": "repeat_token",
-      "inputs": [
-        "blstm"
-      ],
-      "key": "predicate_index"
-    },
-    {
-      "name": "blstm_pred_and_word",
-      "type": "concat",
-      "inputs": [
-        "predicate",
-        "blstm"
+        "bert-dropout"
       ]
-    },
-    {
-      "name": "mlp",
-      "type": "mlp",
-      "inputs": [
-        "blstm_pred_and_word"
-      ],
-      "dim": 300,
-      "layers": 1,
-      "keep_prob": 0.9
     }
   ],
   "heads": [
     {
-      "encoder": "mlp",
+      "encoder": "srl-input",
       "name": "gold",
       "type": "srl"
     }
