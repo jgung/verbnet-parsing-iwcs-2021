@@ -1,6 +1,11 @@
-numpy
-tensorflow-cpu==1.13.1
-nltk
-tensorflow-hub
+tensorflow==1.15.2
+tensorflow_hub==0.7.0
+tensor2tensor==1.15.5
+tensorflow-probability==0.8.0
+albert-tensorflow
 bert-tensorflow
+sentencepiece
 sklearn
+numpy
+nltk
+six>=1.13.0

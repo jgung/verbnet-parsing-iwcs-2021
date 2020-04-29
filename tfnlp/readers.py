@@ -2,8 +2,9 @@ import fnmatch
 import os
 import re
 from collections import defaultdict
-from nltk.tokenize import word_tokenize
+
 import tensorflow as tf
+from nltk.tokenize import word_tokenize
 from tensorflow.python.lib.io import file_io
 
 from tfnlp.common import constants
@@ -19,6 +20,7 @@ class TsvReader(object):
     def __init__(self, line_filter=lambda line: False):
         super(TsvReader, self).__init__()
         self.line_filter = line_filter
+        self._sentence_count = 0
 
     def read_file(self, path):
         """
@@ -36,8 +38,9 @@ class TsvReader(object):
     def _process_fields(self, fields):
         if len(fields) != 2:
             raise AssertionError('Incorrect number of fields (was expecting 2) in line: %s' % '\t'.join(fields))
-
-        return {LABEL_KEY: fields[0], WORD_KEY: word_tokenize(fields[1])}
+        result = {LABEL_KEY: fields[0], WORD_KEY: word_tokenize(fields[1]), constants.SENTENCE_INDEX: self._sentence_count}
+        self._sentence_count += 1
+        return result
 
 
 class SemlinkReader(TsvReader):
@@ -509,6 +512,10 @@ def conllx_reader():
                           label_field=DEPREL_KEY)
 
 
+def pb_dep_reader():
+    return ConllDepReader(index_field_map={3: WORD_KEY, 4: XPOS_KEY, 8: DEPREL_KEY, 9: HEAD_KEY}, label_field=DEPREL_KEY)
+
+
 def conll_2005_reader(phrase=False):
     fields = {0: WORD_KEY, 1: POS_KEY, 2: PARSE_KEY, 3: NAMED_ENTITY_KEY, 4: SENSE_KEY, 5: PREDICATE_KEY}
     if phrase:
@@ -587,6 +594,8 @@ def get_reader(reader_config, training_config=None, is_test=False):
             return conll_2009_reader()
         elif reader_name == 'conllx':
             return conllx_reader()
+        elif reader_name == 'pb_dep':
+            return pb_dep_reader()
         elif reader_name == 'conll_2005':
             return conll_2005_reader()
         elif reader_name == 'conll_2005_phrase':

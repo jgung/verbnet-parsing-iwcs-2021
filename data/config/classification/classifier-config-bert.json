@@ -1,5 +1,6 @@
 {
   "reader": "tsv",
+  "max_epochs": 4,
   "batch_size": 32,
   "optimizer": {
     "name": "bert",
@@ -16,40 +17,31 @@
         "name": "gold",
         "key": "gold",
         "rank": 1,
-        "unknown_word": "2",
-        "pad_word": "2"
+        "unknown_word": "0",
+        "pad_word": "0"
       }
     ],
     "inputs": [
       {
         "name": "bert",
-        "drop_subtokens": true
+        "model": "https://tfhub.dev/google/bert_cased_L-12_H-768_A-12/1",
+        "output_type": "pooled_output"
       }
     ]
   },
   "encoders": [
     {
-      "name": "bert-no-subtokens",
-      "type": "remove_subtokens",
+      "name": "bert-dropout",
+      "type": "identity",
       "inputs": [
         "bert"
-      ]
-    },
-    {
-      "name": "blstm",
-      "inputs": [
-        "bert-no-subtokens"
       ],
-      "type": "lstm",
-      "state_size": 512,
-      "encoder_input_dropout": 0.1,
-      "encoder_output_dropout": 0.1,
-      "encoder_layers": 1
+      "dropout": 0.1
     }
   ],
   "heads": [
     {
-      "encoder": "blstm",
+      "encoder": "bert-dropout",
       "name": "gold",
       "type": "classifier",
       "metric": "Accuracy"

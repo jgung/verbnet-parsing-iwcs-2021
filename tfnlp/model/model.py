@@ -4,6 +4,7 @@ import tensorflow as tf
 import tensorflow_estimator as tfe
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
+
 from tfnlp.common import constants
 from tfnlp.common.config import train_op_from_config
 from tfnlp.common.eval import log_trainable_variables

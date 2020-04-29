@@ -3,6 +3,10 @@ import tensorflow as tf
 import tensorflow_estimator as tfe
 import tensorflow_hub as hub
 from tensor2tensor.layers.common_attention import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
+from tensorflow.compat.v1 import get_variable
+from tensorflow.compat.v1 import logging
+from tensorflow.compat.v1 import variable_scope
+from tensorflow.compat.v1.nn.rnn_cell import LSTMCell
 from tensorflow.contrib.layers import layer_norm
 from tensorflow.contrib.lookup import index_table_from_tensor
 from tensorflow.python.layers import base as base_layer
@@ -11,20 +15,19 @@ from tensorflow.python.ops import clip_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
+from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 from tensorflow.python.ops.rnn import bidirectional_dynamic_rnn
 from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
-from tensorflow.python.ops.ragged.ragged_array_ops import boolean_mask
 
 from tfnlp.common import constants
-from tfnlp.common.bert import BERT_S_CASED_URL
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
 
 def embedding(features, feature_config, training):
     if feature_config.name == constants.ELMO_KEY:
-        tf.logging.info("Using ELMo module at %s", ELMO_URL)
+        logging.info("Using ELMo module at %s", ELMO_URL)
         elmo_module = hub.Module(ELMO_URL, trainable=True)
         elmo_embedding = elmo_module(inputs={'tokens': features[constants.ELMO_KEY],
                                              'sequence_len': tf.cast(features[constants.LENGTH_KEY], dtype=tf.int32)},
@@ -32,19 +35,19 @@ def embedding(features, feature_config, training):
                                      as_dict=True)['elmo']
         return elmo_embedding
     elif feature_config.name == constants.BERT_KEY:
-        tf.logging.info("Using BERT module at %s", BERT_S_CASED_URL)
+        model = feature_config.options.get("model")
+        logging.info("Using BERT module at %s", model)
         tags = set()
         if training:
             tags.add("train")
-        bert_module = hub.Module(BERT_S_CASED_URL, tags=tags, trainable=True)
+        bert_module = hub.Module(model, tags=tags, trainable=True)
 
         lens = features[constants.LENGTH_KEY]
         if constants.BERT_LENGTH_KEY in features:
             lens = features[constants.BERT_LENGTH_KEY]
-        if constants.BERT_SPLIT_INDEX in features:
-            max_sequence_length = tf.reduce_max(lens)
-            mask = tf.sequence_mask(features[constants.BERT_SPLIT_INDEX], maxlen=max_sequence_length)  # e.g. [1, 1, ..., 0, 0]
-            segment_ids = tf.cast(tf.math.logical_not(mask), dtype=tf.int32)  # e.g. [0, 0, ..., 1, 1]
+
+        if constants.BERT_SEG_ID in features:
+            segment_ids = tf.cast(features[constants.BERT_SEG_ID], dtype=tf.int32)
         else:
             segment_ids = tf.zeros(tf.shape(features[constants.BERT_KEY]), dtype=tf.int32)
 
@@ -74,7 +77,7 @@ def string2index(feature_strings, feature):
     :param feature: feature extractor with string to index vocabulary
     :return: feature id Tensor
     """
-    with tf.variable_scope('lookup'):
+    with variable_scope('lookup'):
         feats = list(feature.ordered_feats())
         lookup = index_table_from_tensor(mapping=tf.constant(feats), default_value=feature.unk_index())
         return lookup.lookup(feature_strings)
@@ -83,23 +86,23 @@ def string2index(feature_strings, feature):
 def get_embedding_input(inputs, feature, training, weights=None):
     config = feature.config
 
-    with tf.variable_scope(feature.name):
-        with tf.variable_scope('embedding'):
+    with variable_scope(feature.name):
+        with variable_scope('embedding'):
             initializer = None
             if training:
                 if feature.embedding is not None:
                     initializer = embedding_initializer(feature.embedding)
                 elif config.initializer.zero_init:
-                    tf.logging.info("Zero init for feature embedding: %s", feature.name)
+                    logging.info("Zero init for feature embedding: %s", feature.name)
                     initializer = tf.zeros_initializer
                 else:
-                    tf.logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
+                    logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
                     initializer = tf.glorot_uniform_initializer
 
-            embedding_matrix = tf.get_variable(name='parameters',
-                                               shape=[feature.vocab_size(), config.dim],
-                                               initializer=initializer,
-                                               trainable=config.trainable)
+            embedding_matrix = get_variable(name='parameters',
+                                            shape=[feature.vocab_size(), config.dim],
+                                            initializer=initializer,
+                                            trainable=config.trainable)
 
             if weights is None:
                 feature_ids = string2index(inputs, feature)
@@ -132,7 +135,7 @@ def get_embedding_input(inputs, feature, training, weights=None):
 def encoder(features, inputs, mode, config):
     training = mode == tfe.estimator.ModeKeys.TRAIN
 
-    with tf.variable_scope("encoder-%s" % config.name):
+    with variable_scope("encoder-%s" % config.name):
         encoder_type = config.encoder_type
 
         if constants.ENCODER_IDENT == encoder_type:
@@ -140,7 +143,7 @@ def encoder(features, inputs, mode, config):
                 raise AssertionError
             inputs = inputs[0]
             if training:
-                return tf.nn.dropout(get_encoder_input(inputs), rate=config.dropout)
+                return tf.nn.dropout(get_encoder_input(inputs), rate=config.get('dropout', 0))
             return inputs
         elif constants.ENCODER_CONCAT == encoder_type:
             return concat(inputs, training, config)
@@ -173,7 +176,7 @@ def add_sentinel(inputs):
     inputs = get_encoder_input(inputs[0])
     shape = tf.shape(inputs, out_type=tf.int64)  # (b, n, d)
 
-    sentinel = tf.get_variable(name='sentinel', shape=[inputs.shape[-1]], trainable=True)
+    sentinel = get_variable(name='sentinel', shape=[inputs.shape[-1]], trainable=True)
     tiled = tf.tile(tf.reshape(sentinel, [1, 1, inputs.shape[-1]]), [shape[0], 1, 1])
     result = tf.concat([tiled, inputs], axis=1)
     return result
@@ -186,7 +189,7 @@ def remove_subtokens(inputs, mask):
     if len(inputs) != 1:
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_REMOVE_SUBTOKENS)
     inputs = get_encoder_input(inputs[0])
-    return boolean_mask(inputs, tf.cast(mask, tf.bool), keepdims=True).to_tensor()
+    return boolean_mask(inputs, tf.cast(mask, tf.bool)).to_tensor()
 
 
 def repeat(inputs, token_indices):
@@ -224,7 +227,7 @@ def mlp(inputs, training, config):
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_MLP)
     inputs = get_encoder_input(inputs[0])
 
-    with tf.variable_scope("conv_mlp", [inputs]):
+    with variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
         input_dim = inputs.get_shape().as_list()[-1]
         hidden_size = config.dim
@@ -287,12 +290,12 @@ def highway_dblstm(inputs, sequence_lengths, training, config):
 
     outputs = None
     final_state = None
-    with tf.variable_scope("dblstm"):
+    with variable_scope("dblstm"):
         cells = [highway_lstm_cell(config.state_size) for _ in range(config.encoder_layers)]
 
         for i, cell in enumerate(cells):
             odd = i % 2 == 1
-            with tf.variable_scope("%s-%s" % ('bw' if odd else 'fw', i // 2)) as layer_scope:
+            with variable_scope("%s-%s" % ('bw' if odd else 'fw', i // 2)) as layer_scope:
                 inputs = _reverse(inputs) if odd else inputs
 
                 outputs, final_state = dynamic_rnn(cell=cell, inputs=inputs,
@@ -312,8 +315,7 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
     output_keep_prob = (1.0 - config.encoder_output_dropout) if training else 1.0
 
     def cell(_size, name=None):
-        _cell = tf.nn.rnn_cell.LSTMCell(config.state_size, name=name, initializer=orthogonal_initializer(4),
-                                        forget_bias=config.forget_bias)
+        _cell = LSTMCell(config.state_size, name=name, initializer=orthogonal_initializer(4), forget_bias=config.forget_bias)
         return DropoutWrapper(_cell, variational_recurrent=True, dtype=tf.float32,
                               input_size=_size,
                               output_keep_prob=output_keep_prob,
@@ -323,7 +325,7 @@ def stacked_bilstm(inputs, sequence_lengths, training, config):
     outputs = inputs
     fw_state, bw_state = None, None
     for i in range(config.encoder_layers):
-        with tf.variable_scope("biRNN_%d" % i):
+        with variable_scope("biRNN_%d" % i):
             size = outputs.get_shape().as_list()[-1]
             outputs, (fw_state, bw_state) = bidirectional_dynamic_rnn(cell_fw=cell(size), cell_bw=cell(size), inputs=outputs,
                                                                       sequence_length=sequence_lengths, dtype=tf.float32)
@@ -511,17 +513,17 @@ class HighwayLSTMCell(LayerRNNCell):
 
 def transformer_encoder(inputs, sequence_lengths, training, config):
     # nonlinear projection of input to dimensionality of transformer (head size x num heads)
-    with tf.variable_scope("encoder_input_proj"):
+    with variable_scope("encoder_input_proj"):
         inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads), alpha=0.1)
 
-    with tf.variable_scope('transformer'):
+    with variable_scope('transformer'):
         mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.int32)
         # e.g. give attention bias [0 0 0 0 -inf -inf -inf] for a sequence length of 4 -- don't attend to padding nodes
         attention_bias = attention_bias_ignore_padding(tf.cast(1 - mask, tf.float32))
         # add sinusoidal timing signal to give position information to inputs
         inputs = add_timing_signal_1d(inputs)
         for i in range(config.encoder_layers):
-            with tf.variable_scope('layer%d' % i):
+            with variable_scope('layer%d' % i):
                 inputs = transformer(inputs, attention_bias, training, config)
 
     # apply final layer norm
@@ -539,7 +541,7 @@ def transformer(inputs, attention_bias, training, config):
 
     self_attention_dim = config.head_dim * config.num_heads
     with tf.name_scope('transformer_layer'):
-        with tf.variable_scope("self_attention"):
+        with variable_scope("self_attention"):
             # apply layer norm before self attention layer
             x = _layer_norm(inputs)
 
@@ -554,7 +556,7 @@ def transformer(inputs, attention_bias, training, config):
                                     attention_type="dot_product")
             x = _residual(x, y)
 
-        with tf.variable_scope("ffnn"):
+        with variable_scope("ffnn"):
             # apply layer norm after self attention layer
             x = layer_norm(x, begin_norm_axis=-1, begin_params_axis=-1)
 
@@ -569,7 +571,7 @@ def transformer(inputs, attention_bias, training, config):
 
 
 def _ff(name, x, in_dim, out_dim, keep_prob, last=False):
-    weights = tf.get_variable(name, [1, 1, in_dim, out_dim])
+    weights = get_variable(name, [1, 1, in_dim, out_dim])
 
     h = tf.nn.conv2d(x, filter=weights, strides=[1, 1, 1, 1], padding="SAME")
     if not last:
@@ -581,7 +583,7 @@ def _ff(name, x, in_dim, out_dim, keep_prob, last=False):
 
 
 def _mlp(inputs, hidden_size, output_size, keep_prob):
-    with tf.variable_scope("conv_mlp", [inputs]):
+    with variable_scope("conv_mlp", [inputs]):
         inputs = tf.expand_dims(inputs, 1)
         input_dim = inputs.get_shape().as_list()[-1]
 

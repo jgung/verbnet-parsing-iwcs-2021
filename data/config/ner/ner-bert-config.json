@@ -1,6 +1,6 @@
 {
   "reader": "conll_2003",
-  "max_epochs": 8,
+  "max_epochs": 4,
   "batch_size": 16,
   "optimizer": {
     "name": "bert",
@@ -17,8 +17,7 @@
         "name": "NE",
         "key": "gold",
         "indices": {
-          "O": 0,
-          "X": 1
+          "O": 0
         },
         "unknown_word": "O",
         "pad_word": "O"
@@ -26,15 +25,23 @@
     ],
     "inputs": [
       {
-        "name": "bert"
+        "name": "bert",
+        "drop_subtokens": true
       }
     ]
   },
   "encoders": [
     {
-      "name": "identity",
+      "name": "bert-no-subtokens",
+      "type": "remove_subtokens",
       "inputs": [
         "bert"
+      ]
+    },
+    {
+      "name": "identity",
+      "inputs": [
+        "bert-no-subtokens"
       ],
       "dropout": 0.1,
       "type": "identity"

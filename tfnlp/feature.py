@@ -5,9 +5,12 @@ from itertools import chain
 
 import tensorflow as tf
 import tensorflow_hub as hub
-from bert.tokenization import FullTokenizer
+from albert import tokenization as albert_tokenization
+from bert import tokenization as bert_tokenization
+from tensorflow.compat.v1 import logging
 from tensorflow.python.framework.errors_impl import NotFoundError
 from tensorflow.python.lib.io import file_io
+
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_S_CASED_URL, BERT_CLS, BERT_SEP, BERT_SUBLABEL
 from tfnlp.common.constants import ELMO_KEY, END_WORD, INITIALIZER, LENGTH_KEY, PAD_WORD, SENTENCE_INDEX, START_WORD, \
@@ -181,6 +184,10 @@ class FeatureHyperparameters(Params):
         self.add_group = config.get('add_group')
 
 
+SEG_IDS = "seg_ids"
+PRED_MARKER = "pred_marker"
+
+
 class FeatureConfig(Params):
     def __init__(self, feature, **kwargs):
         # name used to instantiate this feature
@@ -223,6 +230,8 @@ class FeatureConfig(Params):
         self.output_type = feature.get('output_type', 'sequence_output')
         self.segment_extractor = feature.get('segment_extractor', constants.PREDICATE_KEY)
         self.predicate_extractor = feature.get('predicate_extractor', constants.PREDICATE_KEY)
+        self.model = feature.get('model', BERT_S_CASED_URL)
+        self.seg_ids = feature.get(SEG_IDS, SEG_IDS)
 
 
 class FeaturesConfig(object):
@@ -231,7 +240,7 @@ class FeaturesConfig(object):
 
         targets = features.get('targets')
         if not targets:
-            tf.logging.warn("No 'targets' parameter provided in feature configuration--this could be an error if training.")
+            logging.warn("No 'targets' parameter provided in feature configuration--this could be an error if training.")
             self.targets = []
         else:
             self.targets = [_get_feature(target) for target in targets]
@@ -265,10 +274,11 @@ def _get_feature(feature):
     return feat(**feature)
 
 
-def get_feature_extractor(init_config):
+def get_feature_extractor(init_config, heads=None):
     """
     Create a `FeatureExtractor` from a given feature configuration.
     :param init_config: feature configuration
+    :param heads: head configurations
     :return: feature extractor
     """
     # load default configurations
@@ -276,14 +286,17 @@ def get_feature_extractor(init_config):
 
     bert_feat = next(iter([inp for inp in config.inputs if inp.name == constants.BERT_KEY]), None)
     if bert_feat:
-        tf.logging.info("BERT feature found in inputs, using BERT feature extractor")
-        contains_marker = len([feat for feat in config.inputs if feat.name == constants.MARKER_KEY]) > 0
-        is_srl = contains_marker or any('predicate_extractor' in inp for inp in init_config.inputs)
+        logging.info("BERT feature found in inputs, using BERT feature extractor")
+        is_srl = heads and any(head.task == constants.SRL_KEY for head in heads)
+        if is_srl:
+            logging.info("Extracting BERT features for SRL")
         return BertFeatureExtractor(targets=config.targets, features=config.inputs, srl=is_srl,
+                                    model=bert_feat.options['model'],
                                     drop_subtokens=bert_feat.options['drop_subtokens'],
                                     output_type=bert_feat.options['output_type'],
                                     segment_extractor=bert_feat.options['segment_extractor'],
-                                    predicate_extractor=bert_feat.options['predicate_extractor'])
+                                    predicate_extractor=bert_feat.options['predicate_extractor'],
+                                    seg_ids=bert_feat.options[SEG_IDS])
 
     # use this feature to keep track of instance indices for error analysis
     config.inputs.append(index_feature())
@@ -291,8 +304,8 @@ def get_feature_extractor(init_config):
     seq_feat = next((feat for feat in config.targets if feat.name == config.seq_feat),
                     next((feat for feat in config.inputs if feat.name == config.seq_feat), None))
     if not seq_feat:
-        tf.logging.info("No sequence length feature provided with key '%s', automatically creating feature for computing "
-                        "sequence length from this key. " % config.seq_feat)
+        logging.info("No sequence length feature provided with key '%s', automatically creating feature for computing "
+                     "sequence length from this key. " % config.seq_feat)
         seq_feat = SequenceFeature(LENGTH_KEY, config.seq_feat)
     config.inputs.append(LengthFeature(seq_feat))
 
@@ -773,11 +786,11 @@ def get_feature_spec(extractors):
         if type(feature) == DummyExtractor:
             continue  # dummy feature
         elif feature.rank == 1:
-            context_features[feature.name] = tf.FixedLenFeature([], dtype=feature.dtype)
+            context_features[feature.name] = tf.io.FixedLenFeature([], dtype=feature.dtype)
         elif feature.rank == 2:
-            sequence_features[feature.name] = tf.FixedLenSequenceFeature([], dtype=feature.dtype)
+            sequence_features[feature.name] = tf.io.FixedLenSequenceFeature([], dtype=feature.dtype)
         elif feature.rank == 3:
-            sequence_features[feature.name] = tf.FixedLenSequenceFeature([feature.max_len], dtype=feature.dtype)
+            sequence_features[feature.name] = tf.io.FixedLenSequenceFeature([feature.max_len], dtype=feature.dtype)
         else:
             raise AssertionError("Unexpected feature rank value: {}".format(feature.rank))
 
@@ -830,9 +843,9 @@ def initialize(extractors, resources=''):
             continue
         vectors_path = os.path.join(resources, initializer.embedding)
 
-        tf.logging.info("Initializing vocabulary from pre-trained embeddings at %s", vectors_path)
+        logging.info("Initializing vocabulary from pre-trained embeddings at %s", vectors_path)
         vectors, dim = read_vectors(vectors_path, max_vecs=num_vectors_to_read)
-        tf.logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
+        logging.info("Read %d vectors of length %d from %s", len(vectors), dim, vectors_path)
         for key in vectors:
             feature.feat2index(feature.map(key), count=False)
         if initializer.restrict_vocab:
@@ -874,7 +887,7 @@ def write_vocab(extractors, base_path, resources='', prune=False):
 
         # save embeddings as a serialized numpy matrix to make deserialization faster
         feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
-        tf.logging.info("Saving %d vectors as embedding for '%s' feature", feature.embedding.shape[0], feature.name)
+        logging.info("Saving %d vectors as embedding for '%s' feature", feature.embedding.shape[0], feature.name)
         serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
 
 
@@ -940,7 +953,7 @@ class FeatureExtractor(BaseFeatureExtractor):
     def parse(self, example, train=True):
         context_features, sequence_features = get_feature_spec(self.extractors(train))
 
-        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+        context_parsed, sequence_parsed = tf.io.parse_single_sequence_example(
             serialized=example,
             context_features=context_features,
             sequence_features=sequence_features
@@ -988,22 +1001,24 @@ class BertLengthFeature(Extractor):
         for i, val in enumerate(vals):
             if self.srl and i == sequence[constants.PREDICATE_INDEX_KEY]:
                 predicate_token = self.predicate_extractor(sequence)
-                tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
+                tokens.extend(self.tokenizer(predicate_token))
                 continue
-            tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(val))
+            tokens.extend(self.tokenizer(val))
         tokens.append(BERT_SEP)
 
-        if self.srl:
+        if self.srl and self.segment_extractor is not None:
             # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
             predicate_token = self.segment_extractor(sequence)
             if len(predicate_token) > 0:
-                tokens.extend(self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token))
+                tokens.extend(self.tokenizer(predicate_token))
                 tokens.append(BERT_SEP)
 
         return tokens
 
 
 def get_bert_sequence_extractor(sequence):
+    if not sequence:
+        return None
     tokens = sequence.split()
 
     def get_bert_sequence(instance):
@@ -1038,20 +1053,31 @@ class BertFeatureExtractor(BaseFeatureExtractor):
     def __init__(self, targets, features=None, srl=False, model=BERT_S_CASED_URL, drop_subtokens=False,
                  output_type="sequence_output",
                  segment_extractor=constants.PREDICATE_KEY,
-                 predicate_extractor=constants.PREDICATE_KEY) -> None:
+                 predicate_extractor=constants.PREDICATE_KEY,
+                 seg_ids=SEG_IDS) -> None:
         super().__init__()
         self.srl = srl
         self.label_subtokens = True
         self.drop_subtokens = drop_subtokens
         self.output_type = output_type
+        self.model = model
         bert_module = hub.Module(model)
         tokenization_info = bert_module(signature="tokenization_info", as_dict=True)
         with tf.Session() as sess:
             vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                                   tokenization_info["do_lower_case"]])
 
-        self.tokenizer = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+        def albert_tokenizer(_vocab_file, _do_lower_case):
+            return albert_tokenization.FullTokenizer(_vocab_file, _do_lower_case, spm_model_file=_vocab_file)
+
+        tokenizer = albert_tokenizer if 'albert' in model else bert_tokenization.FullTokenizer
+        tokenizer = tokenizer(vocab_file, do_lower_case)
+        if 'albert' in model:
+            self.tokenizer = lambda word: tokenizer.tokenize(albert_tokenization.preprocess_text(word, False, do_lower_case))
+        else:
+            self.tokenizer = lambda word: tokenizer.tokenize(word)
         self.targets = {target.name: target for target in targets}
+        self.convert_to_ids = lambda split: tokenizer.convert_tokens_to_ids(split)
 
         self.segment_extractor = get_bert_sequence_extractor(segment_extractor)
         self.predicate_extractor = get_bert_sequence_extractor(predicate_extractor)
@@ -1063,8 +1089,15 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             SENTENCE_INDEX: index_feature(),
             **{feature.name: feature for feature in features}
         }
+        if srl and constants.PREDICATE_INDEX_KEY not in self.features:
+            self.features[constants.PREDICATE_INDEX_KEY] = Extractor(name=constants.PREDICATE_INDEX_KEY,
+                                                                     key=constants.PREDICATE_INDEX_KEY)
+        self.seg_ids = seg_ids
         if drop_subtokens:
             self.features[LENGTH_KEY] = LengthFeature(SequenceFeature(LENGTH_KEY, constants.WORD_KEY))
+
+    def tok(self, word):
+        return self.tokenizer(word)
 
     def extractors(self, train=True):
         if train:
@@ -1102,10 +1135,10 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         words = instance[constants.WORD_KEY]
         for i, word in enumerate(words):
-            sub_tokens = self.tokenizer.wordpiece_tokenizer.tokenize(word)
+            sub_tokens = self.tok(word)
             if self.srl and i == instance[constants.PREDICATE_INDEX_KEY]:
-                focus_index = instance[constants.PREDICATE_INDEX_KEY] if self.drop_subtokens else len(split_tokens)
-                pred_tokens = self.tokenizer.wordpiece_tokenizer.tokenize(self.predicate_extractor(instance))
+                focus_index = len(split_tokens)
+                pred_tokens = self.tok(self.predicate_extractor(instance))
                 if len(pred_tokens) > len(sub_tokens):
                     mask.extend([0] * (len(pred_tokens) - len(sub_tokens)))
                 sub_tokens = pred_tokens
@@ -1136,18 +1169,19 @@ class BertFeatureExtractor(BaseFeatureExtractor):
 
         if self.srl:
             segment_index = len(split_tokens)
-            # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
-            predicate_token = self.segment_extractor(instance)
-            if len(predicate_token) > 0:
-                predicate_subtokens = self.tokenizer.wordpiece_tokenizer.tokenize(predicate_token)
-                split_tokens.extend(predicate_subtokens)
-                split_tokens.append(BERT_SEP)
-                mask.extend((1 + len(predicate_subtokens)) * [0])
-                if train and not self.drop_subtokens:
-                    for target, labels in split_labels.items():
-                        labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
+            if self.segment_extractor is not None:
+                # condition on predicate, e.g. [[cls], sentence, [sep], predicate, [sep]]
+                predicate_token = self.segment_extractor(instance)
+                if len(predicate_token) > 0:
+                    predicate_subtokens = self.tok(predicate_token)
+                    split_tokens.extend(predicate_subtokens)
+                    split_tokens.append(BERT_SEP)
+                    mask.extend((1 + len(predicate_subtokens)) * [0])
+                    if train and not self.drop_subtokens:
+                        for target, labels in split_labels.items():
+                            labels.extend((1 + len(predicate_subtokens)) * [BERT_SUBLABEL])
 
-        ids = self.tokenizer.convert_tokens_to_ids(split_tokens)
+        ids = self.convert_to_ids(split_tokens)
 
         # (2) convert IDs to TF Record proto format -----------------------------------------------------------------------------
         feature_list = {}
@@ -1161,14 +1195,19 @@ class BertFeatureExtractor(BaseFeatureExtractor):
             else:
                 feature_list[name] = str_feature_list(labels)
 
+        if self.seg_ids == PRED_MARKER:
+            seg_ids = [1 if i == focus_index or i >= segment_index else 0 for i in range(len(ids))]
+            feature_list[constants.BERT_SEG_ID] = int64_feature_list(seg_ids)
         feature_list[constants.BERT_KEY] = int64_feature_list(ids)  # BERT wordpiece token indices
         feature_list[constants.SEQUENCE_MASK] = int64_feature_list(mask)
 
         if self.srl:
-            features[constants.PREDICATE_INDEX_KEY] = int64_feature(focus_index)
-            features[constants.BERT_SPLIT_INDEX] = int64_feature(segment_index)
-            markers = ['1' if i == focus_index else '0' for i in range(len(words if self.drop_subtokens else ids))]
-            feature_list[constants.MARKER_KEY] = str_feature_list(markers)
+            pred_idx = focus_index
+            if self.drop_subtokens:
+                pred_idx = instance[constants.PREDICATE_INDEX_KEY]
+            if not self.seg_ids == PRED_MARKER:
+                markers = ['1' if i == pred_idx else '0' for i in range(len(words if self.drop_subtokens else ids))]
+                feature_list[constants.MARKER_KEY] = str_feature_list(markers)
 
         if train:
             target_labels = {target.name: target.get_values(instance) for target in self.targets.values() if target.rank == 1}
@@ -1195,10 +1234,11 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         sequence_features[constants.BERT_KEY] = int64_sequence_feature()
         sequence_features[constants.SEQUENCE_MASK] = int64_sequence_feature()
         if self.srl:
-            context_features[constants.PREDICATE_INDEX_KEY] = tf.FixedLenFeature([], dtype=tf.int64)
-            context_features[constants.BERT_SPLIT_INDEX] = tf.FixedLenFeature([], dtype=tf.int64)
+            context_features[constants.PREDICATE_INDEX_KEY] = tf.io.FixedLenFeature([], dtype=tf.int64)
+            if self.seg_ids == PRED_MARKER:
+                sequence_features[constants.BERT_SEG_ID] = int64_sequence_feature()
 
-        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+        context_parsed, sequence_parsed = tf.io.parse_single_sequence_example(
             serialized=example,
             context_features=context_features,
             sequence_features=sequence_features
@@ -1216,7 +1256,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         shapes[constants.SEQUENCE_MASK] = vector_shape()
         if self.srl:
             shapes[constants.PREDICATE_INDEX_KEY] = tf.TensorShape([])
-            shapes[constants.BERT_SPLIT_INDEX] = tf.TensorShape([])
+            if self.seg_ids == PRED_MARKER:
+                shapes[constants.BERT_SEG_ID] = vector_shape()
 
         return shapes
 
@@ -1230,7 +1271,8 @@ class BertFeatureExtractor(BaseFeatureExtractor):
         padding[constants.SEQUENCE_MASK] = zero_padding()
         if self.srl:
             padding[constants.PREDICATE_INDEX_KEY] = zero_padding()
-            padding[constants.BERT_SPLIT_INDEX] = zero_padding()
+            if self.seg_ids == PRED_MARKER:
+                padding[constants.BERT_SEG_ID] = zero_padding()
 
         return padding
 
@@ -1251,12 +1293,12 @@ def write_features(examples, out_path):
     :param out_path: output path
     """
     with file_io.FileIO(out_path, 'w') as file:
-        writer = tf.python_io.TFRecordWriter(file.name)
+        writer = tf.io.TFRecordWriter(file.name)
         for i, example in enumerate(examples):
             if i % 4096 == 0 and i > 0:
-                tf.logging.info("... ... ... %d instances written to %s", i, out_path)
+                logging.info("... ... ... %d instances written to %s", i, out_path)
             writer.write(example.SerializeToString())
-        tf.logging.info("Wrote extracted features for %d instances to %s", i + 1, out_path)
+        logging.info("Wrote extracted features for %d instances to %s", i + 1, out_path)
 
 
 def get_default_buckets(lengths, min_count, max_length=None):

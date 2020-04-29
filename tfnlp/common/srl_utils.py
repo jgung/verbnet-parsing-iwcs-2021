@@ -7,7 +7,7 @@ from typing import Dict, Optional, Callable, Any, List, TextIO
 from xml.etree import ElementTree
 
 from tfnlp.common.chunk import labels_to_spans, convert_conll_to_bio, spans_to_conll_labels
-from tfnlp.common.utils import read_json, write_json
+from tfnlp.common.utils import read_json
 
 _PREDICATE = 'predicate'
 _ROLESET = 'roleset'

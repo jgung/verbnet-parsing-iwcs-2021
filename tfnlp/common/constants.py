@@ -24,7 +24,7 @@ ELMO_KEY = "elmo"
 BERT_KEY = "bert"
 BERT_LENGTH_KEY = "bert_len"
 SEQUENCE_MASK = "sequence_mask"
-BERT_SPLIT_INDEX = "bert_split_idx"
+BERT_SEG_ID = "bert_seg_ids"
 
 ID_KEY = "ID"
 LEMMA_KEY = "lemma"

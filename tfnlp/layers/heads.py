@@ -2,9 +2,15 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from tfnlp.cli.evaluators import TaggerEvaluator, SrlEvaluator, TokenClassifierEvaluator
+from tensorflow.compat.v1 import Variable
+from tensorflow.compat.v1 import assign
+from tensorflow.compat.v1 import get_variable
+from tensorflow.compat.v1 import placeholder
+from tensorflow.compat.v1 import variable_scope
 from tensorflow.contrib.crf.python.ops import crf
 from tensorflow.python.ops.lookup_ops import index_to_string_table_from_file
+
+from tfnlp.cli.evaluators import TaggerEvaluator, SrlEvaluator, TokenClassifierEvaluator
 from tfnlp.common import constants
 from tfnlp.common.bert import BERT_SUBLABEL
 from tfnlp.common.config import append_label
@@ -15,6 +21,7 @@ from tfnlp.layers.util import get_shape, mlp, bilinear, select_logits, sequence_
 
 class ModelHead(object):
     def __init__(self, inputs, config, features, params, training):
+
         self.inputs = inputs
         self.config = config
         self.name = config.name
@@ -39,7 +46,7 @@ class ModelHead(object):
         if self.extractor.has_vocab():
             self.targets = string2index(self.features[self.name], self.extractor)
 
-        with tf.variable_scope(self.name):
+        with variable_scope(self.name):
             self._all()
             self._train_eval()
             self._train()
@@ -49,14 +56,14 @@ class ModelHead(object):
         if self.extractor.has_vocab():
             self.targets = string2index(self.features[self.name], self.extractor)
 
-        with tf.variable_scope(self.name):
+        with variable_scope(self.name):
             self._all()
             self._train_eval()
             self._eval_predict()
             self._evaluation()
 
     def prediction(self):
-        with tf.variable_scope(self.name):
+        with variable_scope(self.name):
             self._all()
             self._eval_predict()
             self._prediction()
@@ -107,13 +114,17 @@ class ClassifierHead(ModelHead):
         self._sequence_lengths = self.features[constants.LENGTH_KEY]
 
     def _all(self):
-        if len(self.inputs) == 2:
-            inputs = tf.squeeze(self.inputs[0], axis=1)
+        if tf.is_tensor(self.inputs):
+            inputs = self.inputs
+            if len(self.inputs.shape) != 2:
+                inputs = tf.squeeze(inputs, 1)
         else:
-            inputs = self.inputs[2]
-            inputs = tf.layers.dropout(inputs, training=self._training)
-
-        with tf.variable_scope("logits"):
+            if len(self.inputs) == 2:
+                inputs = tf.squeeze(self.inputs[0], axis=1)
+            else:
+                inputs = self.inputs[2]
+                inputs = tf.layers.dropout(inputs, training=self._training)
+        with variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
             self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
 
@@ -125,7 +136,7 @@ class ClassifierHead(ModelHead):
                                                         label_smoothing=self.config.label_smoothing)
         else:
             self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets))
-        self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
+        self.metric = Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
         self.scores = tf.nn.softmax(self.logits)  # (b x n)
@@ -213,7 +224,7 @@ class TokenClassifierHead(ClassifierHead):
                 if self.config.mlp_dropout:
                     inputs = tf.layers.dropout(inputs, rate=self.config.mlp_dropout, training=self._training)
 
-        with tf.variable_scope("logits"):
+        with variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
             self.logits = tf.layers.dense(inputs, num_labels, kernel_initializer=tf.zeros_initializer)
 
@@ -241,11 +252,7 @@ class TaggerHead(ModelHead):
 
     def __init__(self, inputs, config, features, params, training=False):
         super().__init__(inputs, config, features, params, training)
-        if constants.BERT_SPLIT_INDEX in self.features and constants.BERT_LENGTH_KEY not in self.features:
-            self._sequence_lengths = self.features[constants.BERT_SPLIT_INDEX]
-        else:
-            self._sequence_lengths = self.features[constants.LENGTH_KEY]
-
+        self._sequence_lengths = self.features[constants.LENGTH_KEY]
         self._tag_transitions = None
 
     def training(self):
@@ -265,7 +272,7 @@ class TaggerHead(ModelHead):
         # flatten encoder outputs to a (batch_size * time_steps x encoder_dim) Tensor for batch matrix multiplication
         inputs = tf.reshape(inputs, [-1, encoder_dim], name="flatten")
 
-        with tf.variable_scope("logits"):
+        with variable_scope("logits"):
             num_labels = self.extractor.vocab_size()
             initializer = tf.zeros_initializer if self.config.zero_init else tf.random_normal_initializer(stddev=0.01)
 
@@ -274,11 +281,11 @@ class TaggerHead(ModelHead):
             self.logits = tf.reshape(dense, [-1, time_steps, num_labels], name="unflatten")
         if self.config.crf:
             # explicitly train a transition matrix
-            self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels])
+            self._tag_transitions = get_variable("transitions", [num_labels, num_labels])
         else:
             # use constrained decoding based on IOB labels
-            self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels], trainable=False,
-                                                    initializer=create_transition_matrix(self.extractor))
+            self._tag_transitions = get_variable("transitions", [num_labels, num_labels], trainable=False,
+                                                 initializer=create_transition_matrix(self.extractor))
 
     def _train_eval(self):
         num_labels = self.extractor.vocab_size()
@@ -292,7 +299,7 @@ class TaggerHead(ModelHead):
                                   confidence_penalty=self.config.confidence_penalty,
                                   mask=seq_mask)
 
-        self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
+        self.metric = Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
         predictions = crf.crf_decode(self.logits, self._tag_transitions, tf.cast(self._sequence_lengths, tf.int32))[0]
@@ -316,10 +323,13 @@ class TaggerHead(ModelHead):
         overall_key = append_label(constants.OVERALL_KEY, self.name)
         self.metric_ops[overall_key] = (overall_score, overall_score)
         # https://github.com/tensorflow/tensorflow/issues/20418 -- metrics don't accept variables, so we create a tensor
-        eval_placeholder = tf.placeholder(dtype=tf.float32, name='update_%s' % overall_key)
+        eval_placeholder = placeholder(dtype=tf.float32, name='update_%s' % overall_key)
 
         if constants.SRL_KEY in self.config.task:
-            eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
+            if constants.MARKER_KEY in self.features:
+                eval_tensors[constants.MARKER_KEY] = self.features[constants.MARKER_KEY]
+            else:
+                eval_tensors[constants.PREDICATE_INDEX_KEY] = self.features[constants.PREDICATE_INDEX_KEY]
 
             self.evaluation_hooks.append(
                 SrlEvalHook(
@@ -329,7 +339,7 @@ class TaggerHead(ModelHead):
                         output_path=os.path.join(self.params.job_dir, self.name + '.dev')),
                     label_key=labels_key,
                     predict_key=predictions_key,
-                    eval_update=tf.assign(self.metric, eval_placeholder),
+                    eval_update=assign(self.metric, eval_placeholder),
                     eval_placeholder=eval_placeholder,
                     output_confusions=self.params.verbose_eval,
                     output_dir=self.params.job_dir
@@ -344,7 +354,7 @@ class TaggerHead(ModelHead):
                         output_path=os.path.join(self.params.job_dir, self.name + '.dev')),
                     label_key=labels_key,
                     predict_key=predictions_key,
-                    eval_update=tf.assign(self.metric, eval_placeholder),
+                    eval_update=assign(self.metric, eval_placeholder),
                     eval_placeholder=eval_placeholder,
                     output_dir=self.params.job_dir
                 )
@@ -381,18 +391,18 @@ class BiaffineSrlHead(TaggerHead):
         arg_mlp, predicate_mlp = _mlp(self.config.mlp_dim, name="rel_mlp")  # (bn x d), where d == rel_mlp_size
 
         # apply variable class biaffine classifier for semantic role labels
-        with tf.variable_scope("bilinear_logits"):
+        with variable_scope("bilinear_logits"):
             num_labels = self.extractor.vocab_size()  # r
             initializer = tf.zeros_initializer if self.config.zero_init else None
             self.logits = bilinear(arg_mlp, predicate_mlp, num_labels, self.n_steps, initializer=initializer)  # (b x n x r x n)
 
         if self.config.crf:
             # explicitly train a transition matrix
-            self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels])
+            self._tag_transitions = get_variable("transitions", [num_labels, num_labels])
         else:
             # use constrained decoding based on IOB labels
-            self._tag_transitions = tf.get_variable("transitions", [num_labels, num_labels], trainable=False,
-                                                    initializer=create_transition_matrix(self.extractor))
+            self._tag_transitions = get_variable("transitions", [num_labels, num_labels], trainable=False,
+                                                 initializer=create_transition_matrix(self.extractor))
 
         # batch-length vector of predicate indices
         predicate_indices = self.features[constants.PREDICATE_INDEX_KEY]
@@ -418,7 +428,7 @@ class BiaffineSrlHead(TaggerHead):
                                  mask=seq_mask)
 
         self.loss = rel_loss
-        self.metric = tf.Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
+        self.metric = Variable(0, name=append_label(constants.OVERALL_KEY, self.name), dtype=tf.float32, trainable=False)
 
     def _eval_predict(self):
         self.rel_probs = tf.nn.softmax(self.logits, axis=2)  # (b x n x r x n)
