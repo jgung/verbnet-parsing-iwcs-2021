@@ -1,7 +1,6 @@
 import logging
 
 import tensorflow as tf
-from tensorflow.compat.v1 import logging
 from tensorflow.python.platform import tf_logging
 
 
