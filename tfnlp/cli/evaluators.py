@@ -211,8 +211,10 @@ class TaggerEvaluator(Evaluator):
         self.indices = []
 
     def accumulate(self, instance, result):
-        self.labels.append([label for label in result[self.target_key] if label != BERT_SUBLABEL])
-        self.gold.append([label for label in instance[self.labels_key] if label != BERT_SUBLABEL])
+        gold = [label for label in instance[self.labels_key] if label != BERT_SUBLABEL]
+        predicted = [label for label in result[self.target_key] if label != BERT_SUBLABEL][:len(gold)]
+        self.labels.append(predicted)
+        self.gold.append(gold)
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
     def evaluate(self, identifier=None):
@@ -376,7 +378,10 @@ class SrlEvaluator(TaggerEvaluator):
         if sense is not None and isinstance(sense, str):
             self.senses.append((instance[constants.PREDICATE_INDEX_KEY],
                                 instance[constants.PREDICATE_LEMMA] + '.' + sense))
-        self.markers.append(instance[constants.MARKER_KEY])
+        idx = instance[constants.MARKER_KEY]
+        if not isinstance(idx, int):
+            idx = idx.index('1')
+        self.markers.append(idx)
         super().accumulate(instance, result)
 
     def evaluate(self, identifier='.'):
