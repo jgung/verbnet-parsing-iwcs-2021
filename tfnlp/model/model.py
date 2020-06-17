@@ -5,7 +5,7 @@ import tensorflow_estimator as tfe
 from tensorflow.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.saved_model import signature_constants
 from tfnlp.common import constants
-from tfnlp.common.config import train_op_from_config
+from tfnlp.common.config import train_op_and_lr_from_config
 from tfnlp.common.eval import log_trainable_variables
 from tfnlp.common.training_utils import assign_ema_weights
 from tfnlp.layers.heads import ClassifierHead, TaggerHead, TokenClassifierHead, BiaffineSrlHead
@@ -98,7 +98,8 @@ def multi_head_model_fn(features, mode, params):
 
         if mode == tfe.estimator.ModeKeys.TRAIN:
             log_trainable_variables()
-            train_op = train_op_from_config(config, loss)
+            train_op, lr = train_op_and_lr_from_config(config, loss)
+            tf.summary.scalar('learning_rate', lr)
             return tfe.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
         # EVAL/PREDICT -----------------------------------------------------------------------------------------------------------

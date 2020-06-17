@@ -245,13 +245,13 @@ def get_optimizer(network_config, default_optimizer=tf.compat.v1.train.AdadeltaO
     Return the optimizer given by the input network configuration, or a default optimizer.
     :param network_config: network configuration
     :param default_optimizer: default optimization algorithm
-    :return: configured optimizer
+    :return: configured optimizer and learning rate
     """
     try:
         optimizer = network_config.optimizer
     except KeyError:
         logging.info("Using Adadelta as default optimizer.")
-        return default_optimizer
+        return default_optimizer, 1.0
     if isinstance(optimizer.lr, numbers.Number):
         lr = optimizer.lr
     else:
@@ -280,7 +280,7 @@ def get_optimizer(network_config, default_optimizer=tf.compat.v1.train.AdadeltaO
                                        exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
     else:
         raise ValueError("Invalid optimizer name: {}".format(name))
-    return opt
+    return opt, lr
 
 
 def get_l2_loss(network_config, variables):
@@ -303,8 +303,8 @@ def get_l2_loss(network_config, variables):
     return tf.add_n(all_losses)
 
 
-def train_op_from_config(config, loss):
-    optimizer = get_optimizer(config)
+def train_op_and_lr_from_config(config, loss):
+    optimizer, lr = get_optimizer(config)
     clip_norm = config.optimizer.clip
 
     parameters = tf.compat.v1.trainable_variables()
@@ -323,8 +323,8 @@ def train_op_from_config(config, loss):
         # AdamWeightDecayOptimizer does not update the global step, unlike other optimizers
         new_global_step = global_step + 1
         train_op = tf.group(result, [global_step.assign(new_global_step)])
-        return train_op
-    return result
+        return train_op, lr
+    return result, lr
 
 
 def append_label(metric_key, target_key, default_val=None):
