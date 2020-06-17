@@ -233,7 +233,7 @@ def mlp(inputs, training, config):
 
         y = inputs
         for i in range(config.layers):
-            y = _ff("ff%d" % i, y, input_dim, hidden_size, keep_prob, last=False)
+            y = _ff("ff%d" % i, y, hidden_size, rate=1 - keep_prob)
         y = tf.squeeze(y, 1)
 
         return y, hidden_size, y
@@ -521,31 +521,28 @@ def transformer_encoder(inputs, sequence_lengths, training, config):
         attention_bias = attention_bias_ignore_padding(tf.cast(1 - mask, tf.float32))
         # add sinusoidal timing signal to give position information to inputs
         inputs = add_timing_signal_1d(inputs)
+
+        inputs = tf.nn.dropout(inputs, rate=config.encoder_dropout if training else 0)
+
         for i in range(config.encoder_layers):
             with variable_scope('layer%d' % i):
                 inputs = transformer(inputs, attention_bias, training, config)
 
-    # apply final layer norm
-    inputs = layer_norm(inputs)
+        # final layer norm before classifier
+        inputs = layer_norm(inputs)
 
     return inputs, config.head_dim * config.num_heads, None
 
 
-def transformer(inputs, attention_bias, training, config):
-    def _layer_norm(_x):
-        return layer_norm(_x, begin_norm_axis=-1, begin_params_axis=-1)
-
-    def _residual(_x, _y):
-        return tf.add(_x, tf.layers.dropout(_y, rate=config.prepost_dropout, training=training))
-
+def transformer(x, attention_bias, training, config):
     self_attention_dim = config.head_dim * config.num_heads
+
     with tf.name_scope('transformer_layer'):
         with variable_scope("self_attention"):
-            # apply layer norm before self attention layer
-            x = _layer_norm(inputs)
-
             # multi-head self-attention
-            y = multihead_attention(query_antecedent=x, memory_antecedent=None,
+            y = layer_norm(x)
+            y = multihead_attention(query_antecedent=y,
+                                    memory_antecedent=None,
                                     bias=attention_bias,
                                     total_key_depth=self_attention_dim,
                                     total_value_depth=self_attention_dim,
@@ -553,41 +550,30 @@ def transformer(inputs, attention_bias, training, config):
                                     num_heads=config.num_heads,
                                     dropout_rate=config.attention_dropout if training else 0,
                                     attention_type="dot_product")
-            x = _residual(x, y)
+            x = x + tf.nn.dropout(y, rate=config.prepost_dropout)
 
         with variable_scope("ffnn"):
-            # apply layer norm after self attention layer
-            x = _layer_norm(x)
-
-            y = _mlp(x,
+            y = layer_norm(x)
+            y = _mlp(y,
                      hidden_size=config.relu_hidden_size,
                      output_size=self_attention_dim,
-                     keep_prob=(1 - config.relu_dropout) if training else 1.0)
+                     rate=config.relu_dropout if training else 0)
             # residual connection
-            x = _residual(x, y)
+            x = x + tf.nn.dropout(y, rate=config.prepost_dropout)
 
         return x
 
 
-def _ff(name, x, in_dim, out_dim, keep_prob, last=False):
-    weights = tf.get_variable(name, [1, 1, in_dim, out_dim])
-
-    h = tf.nn.conv2d(x, filter=weights, strides=[1, 1, 1, 1], padding="SAME")
+def _ff(name, x, out_dim, rate, last=False):
+    h = tf.layers.dense(x, out_dim, name=name)
     if not last:
         h = tf.nn.leaky_relu(h, alpha=0.1)
-        h = tf.nn.dropout(h, keep_prob)
-    else:
-        h = tf.squeeze(h, 1)
+        h = tf.nn.dropout(h, rate=rate)
     return h
 
 
-def _mlp(inputs, hidden_size, output_size, keep_prob):
-    with variable_scope("conv_mlp", [inputs]):
-        inputs = tf.expand_dims(inputs, 1)
-        input_dim = inputs.get_shape().as_list()[-1]
-
-        y = _ff("ff1", inputs, input_dim, hidden_size, keep_prob)
-        y = _ff("ff2", y, hidden_size, hidden_size, keep_prob)
-        y = _ff("ff3", y, hidden_size, output_size, keep_prob, last=True)
-
+def _mlp(inputs, hidden_size, output_size, rate):
+    with variable_scope("mlp", [inputs]):
+        y = _ff("ff1", inputs, hidden_size, rate)
+        y = _ff("ff2", y, output_size, rate, last=True)
         return y
