@@ -225,16 +225,13 @@ def mlp(inputs, training, config):
         raise AssertionError("'%s' cannot have multiple inputs" % constants.ENCODER_MLP)
     inputs = get_encoder_input(inputs[0])
 
-    with variable_scope("conv_mlp", [inputs]):
-        inputs = tf.expand_dims(inputs, 1)
-        input_dim = inputs.get_shape().as_list()[-1]
+    with variable_scope("mlp", [inputs]):
         hidden_size = config.dim
         keep_prob = config.keep_prob if training else 1
 
         y = inputs
         for i in range(config.layers):
-            y = _ff("ff%d" % i, y, hidden_size, keep_prob, last=False)
-        y = tf.squeeze(y, 1)
+            y = _ff("ff%d" % i, y, hidden_size, 1 - keep_prob, last=False)
 
         return y, hidden_size, y
 
@@ -566,29 +563,24 @@ def transformer(inputs, attention_bias, training, config):
             y = _mlp(x,
                      hidden_size=config.relu_hidden_size,
                      output_size=self_attention_dim,
-                     keep_prob=(1 - config.relu_dropout) if training else 1.0)
+                     rate=config.relu_dropout if training else 0)
             # residual connection
             x = _residual(x, y)
 
         return x
 
 
-def _ff(name, x, out_dim, keep_prob, last=False):
+def _ff(name, x, out_dim, rate, last=False):
     h = tf.layers.dense(x, out_dim, kernel_initializer=tf.orthogonal_initializer, name=name)
     if not last:
         h = tf.nn.leaky_relu(h, alpha=0.1)
-        h = tf.nn.dropout(h, keep_prob)
-    else:
-        h = tf.squeeze(h, 1)
+        h = tf.nn.dropout(h, rate=rate)
     return h
 
 
-def _mlp(inputs, hidden_size, output_size, keep_prob):
-    with variable_scope("conv_mlp", [inputs]):
-        inputs = tf.expand_dims(inputs, 1)
-
-        y = _ff("ff1", inputs, hidden_size, keep_prob)
-        y = _ff("ff2", y, hidden_size, keep_prob)
-        y = _ff("ff3", y, output_size, keep_prob, last=True)
-
+def _mlp(inputs, hidden_size, output_size, rate):
+    with variable_scope("mlp", [inputs]):
+        y = _ff("ff1", inputs, hidden_size, rate)
+        y = _ff("ff2", y, hidden_size, rate)
+        y = _ff("ff3", y, output_size, rate, last=True)
         return y
