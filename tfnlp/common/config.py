@@ -198,7 +198,7 @@ def _bert_learning_rate(lr_config, global_step):
     warmup_steps = int(lr_config.warmup_proportion * lr_config.num_train_steps)
     learning_rate = tf.constant(value=init_lr, shape=[], dtype=tf.float32)
     # Implements linear decay of the learning rate.
-    learning_rate = tf.train.polynomial_decay(
+    learning_rate = tf.compat.v1.train.polynomial_decay(
         learning_rate,
         global_step,
         lr_config.num_train_steps,

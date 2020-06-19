@@ -233,7 +233,7 @@ def mlp(inputs, training, config):
 
         y = inputs
         for i in range(config.layers):
-            y = _ff("ff%d" % i, y, hidden_size, rate=1 - keep_prob)
+            y = _ff("ff%d" % i, y, hidden_size, keep_prob, last=False)
         y = tf.squeeze(y, 1)
 
         return y, hidden_size, y
@@ -513,36 +513,43 @@ class HighwayLSTMCell(LayerRNNCell):
 def transformer_encoder(inputs, sequence_lengths, training, config):
     # nonlinear projection of input to dimensionality of transformer (head size x num heads)
     with variable_scope("encoder_input_proj"):
-        inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads), alpha=0.1)
+        inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads,
+                                                  kernel_initializer=tf.orthogonal_initializer), alpha=0.1)
 
     with variable_scope('transformer'):
-        mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.int32)
+        mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.float32)
         # e.g. give attention bias [0 0 0 0 -inf -inf -inf] for a sequence length of 4 -- don't attend to padding nodes
-        attention_bias = attention_bias_ignore_padding(tf.cast(1 - mask, tf.float32))
+        attention_bias = attention_bias_ignore_padding(1 - mask)
         # add sinusoidal timing signal to give position information to inputs
         inputs = add_timing_signal_1d(inputs)
-
         inputs = tf.nn.dropout(inputs, rate=config.encoder_dropout if training else 0)
-
         for i in range(config.encoder_layers):
             with variable_scope('layer%d' % i):
                 inputs = transformer(inputs, attention_bias, training, config)
 
-        # final layer norm before classifier
-        inputs = layer_norm(inputs)
+    # apply final layer norm
+    inputs = _layer_norm(inputs)
 
     return inputs, config.head_dim * config.num_heads, None
 
 
-def transformer(x, attention_bias, training, config):
-    self_attention_dim = config.head_dim * config.num_heads
+def _layer_norm(_x):
+    return layer_norm(_x, begin_norm_axis=-1, begin_params_axis=-1)
 
+
+def transformer(inputs, attention_bias, training, config):
+
+    def _residual(_x, _y):
+        return tf.add(_x, tf.layers.dropout(_y, rate=config.prepost_dropout, training=training))
+
+    self_attention_dim = config.head_dim * config.num_heads
     with tf.name_scope('transformer_layer'):
         with variable_scope("self_attention"):
+            # apply layer norm before self attention layer
+            x = _layer_norm(inputs)
+
             # multi-head self-attention
-            y = layer_norm(x)
-            y = multihead_attention(query_antecedent=y,
-                                    memory_antecedent=None,
+            y = multihead_attention(query_antecedent=x, memory_antecedent=None,
                                     bias=attention_bias,
                                     total_key_depth=self_attention_dim,
                                     total_value_depth=self_attention_dim,
@@ -550,30 +557,38 @@ def transformer(x, attention_bias, training, config):
                                     num_heads=config.num_heads,
                                     dropout_rate=config.attention_dropout if training else 0,
                                     attention_type="dot_product")
-            x = x + tf.nn.dropout(y, rate=config.prepost_dropout)
+            x = _residual(x, y)
 
         with variable_scope("ffnn"):
-            y = layer_norm(x)
-            y = _mlp(y,
+            # apply layer norm after self attention layer
+            x = _layer_norm(x)
+
+            y = _mlp(x,
                      hidden_size=config.relu_hidden_size,
                      output_size=self_attention_dim,
-                     rate=config.relu_dropout if training else 0)
+                     keep_prob=(1 - config.relu_dropout) if training else 1.0)
             # residual connection
-            x = x + tf.nn.dropout(y, rate=config.prepost_dropout)
+            x = _residual(x, y)
 
         return x
 
 
-def _ff(name, x, out_dim, rate, last=False):
-    h = tf.layers.dense(x, out_dim, name=name)
+def _ff(name, x, out_dim, keep_prob, last=False):
+    h = tf.layers.dense(x, out_dim, kernel_initializer=tf.orthogonal_initializer, name=name)
     if not last:
         h = tf.nn.leaky_relu(h, alpha=0.1)
-        h = tf.nn.dropout(h, rate=rate)
+        h = tf.nn.dropout(h, keep_prob)
+    else:
+        h = tf.squeeze(h, 1)
     return h
 
 
-def _mlp(inputs, hidden_size, output_size, rate):
-    with variable_scope("mlp", [inputs]):
-        y = _ff("ff1", inputs, hidden_size, rate)
-        y = _ff("ff2", y, output_size, rate, last=True)
+def _mlp(inputs, hidden_size, output_size, keep_prob):
+    with variable_scope("conv_mlp", [inputs]):
+        inputs = tf.expand_dims(inputs, 1)
+
+        y = _ff("ff1", inputs, hidden_size, keep_prob)
+        y = _ff("ff2", y, hidden_size, keep_prob)
+        y = _ff("ff3", y, output_size, keep_prob, last=True)
+
         return y

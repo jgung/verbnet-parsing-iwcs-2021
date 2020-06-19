@@ -1,8 +1,9 @@
 {
   "reader": "./reader/semlink.json",
-  "max_epochs": 48,
-  "patience_epochs": 48,
-  "batch_size": 32,
+  "max_epochs": 999,
+  "patience_epochs": 100,
+  "checkpoint_epochs": 2,
+  "batch_size": 196,
   "optimizer": {
     "name": "LazyNadam",
     "params": {
@@ -31,9 +32,9 @@
   },
   "encoders": [
     "./encoders/token-marker-concat.json",
-    "./encoders/strubell-transformer.json"
+    "./encoders/transformer.json"
   ],
   "heads": [
-    "./heads/pb-head.json"
+    "./heads/pb-head-label-smoothing.json"
   ]
 }

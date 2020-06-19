@@ -5,11 +5,11 @@
   ],
   "type": "transformer",
   "encoder_dropout": 0.1,
+  "attention_dropout": 0.1,
+  "prepost_dropout": 0.1,
   "num_heads": 8,
   "head_dim": 25,
-  "attention_dropout": 0.1,
   "relu_hidden_size": 800,
   "relu_dropout": 0.1,
-  "prepost_dropout": 0.1,
   "encoder_layers": 10
 }

@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.crf import crf_log_likelihood
 
-from tfnlp.common.training_utils import smoothed_labels
 from tfnlp.layers.layers import numpy_orthogonal_matrix
 
 
@@ -114,12 +113,14 @@ def sequence_loss(logits, targets, sequence_lengths, num_labels, crf=False, tag_
             loss = tf.reduce_mean(losses)  # just average over batch/token-specific losses
         else:
             if label_smoothing > 0:
-                targets = tf.one_hot(targets, depth=num_labels)
-                # handle https://github.com/tensorflow/tensorflow/issues/24397
-                smoothed_targets = smoothed_labels(label_smoothing, logits.dtype, targets)
-                loss = tf.losses.softmax_cross_entropy(onehot_labels=smoothed_targets,
-                                                       logits=logits,
-                                                       weights=tf.to_float(tf.sequence_mask(sequence_lengths)))
+                tf.logging.info("Applying label smoothing of %f" % label_smoothing)
+                targets = tf.one_hot(targets, depth=num_labels, axis=-1)
+                mask = tf.to_float(mask) if mask is not None else tf.sequence_mask(sequence_lengths, dtype=tf.float32)
+                loss = tf.losses.softmax_cross_entropy(onehot_labels=tf.reshape(targets, [-1, num_labels]),
+                                                       logits=tf.reshape(logits, [-1, num_labels]),
+                                                       label_smoothing=label_smoothing,
+                                                       weights=tf.reshape(mask, [-1]),
+                                                       reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
             else:
                 losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=targets)
                 mask = mask if mask is not None else tf.sequence_mask(sequence_lengths)

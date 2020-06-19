@@ -1,0 +1,6 @@
+{
+  "encoder": "srl-input",
+  "name": "gold",
+  "type": "srl",
+  "label_smoothing": 0.1
+}
