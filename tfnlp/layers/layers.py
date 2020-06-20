@@ -509,17 +509,18 @@ class HighwayLSTMCell(LayerRNNCell):
 
 def transformer_encoder(inputs, sequence_lengths, training, config):
     # nonlinear projection of input to dimensionality of transformer (head size x num heads)
-    with variable_scope("encoder_input_proj"):
-        inputs = tf.nn.leaky_relu(tf.layers.dense(inputs, config.head_dim * config.num_heads,
-                                                  kernel_initializer=tf.orthogonal_initializer), alpha=0.1)
+    encoder_dim = config.head_dim * config.num_heads
+
+    inputs = _ff(name="encoder_input_proj", x=inputs, out_dim=encoder_dim, rate=config.encoder_dropout if training else 0)
 
     with variable_scope('transformer'):
+
         mask = tf.sequence_mask(sequence_lengths, name="padding_mask", dtype=tf.float32)
         # e.g. give attention bias [0 0 0 0 -inf -inf -inf] for a sequence length of 4 -- don't attend to padding nodes
         attention_bias = attention_bias_ignore_padding(1 - mask)
         # add sinusoidal timing signal to give position information to inputs
         inputs = add_timing_signal_1d(inputs)
-        inputs = tf.nn.dropout(inputs, rate=config.encoder_dropout if training else 0)
+
         for i in range(config.encoder_layers):
             with variable_scope('layer%d' % i):
                 inputs = transformer(inputs, attention_bias, training, config)
@@ -527,7 +528,7 @@ def transformer_encoder(inputs, sequence_lengths, training, config):
     # apply final layer norm
     inputs = _layer_norm(inputs)
 
-    return inputs, config.head_dim * config.num_heads, None
+    return inputs, encoder_dim, None
 
 
 def _layer_norm(_x):
