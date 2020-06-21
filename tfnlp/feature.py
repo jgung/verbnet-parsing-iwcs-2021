@@ -157,6 +157,7 @@ class FeatureInitializer(Params):
         self.zero_init = config.get('zero_init', False)
         # path to raw embedding file
         self.embedding = config.get('embedding')
+        self.normalize_embedding = config.get('normalize_embedding', False)
         # name of serialized initializer after vocabulary training
         self.pkl_path = config.get('pkl_path')
         if self.embedding and not self.pkl_path:
@@ -886,7 +887,8 @@ def write_vocab(extractors, base_path, resources='', prune=False):
                 vectors[key] = vector
 
         # save embeddings as a serialized numpy matrix to make deserialization faster
-        feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init)
+        feature.embedding = initialize_embedding_from_dict(vectors, dim, feature.indices, initializer.zero_init,
+                                                           standardize=initializer.normalize_embedding)
         logging.info("Saving %d vectors as embedding for '%s' feature", feature.embedding.shape[0], feature.name)
         serialize(feature.embedding, out_path=base_path, out_name=initializer.pkl_path)
 

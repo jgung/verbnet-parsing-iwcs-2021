@@ -86,28 +86,30 @@ def get_embedding_input(inputs, feature, training, weights=None):
 
     with variable_scope(feature.name):
         with variable_scope('embedding'):
-            initializer = None
-            if training:
-                if feature.embedding is not None:
-                    initializer = embedding_initializer(feature.embedding)
-                elif config.initializer.zero_init:
-                    logging.info("Zero init for feature embedding: %s", feature.name)
-                    initializer = tf.zeros_initializer
+            with tf.device('/cpu:0'):
+                initializer = None
+                if training:
+                    if feature.embedding is not None:
+                        logging.info("Initializing from pre-trained embeddings: %s", feature.name)
+                        initializer = embedding_initializer(feature.embedding)
+                    elif config.initializer.zero_init:
+                        logging.info("Zero init for feature embedding: %s", feature.name)
+                        initializer = tf.zeros_initializer
+                    else:
+                        logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
+                        initializer = tf.glorot_uniform_initializer
+
+                embedding_matrix = tf.compat.v1.get_variable(name='parameters',
+                                                             shape=[feature.vocab_size(), config.dim],
+                                                             initializer=initializer,
+                                                             trainable=config.trainable)
+
+                if weights is None:
+                    feature_ids = string2index(inputs, feature)
+                    result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
+                                                    name='lookup')  # wrapper of gather
                 else:
-                    logging.info("Xavier Uniform init for feature embedding: %s", feature.name)
-                    initializer = tf.glorot_uniform_initializer
-
-            embedding_matrix = tf.compat.v1.get_variable(name='parameters',
-                                               shape=[feature.vocab_size(), config.dim],
-                                               initializer=initializer,
-                                               trainable=config.trainable)
-
-            if weights is None:
-                feature_ids = string2index(inputs, feature)
-                result = tf.nn.embedding_lookup(params=embedding_matrix, ids=feature_ids,
-                                                name='lookup')  # wrapper of gather
-            else:
-                result = tf.matmul(weights, embedding_matrix, name="weighted_lookup")
+                    result = tf.matmul(weights, embedding_matrix, name="weighted_lookup")
 
             if config.dropout > 0:
                 result = tf.layers.dropout(result,

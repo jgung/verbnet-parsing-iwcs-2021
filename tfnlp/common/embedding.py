@@ -51,7 +51,7 @@ def write_vectors(vectors, path):
 
 def initialize_embedding_from_dict(vector_map, dim, vocabulary, zero_init=False, standardize=False):
     """
-    Initialize a numpy matrix from pre-exi\sting vectors with indices corresponding to a given vocabulary. Words in vocabulary
+    Initialize a numpy matrix from pre-existing vectors with indices corresponding to a given vocabulary. Words in vocabulary
     not in vectors are initialized using a given function.
     :param vector_map: dictionary from words to numpy arrays
     :param dim: dimensionality of vectors
@@ -69,5 +69,6 @@ def initialize_embedding_from_dict(vector_map, dim, vocabulary, zero_init=False,
             vector_map[word] = initializer(word, dim)
         emb[index] = vector_map[word]
     if standardize:
-        emb = emb / np.std(emb)
+        tf.logging.info("Normalizing word embeddings")
+        emb /= np.std(emb)
     return emb
