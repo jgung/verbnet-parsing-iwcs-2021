@@ -1,7 +1,7 @@
 {
   "reader": "./reader/semlink.json",
-  "max_epochs": 999,
-  "patience_epochs": 100,
+  "max_epochs": 1000,
+  "patience_epochs": 250,
   "checkpoint_epochs": 2,
   "batch_size": 196,
   "optimizer": {
@@ -19,7 +19,7 @@
       "decay_rate": 1.5,
       "decay_steps": 5000
     },
-    "clip": 1.0
+    "clip": 5.0
   },
   "features": {
     "targets": [
