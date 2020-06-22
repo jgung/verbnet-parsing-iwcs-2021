@@ -73,7 +73,7 @@ def build_config(base_config: dict, override_configs: dict = None, override_para
                 try:
                     param_value = float(param_value)
                 except ValueError:
-                    pass
+                    param_value = str(param_value)
 
             nested_keys = k.split('.')
             curr_param = result
