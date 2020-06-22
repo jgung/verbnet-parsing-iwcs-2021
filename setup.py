@@ -8,6 +8,8 @@ REQUIRED_PACKAGES = [
     "tensorflow-probability==0.7.0",
     "numpy>=1.14.2",
     "nltk>=3.2.5",
+    "albert-tensorflow>=1.1",
+    "sentencepiece>=0.1.85"
 ]
 
 setup(
