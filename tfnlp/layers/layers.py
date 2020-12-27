@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_estimator as tfe
 import tensorflow_hub as hub
-from tensor2tensor.layers.common_attention import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
+
 from tensorflow.compat.v1 import get_variable
 from tensorflow.compat.v1 import logging
 from tensorflow.compat.v1 import variable_scope
@@ -21,6 +21,7 @@ from tensorflow.python.ops.rnn import dynamic_rnn
 from tensorflow.python.ops.rnn_cell_impl import DropoutWrapper, LSTMStateTuple, LayerRNNCell
 
 from tfnlp.common import constants
+from tfnlp.layers.transformers import add_timing_signal_1d, attention_bias_ignore_padding, multihead_attention
 
 ELMO_URL = "https://tfhub.dev/google/elmo/2"
 
@@ -546,14 +547,13 @@ def transformer(inputs, attention_bias, training, config):
             x = _layer_norm(inputs)
 
             # multi-head self-attention
-            y = multihead_attention(query_antecedent=x, memory_antecedent=None,
+            y = multihead_attention(query_antecedent=x,
                                     bias=attention_bias,
                                     total_key_depth=self_attention_dim,
                                     total_value_depth=self_attention_dim,
                                     output_depth=self_attention_dim,
                                     num_heads=config.num_heads,
-                                    dropout_rate=config.attention_dropout if training else 0,
-                                    attention_type="dot_product")
+                                    dropout_rate=config.attention_dropout if training else 0)
             x = _residual(x, y)
 
         with variable_scope("ffnn"):

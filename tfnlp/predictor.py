@@ -133,14 +133,14 @@ def from_config_and_savedmodel(path_to_config: str, path_to_savedmodel: str, pat
     tf.logging.info("Loading predictor from saved model at %s" % path_to_savedmodel)
     tf_predictor = _default_predictor(path_to_savedmodel)
     parser_function = get_parser(config)
-    feature_function = _get_feature_function(config.features, path_to_vocab)
+    feature_function = _get_feature_function(config.features, config.heads, path_to_vocab)
     formatter = get_formatter(config)
 
     return Predictor(tf_predictor, parser_function, feature_function, formatter, default_batching_function(config.batch_size))
 
 
-def _get_feature_function(config: object, path_to_vocab: str) -> Callable[[dict], str]:
-    feature_extractor = get_feature_extractor(config)
+def _get_feature_function(feature_config: object, heads_config, path_to_vocab: str) -> Callable[[dict], str]:
+    feature_extractor = get_feature_extractor(feature_config, heads=heads_config)
     feature_extractor.read_vocab(path_to_vocab)
 
     return lambda instance: feature_extractor.extract(instance, train=False).SerializeToString()

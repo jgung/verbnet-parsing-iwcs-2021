@@ -189,8 +189,10 @@ class TaggerEvaluator(Evaluator):
         self.indices = []
 
     def accumulate(self, instance, result):
-        self.labels.append([label for label in result[self.target_key] if label != BERT_SUBLABEL])
-        self.gold.append([label for label in instance[self.labels_key] if label != BERT_SUBLABEL])
+        gold = [label for label in instance[self.labels_key] if label != BERT_SUBLABEL]
+        predicted = [label for label in result[self.target_key] if label != BERT_SUBLABEL][:len(gold)]
+        self.labels.append(predicted)
+        self.gold.append(gold)
         self.indices.append(instance[constants.SENTENCE_INDEX])
 
     def evaluate(self, identifier=None):
@@ -342,7 +344,10 @@ class SrlEvaluator(TaggerEvaluator):
 
     def accumulate(self, instance, result):
         super().accumulate(instance, result)
-        self.markers.append(instance[constants.MARKER_KEY])
+        idx = instance[constants.MARKER_KEY]
+        if isinstance(idx, list):
+            idx = idx.index('1')
+        self.markers.append(idx)
 
     def evaluate(self, identifier='.'):
         write_props_to_file(self.output_path + '.gold.txt', self.gold, self.markers, self.indices)

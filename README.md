@@ -51,7 +51,7 @@ and test data. Note that the official CoNLL 2003 evaluation script requires Perl
 
 You can then begin training with the following command:
 ```bash
-python tfnlp.trainer.py --job-dir data/experiments/conll-03 \
+python tfnlp/trainer.py --job-dir data/experiments/conll-03 \
 --train path/to/conll03/eng.train \
 --valid path/to/conll03/eng.testa \
 --test path/to/conll03/eng.testb \
@@ -102,7 +102,7 @@ and optional test files `test-wsj.conll` and `test-brown.conll`.
 
 You can then begin training using the following command:
 ```bash
-python tfnlp.trainer.py --job-dir data/experiments/conll-05 \
+python tfnlp/trainer.py --job-dir data/experiments/conll-05 \
 --train path/to/conll05/train-set.conll \
 --valid path/to/conll05/dev-set.conll \
 --test path/to/conll05/test-wsj.conll \
@@ -130,7 +130,7 @@ into the Stanford Dependency format.
 To train on the English CoNLL-2009 dependency data (using provided predicted POS tags), 
 you can use the following command:
 ```bash
-python tfnlp.trainer.py --job-dir data/experiments/conll-09-en \
+python tfnlp/trainer.py --job-dir data/experiments/conll-09-en \
 --train path/to/CoNLL2009-ST-English/CoNLL2009-ST-English-train.txt \
 --valid path/to/CoNLL2009-ST-English-development.txt \
 --config data/config/parsing/parser-config.json \
