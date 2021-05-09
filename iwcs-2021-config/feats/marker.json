@@ -1,0 +1,12 @@
+{
+  "name": "marker",
+  "key": "marker",
+  "config": {
+    "dim": 10
+  },
+  "indices": {
+    "0": 0
+  },
+  "unknown_word": "0",
+  "pad_word": "0"
+}

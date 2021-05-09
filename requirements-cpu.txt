@@ -1,6 +1,8 @@
 numpy
-tensorflow-cpu==1.13.1
+tensorflow==1.13.2
 nltk
-tensorflow-hub
-bert-tensorflow
+tensorflow-hub==0.2.0
+tensor2tensor==1.11.0
+bert-tensorflow==1.0.1
+tensorflow-probability==0.5.0
 sklearn

@@ -1,0 +1,8 @@
+{
+  "name": "srl-inputs",
+  "type": "concat",
+  "inputs": [
+    "bert-dropout",
+    "marker"
+  ]
+}
