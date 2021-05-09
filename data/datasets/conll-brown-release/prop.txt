@@ -1,0 +1,809 @@
+brown/ck/ck01.mrg 100 1 gold smooth.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 100 9 gold pick.04 vp--a 0:1-ARG0 9:0,11:1-rel 10:1-ARG1 12:1-ARGM-ADV
+brown/ck/ck01.mrg 10 11 gold gaze.01 vp--a 10:1-ARG0 11:0-rel 12:1-ARGM-MNR 14:1-ARG1-at
+brown/ck/ck01.mrg 101 3 gold touch.01 vp--a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 10 1 gold eat.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 102 1 gold watch.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-MNR
+brown/ck/ck01.mrg 103 3 gold speak.01 vp--a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel
+brown/ck/ck01.mrg 104 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 105 10 gold miss.01 vf--a 8:1-ARG0 9:0-ARGM-MOD 10:0-rel 11:1-ARG1
+brown/ck/ck01.mrg 105 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 105 6 gold think.01 vn--a 5:1-ARG0 6:0-rel 7:1-ARG1
+brown/ck/ck01.mrg 106 10 gold grow.02 ppp-a 8:1-ARG1 10:0-rel 3:1*11:0-ARG2
+brown/ck/ck01.mrg 106 2 gold notice.01 ppp-a 0:1-ARG0 2:0-rel 3:2-ARG1
+brown/ck/ck01.mrg 108 12 gold know.01 vp--a 11:1-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck01.mrg 108 17 gold care.01 ----a 14:1-ARG0 15:0-ARGM-MOD 16:0-ARGM-NEG 17:0-rel 18:2-ARGM-ADV
+brown/ck/ck01.mrg 108 1 gold feel.02 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 108 7 gold concern.02 vp--a 3:1-ARG0 6:0-ARGM-NEG 7:0-rel 8:1-ARG1
+brown/ck/ck01.mrg 109 1 gold shake.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 110 3 gold have.03 pnp-a 1:1-ARG0 3:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 111 2 gold win.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARG1 6:1-ARGM-LOC 9:1-ARGM-MNR
+brown/ck/ck01.mrg 112 2 gold call.02 vp--a 0:1-ARG0 2:0-rel 3:1-ARGM-TMP
+brown/ck/ck01.mrg 11 2 gold try.01 vp--a 0:1-ARG0 2:0-rel 3:2-ARG1
+brown/ck/ck01.mrg 113 1 gold want.01 vn-3a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 113 4 gold pay.01 i---a 0:1*2:0-ARG0 4:0-rel 5:1-ARG2 6:1-ARG1
+brown/ck/ck01.mrg 114 1 gold say.01 vn-3a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 114 5 gold miss.01 vn--a 3:1-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck01.mrg 11 5 gold make.XX i---a 0:1*3:0-ARG0 5:0-rel 6:1-ARG1 8:1-ARG2
+brown/ck/ck01.mrg 116 1 gold shrug.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-MNR
+brown/ck/ck01.mrg 117 12 gold kiss.01 ----a 10:1-ARG0 11:0-ARGM-MOD 12:0-rel 13:1-ARG1
+brown/ck/ck01.mrg 117 16 gold move.01 vp--a 0:1-ARG1 15:1-ARGM-TMP 16:0-rel 17:1-ARG2
+brown/ck/ck01.mrg 117 1 gold come.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARGM-LOC
+brown/ck/ck01.mrg 117 7 gold bend.01 vp--a 0:1-ARG0 7:0-rel 8:1-ARGM-MNR
+brown/ck/ck01.mrg 118 2 gold frown.01 ppo-a 0:1-ARG0 2:0-rel
+brown/ck/ck01.mrg 119 3 gold annoy.01 vn-3a 1:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 120 1 gold seem.01 vp--a 0:1,2:2-ARG1 1:0-rel
+brown/ck/ck01.mrg 120 4 gold speak.01 i---a 0:1*2:0-ARG0 4:0-rel 5:1-ARG2-to
+brown/ck/ck01.mrg 121 3 gold suppose.01 vn--a 2:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 122 1 gold turn.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARGM-DIR 4:1-ARGM-TMP
+brown/ck/ck01.mrg 123 9 gold phone.01 pnp3a 1:1-ARGM-DIS 3:2-ARG0 9:0-rel 10:1-ARGM-DIS
+brown/ck/ck01.mrg 124 3 gold worry.01 pp--p 0:1-ARG1 2:0-ARGM-MNR 3:0-rel
+brown/ck/ck01.mrg 126 16 gold swoop.01 vp--a 8:1-ARG0 15:1-ARGM-DIS 16:0-rel 17:1-ARGM-MNR
+brown/ck/ck01.mrg 126 19 gold pick.04 vp--a 8:1-ARG0 19:0,20:1-rel 21:2-ARG1
+brown/ck/ck01.mrg 126 5 gold say.01 vp--a 1:1-ARG0 3:0-ARGM-NEG 4:1-ARGM-ADV 5:0-rel
+brown/ck/ck01.mrg 126 9 gold glance.01 vp--a 8:1-ARG0 9:0-rel 10:1-ARGM-DIR 11:1-ARG1-at
+brown/ck/ck01.mrg 127 2 gold mean.01 vn--a 1:1-ARG0 2:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 127 6 gold feel.01 vn--a 5:1-ARG0 6:0-rel 7:1-ARG1-like
+brown/ck/ck01.mrg 127 9 gold see.01 p---a 5:1*8:0-ARG0 9:0-rel 10:1-ARG1
+brown/ck/ck01.mrg 128 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 128 7 gold know.01 vn--a 4:1-ARG0 6:0-ARGM-NEG 7:0-rel
+brown/ck/ck01.mrg 13 1 gold recommend.01 vn--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 133 2 gold wait.01 vf--a 0:1-ARG1 1:0-ARGM-MOD 2:0-rel 3:1-ARGM-TMP
+brown/ck/ck01.mrg 133 9 gold talk.01 vf--a 0:1-ARG0 1:0-ARGM-MOD 8:0-ARGM-TMP 9:0-rel 10:1-ARG1-about
+brown/ck/ck01.mrg 134 1 gold put.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARGM-MNR 5:1-ARG2-by 8:1-ARGM-LOC
+brown/ck/ck01.mrg 135 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 136 3 gold kiss.01 vp--a 0:1-ARGM-TMP 2:1-ARG0 3:0-rel 4:1-ARG1 5:1-ARGM-MNR 6:1-ARGM-LOC
+brown/ck/ck01.mrg 137 2 gold please.01 pp--p 0:1-ARG1 2:0-rel
+brown/ck/ck01.mrg 139 20 gold float.01 vp--a 19:1-ARG1 20:0-rel 21:1-ARGM-DIR
+brown/ck/ck01.mrg 139 2 gold hear.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARG1 6:1-ARGM-TMP
+brown/ck/ck01.mrg 139 2 gold hear.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 9:1-ARGM-DIS 11:3-ARG1
+brown/ck/ck01.mrg 14 1 gold look.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1-at 6:2-ARGM-ADV
+brown/ck/ck01.mrg 142 2 gold get.01 pno3a 0:1-ARG0 2:0-rel 3:2-ARG1
+brown/ck/ck01.mrg 143 4 gold improve.01 pn-3p 2:1-ARG1 4:0-rel
+brown/ck/ck01.mrg 144 5 gold get.01 vn-3a 4:1-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck01.mrg 145 14 gold hear.01 ----a 7:1-ARG0 9:1-ARGM-LOC 13:0-ARGM-MOD 14:0-rel 15:2-ARG1
+brown/ck/ck01.mrg 146 2 gold smile.01 vp--a 0:1-ARG0 1:1-ARGM-NEG 2:0-rel
+brown/ck/ck01.mrg 147 2 gold require.01 vp--a 2:0-rel 3:2-ARG1 11:2-ARG0
+brown/ck/ck01.mrg 147 9 gold possess.01 vp--a 3:1*5:0*10:0-ARG1 6:1-ARG0 7:1-ARGM-TMP 9:0-rel
+brown/ck/ck01.mrg 148 3 gold come.01 ----a 0:1-ARG1 2:0-ARGM-MOD 3:0-rel 4:1-ARG4
+brown/ck/ck01.mrg 148 6 gold stand.01 ----a 0:1-ARG1 2:0-ARGM-MOD 6:0-rel 7:1-ARGM-MNR 8:1-ARG2-at
+brown/ck/ck01.mrg 14 8 gold worry.01 p---p 6:1-ARG1 8:0-rel
+brown/ck/ck01.mrg 149 21 gold study.01 ----a 14:1-ARG0 19:0-ARGM-MOD 20:0-ARGM-NEG 21:0-rel 22:1-ARG1 23:1-ARGM-ADV
+brown/ck/ck01.mrg 149 28 gold ask.01 ----a 0:1-ARGM-TMP 25:1-ARG0 27:0-ARGM-MOD 28:0-rel 29:2-ARG1
+brown/ck/ck01.mrg 149 35 gold ask.01 ppo-a 29:1*32:0*36:0-ARG1 33:1-ARG0 35:0-rel 37:1-ARGM-LOC
+brown/ck/ck01.mrg 149 7 gold study.01 vp--a 1:1*4:1*11:0-ARGM-TMP 6:1-ARG0 7:0-rel 8:2-ARG1 12:1-ARGM-ADV
+brown/ck/ck01.mrg 150 11 gold ask.02 ----a 5:1-ARG0 8:1-ARGM-MNR 10:0-ARGM-MOD 11:0-rel 12:1-ARG2 13:2-ARG1
+brown/ck/ck01.mrg 150 15 gold repeat.01 i---a 12:1*13:0-ARG0 15:0-rel
+brown/ck/ck01.mrg 150 2 gold reply.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARGM-MNR
+brown/ck/ck01.mrg 151 3 gold eat.01 pno-a 1:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 15 17 gold bend.01 i---a 12:1*15:0-ARG0 17:0-rel 18:1-ARG1 21:1-ARGM-DIR
+brown/ck/ck01.mrg 151 9 gold say.01 ----a 1:2*10:0-ARG1 7:1-ARG0 8:0-ARGM-MOD 9:0-rel
+brown/ck/ck01.mrg 15 1 gold murmur.01 vp--a 0:1-ARG0 1:0-rel 4:1,6:1-ARG1 9:2-ARGM-MNR
+brown/ck/ck01.mrg 152 4 gold walk.01 vn--a 3:1-ARG0 4:0-rel 5:1-ARGM-LOC 8:1-ARGM-EXT
+brown/ck/ck01.mrg 15 25 gold turn.01 i---a 12:1*15:0-ARG0 25:0-rel 26:1-ARG1 30:1-ARGM-DIR
+brown/ck/ck01.mrg 153 4 gold get.05 ----a 1:1-ARGM-ADV 2:1-ARG1 3:0-ARGM-MOD 4:0-rel 5:1-ARGM-LOC 6:1-ARGM-ADV
+brown/ck/ck01.mrg 154 4 gold suppose.02 pn--p 1:1-ARG1 3:0-ARGM-NEG 4:0-rel 5:2-ARG2 8:1-ARGM-TMP
+brown/ck/ck01.mrg 155 3 gold irritate.01 pp--p 0:1*4:0-ARG1 2:0-ARGM-NEG 3:0-rel
+brown/ck/ck01.mrg 157 12 gold feel.02 vp--a 11:1-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck01.mrg 157 16 gold note.01 ppo-a 14:1-ARG0 16:0-rel 17:1-ARG1 19:1-ARGM-ADV
+brown/ck/ck01.mrg 157 1 gold look.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1-at 6:1-ARGM-MNR
+brown/ck/ck01.mrg 157 27 gold think.01 ----a 25:1-ARG0 26:0-ARGM-MOD 27:0-rel 28:1-ARG2-about 30:2-ARGM-TMP
+brown/ck/ck01.mrg 157 32 gold grow.02 vp--a 30:1*34:0-ARGM-TMP 31:1-ARG1 32:0-rel 33:1-ARG2
+brown/ck/ck01.mrg 157 4 gold line.03 p---p 4:0-rel 5:0-ARG1
+brown/ck/ck01.mrg 158 15 gold blame.01 i---a 0:1*8:0*13:0-ARG0 10:1*12:0*16:0-ARG1 15:0-rel 17:1-ARG2-for
+brown/ck/ck01.mrg 158 2 gold examine.01 vp--a 0:1-ARG0 2:0-rel 3:1-ARG1 4:1-ARGM-MNR 8:2-ARGM-ADV
+brown/ck/ck01.mrg 158 9 gold seek.01 p---a 0:1*8:0-ARG0 9:0-rel 10:2-ARG1
+brown/ck/ck01.mrg 159 3 gold get.02 pnp-a 2:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 160 10 gold wear.01 vp--a 8:1-ARG0 9:1-ARGM-NEG 10:0-rel 11:2-ARG1
+brown/ck/ck01.mrg 160 15 gold buy.01 vp--a 11:1*13:0*17:0-ARG1 14:1-ARG0 15:0-rel 16:1-ARG4
+brown/ck/ck01.mrg 16 1 gold regard.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1 10:1-ARGM-ADV
+brown/ck/ck01.mrg 17 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-MNR 6:2-ARG1
+brown/ck/ck01.mrg 18 13 gold drink.01 ppp-a 0:1-ARG0 13:0-rel 14:3-ARG1
+brown/ck/ck01.mrg 18 2 gold eat.01 ppp-a 0:1-ARG0 2:0-rel 3:2-ARG1
+brown/ck/ck01.mrg 19 10 gold say.01 vp--a 1:2*11:0-ARG1 9:1-ARG0 10:0-rel
+brown/ck/ck01.mrg 20 12 gold get.05 vn--a 11:1-ARG1 12:0-rel 13:1-ARG2 8:1*10:1*14:0-ARGM-TMP
+brown/ck/ck01.mrg 20 3 gold fix.XX ----a 1:1-ARG0 2:0-ARGM-MOD 3:0-rel 4:1-ARG2 5:1-ARG1 6:1-ARGM-TMP 10:2-ARGM-TMP
+brown/ck/ck01.mrg 21 13 gold change.01 p---p 13:0-rel 14:0-ARG1
+brown/ck/ck01.mrg 21 6 gold have.03 ppp-a 0:1-ARGM-TMP 4:1-ARG0 6:0-rel 7:1-ARG1
+brown/ck/ck01.mrg 22 17 gold become.01 ppp-a 6:2-ARG1 17:0-rel 18:1-ARG2
+brown/ck/ck01.mrg 2 22 gold entitle.01 pp--p 19:1*23:0-ARG2 22:0-rel 24:1-ARG1-to
+brown/ck/ck01.mrg 2 2 gold talk.01 vp--a 0:1-ARG0 2:0-rel 3:1-ARGM-MNR 6:2-ARG2
+brown/ck/ck01.mrg 23 12 gold curve.01 p---a 11:0-ARGM-MNR 12:0-rel 13:0-ARG1
+brown/ck/ck01.mrg 23 1 gold breathe.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-TMP 3:1-ARGM-MNR 8:2-ARGM-ADV
+brown/ck/ck01.mrg 23 20 gold keep.02 vp--a 19:1-ARG0 20:0-rel 21:3-ARG1
+brown/ck/ck01.mrg 23 26 gold puff.02 p---p 26:0-rel 28:0-ARG1
+brown/ck/ck01.mrg 23 31 gold lower.01 p---p 21:2-ARG1 30:0-ARGM-TMP 31:0-rel 33:1-ARGM-ADV
+brown/ck/ck01.mrg 23 39 gold focus.01 p---a 21:2*34:0-ARG1 35:0-ARGM-NEG 37:1-ARGM-ADV 39:0-rel
+brown/ck/ck01.mrg 2 36 gold decide.01 pp--p 36:0-rel 37:1-ARG1
+brown/ck/ck01.mrg 23 9 gold show.01 p---a 0:1*8:0-ARG0 9:0-rel 10:2-ARG1
+brown/ck/ck01.mrg 24 3 gold seem.01 vp--a 0:1,4:1,5:0,7:2-ARG1 3:0-rel
+brown/ck/ck01.mrg 2 46 gold take.18 i---a 44:1-ARG0 46:0,52:1-rel 47:2-ARG1
+brown/ck/ck01.mrg 25 13 gold flutter.01 p---a 13:0-rel 14:0-ARG0
+brown/ck/ck01.mrg 2 54 gold spend.02 i---a 44:1-ARG0 54:0-rel 55:2-ARG1 59:1-ARGM-LOC
+brown/ck/ck01.mrg 26 14 gold taper.01 p---p 14:0-rel 15:0-ARG1
+brown/ck/ck01.mrg 26 1 gold lie.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARG2-on 6:2-ARGM-ADV 9:2-ARGM-ADV 13:2-ARGM-ADV
+brown/ck/ck01.mrg 2 67 gold do.02 i---a 44:1-ARG0 63:1-ARGM-ADV 67:0-rel 68:1-ARGM-ADV 70:1-ARGM-ADV 74:1-ARGM-ADV
+brown/ck/ck01.mrg 27 15 gold overindulge.01 vp--a 11:1*13:1*14:0-ARG0 15:0-rel 16:1-ARG1-in
+brown/ck/ck01.mrg 27 19 gold take.01 vp--a 11:1*13:1*14:0-ARG0 19:0-rel 20:1-ARG1
+brown/ck/ck01.mrg 2 72 gold choose.01 vp--a 71:1-ARG0 72:0-rel
+brown/ck/ck01.mrg 27 2 gold have.03 vp--a 0:1-ARGM-ADV 1:1-ARG0 2:0-rel 4:1-ARGM-TMP 8:2-ARG1
+brown/ck/ck01.mrg 2 74 gold provide.01 ----- 74:0-rel 76:1-ARGM-DIS 79:1-ARG1
+brown/ck/ck01.mrg 2 81 gold choose.01 vp--a 80:1-ARG0 81:0-rel 82:2-ARG1
+brown/ck/ck01.mrg 28 1 gold look.02 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 2 84 gold do.02 i---a 80:1*82:0-ARG0 84:0-rel 85:2-ARG1
+brown/ck/ck01.mrg 29 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 29 6 gold say.01 i---a 0:1*4:0-ARG0 2:1*3:0*7:0-ARG1 6:0-rel
+brown/ck/ck01.mrg 30 11 gold offer.01 p---a 0:1*10:0-ARG0 11:0-rel 12:1-ARG1
+brown/ck/ck01.mrg 30 1 gold greet.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1 6:1-ARG3-with 10:2-ARGM-ADV
+brown/ck/ck01.mrg 31 27 gold jump.02 p---a 0:1*26:0-ARG0 27:0-rel 28:2-ARG1
+brown/ck/ck01.mrg 3 12 gold agree.01 vp--a 11:1-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck01.mrg 31 30 gold anticipate.01 i---a 0:1*26:0*28:0-ARG0 30:0-rel 31:2-ARG1
+brown/ck/ck01.mrg 3 17 gold keep.05 vp--a 16:1-ARG0 17:0,18:1-rel 19:1-ARG1-with 25:1-ARGM-LOC
+brown/ck/ck01.mrg 33 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 3 34 gold lose.02 g---- 33:1-ARG0 34:0-rel 35:1-ARG1
+brown/ck/ck01.mrg 33 7 gold get.05 ----a 4:1-ARG0 5:0-ARGM-MOD 6:1-ARGM-ADV 7:0-rel 8:1-ARG1 9:1-ARG2-to
+brown/ck/ck01.mrg 34 3 gold suggest.01 ppp-a 0:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 34 6 gold remain.01 ----a 5:1-ARG1 6:0-rel 7:2-ARGM-TMP 11:1-ARGM-LOC 13:1-ARGM-TMP
+brown/ck/ck01.mrg 35 13 gold drive.01 vp--a 0:1-ARGM-CAU 10:1-ARG0 13:0-rel 14:1-ARGM-DIR 15:2-ARGM-ADV 17:1-ARGM-MNR
+brown/ck/ck01.mrg 35 6 gold give.01 i---a 1:1*4:0-ARG0 6:0-rel 7:1-ARG1
+brown/ck/ck01.mrg 36 3 gold speak.01 vp--a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:1-ARGM-ADV
+brown/ck/ck01.mrg 37 13 gold look.01 ----a 12:1-ARG0 13:0-rel 14:1-ARG1-at
+brown/ck/ck01.mrg 37 1 gold gaze.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-DIR 3:1-ARG1-at
+brown/ck/ck01.mrg 37 8 gold say.01 vp--a 0:1-ARG0 8:0-rel 9:1-ARGM-MNR 12:2-ARG1
+brown/ck/ck01.mrg 3 7 gold confer.01 pp--p 7:0-rel 0:2*8:1-ARG1
+brown/ck/ck01.mrg 38 6 gold peel.01 p---a 6:0-rel 7:0,8:0-ARG1
+brown/ck/ck01.mrg 39 12 gold repeat.01 i---a 9:1*10:0-ARG0 12:0-rel
+brown/ck/ck01.mrg 39 4 gold bend.01 i---a 0:1*2:0-ARG0 4:0-rel 5:1-ARGM-DIR
+brown/ck/ck01.mrg 39 8 gold ask.02 i---a 0:1*2:0-ARG0 8:0-rel 9:1-ARG2 10:2-ARG1
+brown/ck/ck01.mrg 40 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 4 1 gold accept.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARGM-MNR
+brown/ck/ck01.mrg 42 1 gold look.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1-at 6:2-ARGM-ADV 11:2-ARGM-ADV
+brown/ck/ck01.mrg 42 9 gold open.01 p---p 6:1-ARG1 8:1-ARGM-EXT 9:0-rel
+brown/ck/ck01.mrg 43 1 gold feel.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 45 2 gold seem.01 vp--a 0:1,3:1-ARG1 2:0-rel 5:2-ARGM-CAU
+brown/ck/ck01.mrg 46 13 gold have.03 i---a 0:1*11:0-ARG0 13:0-rel 14:1-ARG1 15:1-ARGM-MNR
+brown/ck/ck01.mrg 46 1 gold rise.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARGM-TMP
+brown/ck/ck01.mrg 46 4 gold go.02 vp--a 0:1-ARG0 4:0-rel 5:1-ARGM-DIR 6:1-ARGM-MNR 11:2-ARGM-PNC
+brown/ck/ck01.mrg 47 1 gold treat.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 3:1-ARG2-with
+brown/ck/ck01.mrg 47 6 gold try.01 vp--a 0:1-ARG0 6:0-rel 7:2-ARG1
+brown/ck/ck01.mrg 47 9 gold tempt.01 i---a 0:1*7:0-ARG0 9:0-rel 10:1-ARG1 12:1-ARG2-with
+brown/ck/ck01.mrg 48 14 gold watch.01 ----a 0:1-ARG0 1:0-ARGM-MOD 7:2-ARGM-ADV 13:1-ARGM-MNR 14:0-rel 15:2-ARG1
+brown/ck/ck01.mrg 48 2 gold hover.01 ----a 0:1-ARG1 1:0-ARGM-MOD 2:0-rel 3:1-ARG2-over
+brown/ck/ck01.mrg 48 8 gold look.02 p---a 0:1*7:0-ARG0 8:0-rel 9:1-ARG1-like
+brown/ck/ck01.mrg 49 4 gold eat.01 vn--a 1:1-ARG0 3:0-ARGM-NEG 4:0-rel 5:1-ARG1
+brown/ck/ck01.mrg 4 9 gold enter.01 vp--a 0:1-ARG0 8:0-ARGM-NEG 9:0-rel 10:1-ARG1
+brown/ck/ck01.mrg 50 1 gold try.01 ----a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 50 4 gold get.05 i---a 0:0*2:0-ARG0 4:0-rel 5:1-ARG1 6:1-ARG2
+brown/ck/ck01.mrg 51 13 gold rediscover.01 i---a 9:1*11:0-ARG0 13:0-rel 14:1-ARG1
+brown/ck/ck01.mrg 51 3 gold observe.01 p---a 0:1*2:0-ARG0 3:0-rel
+brown/ck/ck01.mrg 5 16 gold have.03 vp--a 12:2-ARG0 16:0-rel 17:2-ARG1 28:1-ARGM-LOC
+brown/ck/ck01.mrg 51 6 gold say.01 ----a 0:1-ARG0 2:2-ARGM-ADV 5:0-ARGM-MOD 6:0-rel 9:2-ARG1
+brown/ck/ck01.mrg 5 20 gold describe.01 vp--a 17:1*21:0-ARG1 18:1-ARG0 20:0-rel 22:1-ARG2-as
+brown/ck/ck01.mrg 52 2 gold take.10 vf--a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARG1
+brown/ck/ck01.mrg 5 2 gold discharge.01 pp--p 2:0-rel 0:1*3:0-ARG1 4:1-ARGM-ADV 7:1-ARGM-TMP
+brown/ck/ck01.mrg 53 3 gold talk.01 vp--a 0:1-ARG0 3:0-rel 4:1-ARG2-to 7:1-ARGM-MNR 8:1-ARGM-TMP 10:1-ARGM-ADV
+brown/ck/ck01.mrg 54 18 gold fill.01 p---p 16:1-ARG1 18:0-rel 19:1-ARG2-with
+brown/ck/ck01.mrg 54 1 gold watch.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 3:1-ARGM-MNR
+brown/ck/ck01.mrg 54 8 gold seem.01 p---a 5:1,6:0,7:1,9:2-ARG1 8:0-rel
+brown/ck/ck01.mrg 56 10 gold tire.01 p---a 9:0-ARGM-TMP 10:0-rel 11:0-ARG0
+brown/ck/ck01.mrg 56 3 gold resent.01 vp--a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 57 19 gold please.01 vp--a 18:1-ARG1 19:0-rel
+brown/ck/ck01.mrg 57 1 gold eat.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck01.mrg 57 22 gold move.01 vp--a 0:1-ARG1 22:0-rel 23:1-ARGM-LOC 31:2-ARGM-TMP 39:1-ARGM-MNR 45:1-ARGM-MNR
+brown/ck/ck01.mrg 57 4 gold feel.01 vp--a 3:1-ARG0 4:0-rel 5:1-ARG1-like
+brown/ck/ck01.mrg 57 9 gold sleep.01 vp--a 0:1-ARG0 9:0-rel 10:3-ARGM-EXT
+brown/ck/ck01.mrg 58 3 gold go.13 pp--p 0:1-ARG1 3:0-rel
+brown/ck/ck01.mrg 59 20 gold stare.01 i---a 0:1*7:0-ARG0 20:0-rel 21:1-ARGM-DIR 22:1-ARG1-at 26:1-ARGM-ADV
+brown/ck/ck01.mrg 59 28 gold move.01 p---a 0:1*7:0*27:0-ARG1 28:0-rel
+brown/ck/ck01.mrg 59 9 gold sit.01 i---a 0:1*7:0-ARG1 9:0-rel 10:1-ARGM-TMP 12:1-ARG2-in 15:1-ARGM-LOC
+brown/ck/ck01.mrg 60 2 gold lie.01 vp--a 0:1-ARG1 2:0-rel 3:2-ARGM-MNR
+brown/ck/ck01.mrg 60 30 gold hang.01 vp--a 28:1-ARG1 30:0-rel 31:2-ARGM-MNR
+brown/ck/ck01.mrg 6 11 gold warn.01 ppp-p 8:1*12:0-ARG2 11:0-rel 13:1-ARGM-TMP 14:1-ARG1-about
+brown/ck/ck01.mrg 61 23 gold answer.01 ----a 0:2-ARGM-TMP 21:1-ARG0 22:0-ARGM-MOD 23:0-rel
+brown/ck/ck01.mrg 61 37 gold repeat.01 i---a 33:1*35:0-ARG0 37:0-rel
+brown/ck/ck01.mrg 61 3 gold ask.01 pp--p 3:0-rel 1:1*4:0-ARG2 5:1-ARG1 0:1*19:0-ARGM-TMP
+brown/ck/ck01.mrg 61 41 gold speak.01 ppp-a 39:1-ARG0 41:0-rel 42:1-ARGM-MNR
+brown/ck/ck01.mrg 61 47 gold repeat.01 ----a 26:1-ARGM-ADV 45:1-ARG0 46:0-ARGM-MOD 47:0-rel 48:1-ARG1 50:1,55:1-ARGM-MNR 60:2-ARGM-MNR
+brown/ck/ck01.mrg 61 8 gold address.02 pp--p 8:0-rel 1:1*9:0-ARG1 10:1-ARGM-MNR 0:1*19:0-ARGM-TMP
+brown/ck/ck01.mrg 6 18 gold puff.01 vp--a 0:1-ARG0 7:1-ARGM-CAU 18:0-rel 19:1-ARG1-at 22:1-ARGM-MNR
+brown/ck/ck01.mrg 6 1 gold wear.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 62 3 gold mention.01 ppp-a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:1-ARG1
+brown/ck/ck01.mrg 6 27 gold stain.01 p---p 27:0-rel 23:1*28:0-ARG1 29:1-ARGM-MNR
+brown/ck/ck01.mrg 63 19 gold range.01 p---a 18:0-ARGM-MNR 19:0-rel 20:0-ARG1
+brown/ck/ck01.mrg 63 27 gold encounter.01 ----a 17:1-ARG0 21:0-ARGM-MOD 22:1-ARGM-MNR 24:1-ARGM-MNR 27:0-rel 28:1-ARG1
+brown/ck/ck01.mrg 63 4 gold think.01 ppp-a 0:1-ARG0 2:0-ARGM-NEG 3:1-ARGM-ADV 4:0-rel 5:1-ARG2-about 7:1-ARGM-EXT 8:1-ARGM-ADV
+brown/ck/ck01.mrg 64 40 gold bandage.01 p---p 40:0-rel 41:0-ARG1
+brown/ck/ck01.mrg 64 4 gold feel.01 vp--a 0:1-ARGM-TMP 3:1-ARG0 4:0-rel 5:2-ARG1 9:1-ARGM-LOC
+brown/ck/ck01.mrg 64 51 gold throb.01 vp--a 39:1*48:1*49:0-ARG1 50:1-ARGM-TMP 51:0-rel
+brown/ck/ck01.mrg 65 4 gold drug.01 pp--p 0:1-ARG1 4:0-rel
+brown/ck/ck01.mrg 67 1 gold mention.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 68 15 gold bother.02 pnp3a 7:2-ARG0 14:0-ARGM-NEG 15:0-rel 16:2-ARG1
+brown/ck/ck01.mrg 68 18 gold phone.01 i---a 7:2*16:0-ARG0 18:0-rel
+brown/ck/ck01.mrg 68 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 68 20 gold visit.01 i---a 7:2*16:0-ARG0 20:0-rel
+brown/ck/ck01.mrg 68 5 gold notice.01 vn--a 4:1-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck01.mrg 69 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 71 1 gold think.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG2-about 4:1-ARGM-TMP
+brown/ck/ck01.mrg 71 8 gold turn.02 vp--a 0:1-ARG0 6:1-ARGM-TMP 7:1-ARGM-MNR 8:0-rel 9:1-ARG1 11:1-ARGM-DIR
+brown/ck/ck01.mrg 7 19 gold look.01 p---a 0:2*18:0-ARG0 19:0-rel 20:1-ARGM-DIR 21:1-ARG1-at 29:1-ARGM-MNR
+brown/ck/ck01.mrg 72 15 gold see.01 vp--a 0:1-ARGM-TMP 2:2-ARGM-ADV 14:1-ARG0 15:0-rel 16:2-ARG1
+brown/ck/ck01.mrg 72 17 gold come.01 ----a 16:1-ARG1 17:0-rel 18:1-ARG3-out
+brown/ck/ck01.mrg 72 3 gold sit.01 p---a 2:0*14:1-ARG1 3:0-rel 4:1-ARG2-at 8:1-ARGM-LOC
+brown/ck/ck01.mrg 7 3 gold sit.01 vp--a 0:2-ARG1 3:0-rel 4:2-ARGM-ADV 10:2-ARGM-ADV 18:2-ARGM-ADV
+brown/ck/ck01.mrg 74 5 gold look.02 vp--a 0:1-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck01.mrg 75 11 gold reveal.01 ----a 0:2-ARG0 7:0-ARGM-MOD 11:0-rel 12:1-ARG1
+brown/ck/ck01.mrg 75 8 gold hide.01 ----a 0:2-ARG0 7:0-ARGM-MOD 8:0-rel 12:1-ARG1
+brown/ck/ck01.mrg 7 5 gold sprawl.01 p---p 0:2*4:0-ARG1 5:0-rel 6:1-ARG2-in
+brown/ck/ck01.mrg 76 10 gold move.01 vp--a 0:1-ARG1 10:0,11:1-rel 12:1-ARGM-MNR
+brown/ck/ck01.mrg 76 1 gold turn.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARGM-LOC
+brown/ck/ck01.mrg 77 15 gold interest.01 vp--a 6:1-ARG0 11:1-ARGM-TMP 15:0-rel 16:0*17:1-ARG1
+brown/ck/ck01.mrg 77 1 gold think.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck01.mrg 77 21 gold hold.01 vp--a 20:1-ARG0 21:0-rel 22:1-ARG1 24:1-ARGM-LOC
+brown/ck/ck01.mrg 77 4 gold see.01 vp--a 3:1-ARG0 4:0-rel 19:2-ARG1
+brown/ck/ck01.mrg 77 7 gold awaken.01 vp--a 6:1-ARG0 7:0-rel 8:0*17:1-ARG1
+brown/ck/ck01.mrg 78 14 gold get.05 vp--a 4:1-ARG1 14:0-rel 15:1-ARG2-into
+brown/ck/ck01.mrg 78 2 gold disappear.01 vp--a 0:1-ARGM-DIS 1:1-ARG1 2:0-rel
+brown/ck/ck01.mrg 78 5 gold get.05 vp--a 4:1-ARG1 5:0,6:1-rel
+brown/ck/ck01.mrg 78 8 gold go.02 vp--a 4:1-ARG0 8:0-rel 9:1-ARG4-into
+brown/ck/ck01.mrg 79 12 gold forget.01 ppp-a 0:1-ARGM-TMP 10:1-ARG0 12:0-rel 13:1-ARG1-about
+brown/ck/ck01.mrg 79 15 gold see.01 g---- 10:1*14:0-ARG0 15:0-rel 16:1-ARG1
+brown/ck/ck01.mrg 80 11 gold make.XX i---a 4:1*9:0-ARG0 11:0-rel 12:1,15:1-ARG1 17:2-ARGM-PNC
+brown/ck/ck01.mrg 80 19 gold see.01 i---a 4:1*9:0*17:0-ARG0 19:0-rel 20:1-ARG1
+brown/ck/ck01.mrg 80 22 gold come.01 vp--a 0:1-ARG1 3:1-ARGM-CAU 22:0-rel 23:1-ARGM-MNR 26:1-ARG4-to
+brown/ck/ck01.mrg 80 8 gold allow.01 pp--p 4:1,9:2-ARG1 6:1-ARGM-NEG 8:0-rel
+brown/ck/ck01.mrg 81 19 gold cross.01 p---p 17:1-ARG1 19:0-rel 20:2-ARGM-MNR
+brown/ck/ck01.mrg 81 24 gold cross.02 p---p 24:0-rel 25:0-ARG1
+brown/ck/ck01.mrg 81 27 gold tap.01 ----a 23:1-ARG0 26:0-ARGM-MOD 27:0-rel 28:1-ARG1
+brown/ck/ck01.mrg 81 2 gold sit.01 ----a 0:1-ARG1 1:0-ARGM-MOD 2:0-rel 4:2-ARGM-ADV 9:1-ARG2-on 17:2-ARGM-ADV
+brown/ck/ck01.mrg 8 16 gold come.01 vp--a 0:2-ARG1 16:0-rel 17:1-ARG4-to 20:3-ARGM-PNC
+brown/ck/ck01.mrg 8 22 gold talk.01 i---a 0:2*20:0-ARG0 22:0-rel 23:1-ARG1
+brown/ck/ck01.mrg 8 28 gold introduce.01 p---p 0:1*25:0*29:0-ARG1 28:0-rel 30:1-ARG2-to
+brown/ck/ck01.mrg 83 7 gold say.01 vp--a 1:1*8:0-ARG1 6:1-ARG0 7:0-rel 9:1-ARGM-MNR
+brown/ck/ck01.mrg 84 2 gold imagine.01 vn--a 1:1-ARG0 2:0-rel 4:2-ARG1
+brown/ck/ck01.mrg 84 7 gold battle.01 pno-a 4:1-ARG0 6:1-ARGM-TMP 7:0-rel 8:1-ARGM-LOC
+brown/ck/ck01.mrg 85 4 gold go.02 vn--a 1:1-ARG0 3:0-ARGM-NEG 4:0-rel 5:1-ARG4-to 7:1-ARGM-TMP
+brown/ck/ck01.mrg 8 5 gold wear.01 vp--a 2:1*3:1*4:0-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck01.mrg 87 24 gold rest.01 vp--a 12:2-ARG1 24:0-rel 25:1-ARGM-MNR 26:1-ARGM-LOC
+brown/ck/ck01.mrg 87 5 gold bend.01 i---a 0:1*3:0-ARG0 5:0-rel 6:1-ARGM-DIR 7:2-ARGM-PNC
+brown/ck/ck01.mrg 87 9 gold hear.01 i---a 0:1*3:0*7:0-ARG0 9:0-rel
+brown/ck/ck01.mrg 88 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 5:1-ARGM-MNR
+brown/ck/ck01.mrg 8 9 gold have.03 vp--a 2:1*3:1*4:0-ARG0 9:0-rel 10:2-ARG1
+brown/ck/ck01.mrg 90 4 gold take.01 pno-a 2:1-ARG0 4:0-rel 5:1-ARG1
+brown/ck/ck01.mrg 91 1 gold turn.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARGM-MNR 3:1-ARGM-DIR
+brown/ck/ck01.mrg 92 12 gold get.05 ----a 4:1-ARGM-TMP 10:1-ARG1 11:0-ARGM-MOD 12:0,13:1-rel 14:1-ARGM-LOC 17:1-ARGM-ADV
+brown/ck/ck01.mrg 92 2 gold think.01 vn--a 1:1-ARG0 2:0-rel 3:1-ARG1
+brown/ck/ck01.mrg 93 14 gold exhaust.01 ----a 12:1-ARG0 13:0-ARGM-MOD 14:0-rel 15:1-ARG1 16:1-ARGM-ADV
+brown/ck/ck01.mrg 95 12 gold pick.04 vp--a 11:1-ARG0 12:0,14:1-rel 13:1-ARG1
+brown/ck/ck01.mrg 95 16 gold wag.01 vp--a 11:1-ARG0 16:0-rel 17:1-ARG1 18:1-ARGM-DIR
+brown/ck/ck01.mrg 96 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-MNR 5:2-ARG1
+brown/ck/ck01.mrg 96 7 gold keep.04 ----a 5:1-ARG0 6:1-ARGM-ADV 7:0-rel 8:1,10:1-ARG1
+brown/ck/ck01.mrg 97 2 gold glint.01 vp--a 0:1-ARG0 2:0-rel 3:2-ARGM-ADV 5:1-ARGM-LOC
+brown/ck/ck01.mrg 97 7 gold darken.01 p---a 7:0-rel 8:0-ARG1
+brown/ck/ck01.mrg 98 3 gold drop.02 vf--a 1:1-ARG1 2:0-ARGM-MOD 3:0,4:1-rel 5:1-ARGM-TMP 6:1-ARGM-TMP
+brown/ck/ck01.mrg 99 1 gold stay.02 vp--a 0:1-ARG1 1:0,2:1-rel 3:1-ARGM-TMP
+brown/ck/ck01.mrg 99 7 gold go.02 ppp-a 4:1-ARG0 7:0-rel
+brown/ck/ck02.mrg 0 18 gold sit.01 vp--a 0:2-ARG2-LOC 17:1-ARG1 18:0-rel 19:1-ARGM-MNR 21:3-ARGM-ADV
+brown/ck/ck02.mrg 0 28 gold defy.01 p---a 21:2-ARG0 28:0-rel 29:2-ARG1
+brown/ck/ck02.mrg 0 4 gold seem.01 vp--a 0:1*15:0-ARGM-LOC 1:1,5:2-ARG1 4:0-rel
+brown/ck/ck02.mrg 100 21 gold seem.01 vp--a 14:2,22:2-ARG1 21:0-rel
+brown/ck/ck02.mrg 100 24 gold resist.01 i---a 14:2*22:0-ARG0 24:0-rel 25:2-ARG1
+brown/ck/ck02.mrg 100 6 gold ease.02 ----a 0:1-ARGM-DIS 3:1-ARG0 4:0-ARGM-MOD 5:0-ARGM-NEG 6:0-rel 7:2-ARG1
+brown/ck/ck02.mrg 101 14 gold feel.01 vp--a 0:2-ARGM-ADV 13:1-ARG0 14:0-rel 15:1-ARG1
+brown/ck/ck02.mrg 101 16 gold unite.01 p---p 13:1-ARG1 15:0-ARGM-MNR 16:0-rel 17:1-ARG2-to
+brown/ck/ck02.mrg 101 1 gold sense.01 p---a 0:0*13:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck02.mrg 101 21 gold share.01 p---a 18:1-ARG0 21:0-rel 22:2-ARG1 26:1-ARG2-with
+brown/ck/ck02.mrg 102 15 gold gain.02 p---p 15:0-rel 13:1*16:0-ARG1 17:1-ARGM-ADV
+brown/ck/ck02.mrg 102 1 gold sense.01 vp--a 0:1-ARG0 1:0-rel 2:2,10:2-ARG1 5:1-ARGM-LOC
+brown/ck/ck02.mrg 102 28 gold imprison.01 p---p 28:0-rel 26:1*29:0-ARG1 30:1-ARGM-LOC
+brown/ck/ck02.mrg 103 16 gold throw.01 ppp-a 9:1*13:0*17:0-ARG1 14:1-ARG0 16:0-rel 18:1-ARGM-DIR 19:1-ARG2-to
+brown/ck/ck02.mrg 103 27 gold wander.01 vp--a 26:1-ARG0 27:0-rel
+brown/ck/ck02.mrg 103 30 gold feel.01 vp--a 24:1-ARGM-TMP 25:1-ARGM-TMP 29:1-ARG0 30:0-rel 31:2-ARG1
+brown/ck/ck02.mrg 103 5 gold puzzle.01 ppp-a 1:1-ARGM-LOC 3:1-ARG1 5:0-rel 6:2-ARG2
+brown/ck/ck02.mrg 10 3 gold clean.02 ----a 0:1*1:0-ARG0 2:0-ARGM-MOD 3:0,4:1-rel 5:1-ARG1 7:2-ARGM-TMP
+brown/ck/ck02.mrg 104 13 gold touch.01 ----a 2:1,3:1,8:1,14:1-ARG1 10:1-ARG0 11:0-ARGM-MOD 12:1-ARGM-ADV 13:0-rel
+brown/ck/ck02.mrg 104 21 gold make.02 i---a 2:2*19:0-ARG0 21:0-rel 22:1-ARG1 24:1-ARG2
+brown/ck/ck02.mrg 104 24 gold ache.01 ----a 22:1-ARG0 24:0-rel 25:1-ARGM-ADV
+brown/ck/ck02.mrg 104 33 gold sense.01 vp--a 29:1*31:0*34:0-ARG1 32:1-ARG0 33:0-rel 35:1-ARGM-LOC
+brown/ck/ck02.mrg 105 15 gold sleep.01 p---a 7:1*14:0-ARG0 15:0-rel 16:2-ARGM-LOC
+brown/ck/ck02.mrg 105 26 gold work.01 ppp-a 0:2-ARG0 26:0-rel 27:1-ARG1 30:1-ARGM-LOC
+brown/ck/ck02.mrg 105 34 gold know.01 vp--a 0:3*35:0-ARG1 33:1-ARG0 34:0-rel
+brown/ck/ck02.mrg 105 45 gold meet.02 ppp-a 40:1*42:1*47:0-ARGM-LOC 43:1-ARG0 45:0-rel 46:1-ARG1
+brown/ck/ck02.mrg 105 8 gold travel.01 vp--a 2:1*5:1*9:0-ARG1 7:1-ARG0 8:0-rel 10:1-ARGM-TMP 14:2-ARGM-ADV
+brown/ck/ck02.mrg 106 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck02.mrg 106 9 gold sever.01 ppp-p 6:1*10:0-ARG1 9:0-rel 11:1-ARGM-LOC
+brown/ck/ck02.mrg 107 3 gold fit.01 p---p 3:0-rel 1:1*4:0-ARG1 5:1-ARGM-LOC
+brown/ck/ck02.mrg 108 4 gold travel.01 ppp-a 0:1-ARG0 4:0-rel 5:1-ARGM-MNR 6:1-ARGM-TMP
+brown/ck/ck02.mrg 109 11 gold sign.01 i---a 7:1*9:0-ARG0 11:0-rel 12:1-ARG1 15:2-ARGM-ADV
+brown/ck/ck02.mrg 109 16 gold vouch.01 p---a 7:1*15:0-ARG0 16:0-rel 17:1-ARG1-for
+brown/ck/ck02.mrg 109 1 gold visit.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARGM-LOC
+brown/ck/ck02.mrg 109 22 gold visit.01 p---a 22:0-rel 23:0-ARG0
+brown/ck/ck02.mrg 110 11 gold write.01 i---a 0:1*9:0-ARG0 11:0-rel
+brown/ck/ck02.mrg 110 1 gold take.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARG2-in
+brown/ck/ck02.mrg 110 8 gold begin.01 vp--a 0:1-ARG0 8:0-rel 9:2-ARG1
+brown/ck/ck02.mrg 111 15 gold run.02 vp--a 11:1*13:1*14:0-ARG0 15:0-rel 16:1-ARGM-DIR 19:2-ARGM-PNC
+brown/ck/ck02.mrg 111 21 gold shout.01 i---a 11:1*13:1*14:0*19:0-ARG0 21:0-rel 22:1-ARG2-to
+brown/ck/ck02.mrg 111 25 gold stand.01 p---a 23:1-ARG1 25:0-rel 26:1-ARGM-LOC 27:1-ARG2-LOC
+brown/ck/ck02.mrg 111 2 gold wait.01 ----a 1:1-ARG1 2:0-rel
+brown/ck/ck02.mrg 11 14 gold light.01 vp--a 0:2-ARGM-ADV 7:1-ARG0 14:0-rel 15:1-ARG1 17:1-ARGM-TMP
+brown/ck/ck02.mrg 111 5 gold wait.01 ----a 1:1-ARG1 5:0-rel
+brown/ck/ck02.mrg 111 9 gold cry.01 vp--a 0:1*10:0-ARG1 9:0-rel 11:2-ARG0
+brown/ck/ck02.mrg 11 19 gold sit.02 g---- 7:1*18:0-ARG1 19:0,20:1-rel
+brown/ck/ck02.mrg 11 1 gold smile.01 p---a 0:0*7:1-ARG0 1:0-rel 2:1-ARG2-at
+brown/ck/ck02.mrg 112 14 gold watch.01 i---a 0:1*12:0-ARG0 14:0-rel 15:2-ARG1
+brown/ck/ck02.mrg 112 18 gold write.01 ----a 15:1-ARG0 18:0-rel 19:1-ARG1 21:1-ARGM-LOC
+brown/ck/ck02.mrg 112 1 gold crowd.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 12:2-ARGM-PNC
+brown/ck/ck02.mrg 112 6 gold peer.01 vp--a 0:1-ARG0 6:0-rel 7:1-ARG1-over 12:2-ARGM-PNC
+brown/ck/ck02.mrg 113 6 gold exclaim.01 vp--a 1:1*7:0-ARG1 5:1-ARG0 6:0-rel
+brown/ck/ck02.mrg 116 18 gold overcome.01 p-p-a 16:1-ARG0 18:0-rel 19:1-ARG1
+brown/ck/ck02.mrg 116 5 gold come.01 vp--a 0:1-ARGM-DIS 2:2,7:2-ARG1 5:0-rel
+brown/ck/ck02.mrg 117 12 gold ask.01 ppp-a 1:0,2:0,3:2,5:1,6:1,16:2-ARG1 10:1-ARG0 12:0-rel
+brown/ck/ck02.mrg 117 18 gold have.03 i---a 16:0-ARG0 18:0-rel 19:2-ARG1
+brown/ck/ck02.mrg 117 21 gold ask.01 p---a 19:1-ARG0 20:1-ARGM-TMP 21:0-rel 22:1-ARG2 23:1-ARG1-about
+brown/ck/ck02.mrg 118 14 gold laugh.02 ppp-a 1:2*15:0-ARG1 12:1-ARG0 14:0-rel
+brown/ck/ck02.mrg 11 8 gold turn.01 vp--a 0:2-ARGM-ADV 7:1-ARG1 8:0-rel 9:1-ARGM-DIR 10:1-ARGM-DIR
+brown/ck/ck02.mrg 120 8 gold miss.01 p---a 8:0-rel 9:0-ARG1
+brown/ck/ck02.mrg 121 1 gold refuse.01 vn--a 0:1-ARG0 1:0-rel 2:3-ARG1
+brown/ck/ck02.mrg 121 4 gold mention.01 i---a 0:1*2:0-ARG0 4:0-rel 5:0*11:1-ARG1
+brown/ck/ck02.mrg 121 9 gold notice.01 i---a 0:1*7:0-ARG0 9:0-rel 10:0*11:1-ARG1
+brown/ck/ck02.mrg 12 19 gold wait.01 ----a 0:1-ARGM-TMP 1:2-ARG1 13:0-ARGM-MOD 19:0-rel
+brown/ck/ck02.mrg 12 19 gold wait.01 ----a 7:1-ARGM-TMP 9:2-ARG1 13:0-ARGM-MOD 19:0-rel
+brown/ck/ck02.mrg 122 10 gold grant.01 p---p 7:1-ARG1 10:0-rel
+brown/ck/ck02.mrg 122 12 gold try.01 vn--a 0:1-ARG0 3:1-ARGM-ADV 12:0-rel 13:2-ARG1
+brown/ck/ck02.mrg 122 21 gold ask.01 vn--a 0:1-ARG0 3:1-ARGM-MNR 20:0-ARGM-NEG 21:0-rel 22:1-ARG1
+brown/ck/ck02.mrg 122 6 gold take.04 vn--a 0:1-ARG0 3:1-ARGM-MNR 6:0-rel 7:1-ARG1 9:1-ARG2-for
+brown/ck/ck02.mrg 123 13 gold have.03 vn--a 11:1-ARG0 13:0-rel 14:1-ARG1
+brown/ck/ck02.mrg 123 9 gold think.01 vn--a 8:1-ARG0 9:0-rel 10:1-ARG1
+brown/ck/ck02.mrg 124 7 gold tell.01 ppp-a 2:1*4:1*14:0-ARGM-TMP 5:1-ARG0 7:0-rel 8:1-ARG2 9:1-ARG1-about
+brown/ck/ck02.mrg 125 3 gold look.02 pno-a 1:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck02.mrg 125 9 gold rest.01 ----a 6:1-ARGM-LOC 7:1-ARG1 8:0-ARGM-MOD 9:0-rel
+brown/ck/ck02.mrg 127 19 gold find.01 vf--a 17:1-ARG0 18:0-ARGM-MOD 19:0-rel 20:1-ARGM-LOC 21:2-ARG1
+brown/ck/ck02.mrg 127 1 gold think.01 vn--a 0:1-ARG0 1:0-rel 3:1-ARGM-ADV 16:1-ARG1
+brown/ck/ck02.mrg 127 33 gold speak.01 pnp-a 31:1-ARG0 33:0-rel 27:1*29:1*34:0-ARG1
+brown/ck/ck02.mrg 128 5 gold ring.01 ppo-a 0:1-ARGM-TMP 3:1-ARG0 5:0-rel 6:1-ARG1 8:1-ARGM-LOC
+brown/ck/ck02.mrg 129 17 gold speak.01 vn--a 16:1-ARG0 17:0-rel 18:1-ARG1
+brown/ck/ck02.mrg 129 32 gold hear.01 vn--a 29:1-ARG0 31:0-ARGM-NEG 32:0-rel 33:1-ARG1 34:1-ARGM-MNR
+brown/ck/ck02.mrg 129 4 gold open.01 vp--a 0:1*2:1*3:0-ARG0 4:0-rel 5:1-ARG1
+brown/ck/ck02.mrg 129 8 gold calm.01 vp--a 0:2-ARG0 7:1-ARGM-TMP 8:0-rel 9:2-ARG1
+brown/ck/ck02.mrg 130 10 gold sprout.01 p---a 8:1-ARG1 10:0-rel 11:1-ARG2-on
+brown/ck/ck02.mrg 130 1 gold smile.01 vp--a 0:1-ARG0 1:0-rel
+brown/ck/ck02.mrg 130 20 gold help.01 ----a 18:1-ARG0 19:0-ARGM-MOD 20:0-rel
+brown/ck/ck02.mrg 130 3 gold stick.01 vp--a 0:1-ARG0 3:0-rel 4:2-ARG1 13:1-ARG2-into 16:1-ARGM-ADV
+brown/ck/ck02.mrg 131 10 gold take.01 vp--a 0:2-ARGM-ADV 7:1-ARG0 10:0-rel 11:1-ARG1 13:1-ARG2-from
+brown/ck/ck02.mrg 131 16 gold lead.01 vp--a 0:2-ARGM-ADV 7:1-ARG0 16:0-rel 17:1-ARG1 18:1-ARGM-DIR 21:1-ARG4-to
+brown/ck/ck02.mrg 131 1 gold smile.01 p---a 0:0*7:1-ARG0 1:0-rel 2:1-ARG2-at
+brown/ck/ck02.mrg 13 20 gold listen.01 p---a 9:1*17:0-ARG0 18:0-ARGM-NEG 19:0-ARGM-ADV 20:0-rel 21:1-ARGM-LOC 24:1-ARGM-LOC
+brown/ck/ck02.mrg 132 4 gold wait.01 vf--a 1:0-ARGM-MOD 2:1-ARG1 3:1-ARGM-ADV 4:0-rel 5:1-ARGM-LOC
+brown/ck/ck02.mrg 13 33 gold move.01 p---a 9:1*17:0-ARG1 33:0-rel 34:1-ARGM-ADV 36:1-ARG2-into
+brown/ck/ck02.mrg 13 5 gold go.02 i---a 1:1*3:0-ARG0 5:0-rel 6:1-ARGM-MNR
+brown/ck/ck02.mrg 14 5 gold expect.01 ppp-a 3:1-ARG0 5:0-rel 2:1*6:0-ARG1
+brown/ck/ck02.mrg 15 14 gold think.01 i---a 12:0-ARG0 14:0-rel 8:1*11:0*15:0-ARGM-TMP
+brown/ck/ck02.mrg 15 3 gold realize.01 ppp-a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:1-ARG1
+brown/ck/ck02.mrg 16 3 gold forget.01 ppp-a 0:1-ARGM-MNR 1:1-ARG0 3:0-rel 4:3-ARG1
+brown/ck/ck02.mrg 16 9 gold tell.01 p-p-p 4:1*10:0-ARG1 5:1-ARG2 6:0-ARGM-MOD 9:0-rel
+brown/ck/ck02.mrg 17 19 gold approach.01 p---p 19:0-rel 4:2*16:0*20:0-ARG2
+brown/ck/ck02.mrg 17 2 gold know.01 vp--a 0:1-ARGM-TMP 1:1-ARG0 2:0-rel 3:1-ARG1
+brown/ck/ck02.mrg 17 6 gold illuminate.01 p---p 4:1*7:0-ARG1 6:0-rel 8:1-ARG0-by
+brown/ck/ck02.mrg 18 10 gold occur.01 ----a 8:1-ARG1 9:0-ARGM-MOD 10:0-rel 11:2-ARGM-TMP
+brown/ck/ck02.mrg 18 2 gold take.14 ----a 0:1-ARG1 1:0-ARGM-MOD 2:0-rel 3:1-ARG2 4:1-ARGM-TMP
+brown/ck/ck02.mrg 20 4 gold become.01 i---a 2:1-ARG1 4:0-rel 5:1-ARG2 0:1*1:0*6:0-ARGM-TMP
+brown/ck/ck02.mrg 21 3 gold flatter.01 vp--a 0:2-ARG0 3:0-rel
+brown/ck/ck02.mrg 21 9 gold like.01 vp--a 6:1-ARG0 8:0-ARGM-NEG 9:0-rel 10:1-ARG1
+brown/ck/ck02.mrg 22 3 gold spill.02 vp--a 0:1-ARG1 2:0-ARGM-NEG 3:0,4:1-rel 5:1-ARGM-ADV
+brown/ck/ck02.mrg 23 17 gold walk.01 vp--a 7:2-ARGM-ADV 16:1-ARG0 17:0-rel 18:1-ARGM-DIR
+brown/ck/ck02.mrg 23 22 gold scan.01 vp--a 7:2-ARGM-ADV 16:1-ARG0 22:0-rel 23:1-ARG1
+brown/ck/ck02.mrg 23 4 gold see.01 ppp-a 0:1-ARG0 2:0-ARGM-NEG 3:1-ARGM-ADV 4:0-rel 5:1-ARG1 6:1-ARGM-TMP
+brown/ck/ck02.mrg 23 8 gold press.01 p---a 8:0-rel 9:1-ARG1 11:1-ARG2 12:1-ARGM-LOC 7:0*16:1-ARG0
+brown/ck/ck02.mrg 2 3 gold sit.01 vp--a 0:1-ARG2-LOC 1:1-ARG1 3:0-rel 5:2-ARGM-ADV
+brown/ck/ck02.mrg 24 13 gold peer.01 p---a 0:1*12:0-ARG0 13:0-rel 14:1-ARG1-at
+brown/ck/ck02.mrg 24 1 gold see.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck02.mrg 24 22 gold return.01 p---a 19:1-ARG1 21:1-ARGM-ADV 22:0-rel 23:1-ARG4-to
+brown/ck/ck02.mrg 24 7 gold stand.01 vp--a 0:1-ARG0 7:0-rel 8:1-ARG2-LOC 9:1-ARGM-TMP 12:2-ARGM-ADV 19:2-ARGM-ADV
+brown/ck/ck02.mrg 25 2 gold come.01 ppp-a 0:1-ARG1 2:0-rel 3:1-ARG4 4:1-ARGM-PNC
+brown/ck/ck02.mrg 25 8 gold test.01 i---a 0:1*6:0-ARG0 8:0-rel 9:1-ARG1-REC
+brown/ck/ck02.mrg 26 10 gold know.01 vp--a 0:1-ARGM-TMP 9:1-ARG0 10:0-rel 11:1-ARG1
+brown/ck/ck02.mrg 26 15 gold believe.01 vp--a 12:1-ARG0 14:0-ARGM-NEG 15:0-rel 16:1-ARG1-in
+brown/ck/ck02.mrg 26 7 gold unsettle.01 pp--p 1:2-ARG1 6:1-ARGM-TMP 7:0-rel
+brown/ck/ck02.mrg 2 6 gold brood.01 p---a 1:1*5:0-ARG0 6:0-rel 7:1-ARG1-over
+brown/ck/ck02.mrg 28 12 gold feel.02 p---a 4:1*11:0-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck02.mrg 28 2 gold come.01 ppp-a 0:1-ARG1 2:0-rel 3:1-ARGM-CAU
+brown/ck/ck02.mrg 28 7 gold live.02 ----a 4:1-ARG0 5:0-ARGM-MOD 6:0-ARGM-NEG 7:0,8:1-rel 9:1-ARG1 11:2-ARGM-ADV
+brown/ck/ck02.mrg 29 10 gold lead.01 vp--a 8:1-ARG0 10:0-rel 5:1*7:1*11:0-ARG1 12:1-ARGM-DIR 13:1-ARGM-TMP
+brown/ck/ck02.mrg 30 13 gold lug.01 vp--a 11:1-ARG0 13:0-rel 14:2-ARG1
+brown/ck/ck02.mrg 30 1 gold beam.02 p---a 1:0-rel 2:0-ARG0
+brown/ck/ck02.mrg 30 4 gold carry.01 ppo-a 0:1-ARG0 4:0-rel 5:1-ARG1
+brown/ck/ck02.mrg 31 4 gold carry.01 vp--a 0:2-ARG0 4:0-rel 6:1-ARGM-ADV 15:2-ARG1
+brown/ck/ck02.mrg 3 17 gold take.01 ----a 0:2-ARGM-ADV 14:0-ARGM-MOD 15:1-ARG0 16:1-ARGM-ADV 17:0-rel 18:1-ARG1
+brown/ck/ck02.mrg 3 1 gold gouge.01 ----a 0:1-ARG0 1:0-rel 8:1-ARG1 9:1-ARGM-ADV
+brown/ck/ck02.mrg 32 1 gold carry.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck02.mrg 32 20 gold name.01 p---p 17:1-ARG1 20:0-rel 21:2-ARG2
+brown/ck/ck02.mrg 33 2 gold brief.01 ppp-a 0:1-ARG0 2:0-rel 3:1-ARG1 7:1-ARGM-TMP
+brown/ck/ck02.mrg 3 3 gold burn.01 ----a 0:1-ARG0 3:0-rel 8:1-ARG1 9:1-ARGM-MNR
+brown/ck/ck02.mrg 34 12 gold say.01 ppp-a 1:2*13:0-ARG1 10:1-ARG0 12:0-rel
+brown/ck/ck02.mrg 34 3 gold sit.01 vn--a 1:1-ARG1 2:0-ARGM-ADV 3:0-rel 4:2-ARGM-MNR
+brown/ck/ck02.mrg 34 7 gold wait.01 vn--a 1:1-ARG1 2:0-ARGM-ADV 7:0-rel
+brown/ck/ck02.mrg 3 5 gold blast.02 ----a 0:1-ARG0 5:0-rel 8:1-ARG1 9:1-ARGM-ADV
+brown/ck/ck02.mrg 36 4 gold show.02 vn-3a 1:1-ARG1 3:0-ARGM-NEG 4:0,5:1-rel
+brown/ck/ck02.mrg 37 3 gold hold.04 vn--a 0:1-ARGM-DIS 2:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck02.mrg 3 7 gold insult.01 ----a 0:1-ARG0 7:0-rel 8:1-ARG1 9:1-ARGM-ADV
+brown/ck/ck02.mrg 38 13 gold pull.02 vn-3a 12:1-ARG1 13:0,14:1-rel 15:1-ARGM-TMP
+brown/ck/ck02.mrg 38 17 gold say.01 vn--a 16:1-ARG0 17:0-rel 18:1-ARG1
+brown/ck/ck02.mrg 38 2 gold pull.02 vn--a 0:1-ARGM-TMP 1:1-ARG1 2:0,3:1-rel 4:1-ARG2-under
+brown/ck/ck02.mrg 39 12 gold get.01 i---a 10:0-ARG0 12:0-rel 13:2-ARG1
+brown/ck/ck02.mrg 39 14 gold leave.01 p---p 13:1-ARG0 14:0-rel 15:1-ARGM-ADV
+brown/ck/ck02.mrg 39 1 gold remember.01 vn--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck02.mrg 39 4 gold say.01 vp--a 2:1*5:0-ARG1 3:1-ARG0 4:0-rel 6:1-ARG3-about
+brown/ck/ck02.mrg 39 8 gold go.17 g---- 7:0-ARG0 8:0-rel 9:1-ARGM-DIR 10:2-ARGM-PNC
+brown/ck/ck02.mrg 40 2 gold hold.03 vn-3a 0:1-ARG1 1:1-ARGM-TMP 2:0-rel
+brown/ck/ck02.mrg 41 1 gold bring.01 vn--a 0:1-ARG0 1:0-rel 2:1-ARGM-DIR 3:2-ARG1
+brown/ck/ck02.mrg 4 13 gold reign.01 vp--a 8:1*10:1*14:0-ARG1 12:1-ARG0 13:0-rel
+brown/ck/ck02.mrg 4 18 gold hide.01 ppp-a 0:1-ARGM-LOC 7:1-ARGM-LOC 16:1-ARG0 18:0-rel 19:2-ARG1
+brown/ck/ck02.mrg 42 5 gold pass.03 ppp-a 0:1-ARGM-TMP 3:1-ARG1 5:0-rel 6:1-ARGM-DIR 10:1-ARGM-LOC
+brown/ck/ck02.mrg 43 1 gold begin.01 vn--a 0:1*2:0-ARGM-TMP 1:0-rel 3:2-ARG1
+brown/ck/ck02.mrg 45 7 gold say.01 vp--a 0:2*8:0-ARG1 6:1-ARG0 7:0-rel
+brown/ck/ck02.mrg 46 15 gold have.04 vp--a 12:1-ARG0 13:1-ARGM-MNR 15:0-rel 16:2-ARG1
+brown/ck/ck02.mrg 46 17 gold go.16 ----a 16:1-ARG1 17:0,18:1-rel 19:1-ARGM-LOC
+brown/ck/ck02.mrg 46 1 gold set.02 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARG2 11:1-ARGM-ADV
+brown/ck/ck02.mrg 46 2 gold bounce.01 p---a 2:0-rel 3:0-ARG1
+brown/ck/ck02.mrg 46 5 gold jump.03 i---a 2:1-ARG0 5:0-rel 8:1-ARGM-LOC
+brown/ck/ck02.mrg 46 7 gold explode.01 i---a 2:1-ARG1 7:0-rel 8:1-ARGM-LOC
+brown/ck/ck02.mrg 49 10 gold turn.02 p---p 9:0-ARGM-MNR 10:0-rel 11:1,13:0-ARG1
+brown/ck/ck02.mrg 50 2 gold defy.01 vp--a 0:0-ARGM-DIS 1:1-ARG0 2:0-rel 3:1-ARG1
+brown/ck/ck02.mrg 5 1 gold rape.01 p---p 1:0-rel 2:0-ARG1
+brown/ck/ck02.mrg 52 2 gold misplace.01 p---p 0:1*3:0-ARG1 2:0-rel
+brown/ck/ck02.mrg 52 7 gold miss.01 p---a 5:1-ARG1 7:0-rel
+brown/ck/ck02.mrg 54 10 gold set.05 i---a 3:1*8:0-ARG0 10:0,11:1-rel 12:1-ARG1
+brown/ck/ck02.mrg 54 7 gold wire.02 p---p 6:1-ARG1 7:0-rel 8:2-ARG2
+brown/ck/ck02.mrg 55 5 gold fill.01 i---a 0:1*2:0*3:0-ARG0 5:0-rel 6:1-ARG1 8:1-ARG2-with
+brown/ck/ck02.mrg 56 13 gold look.01 g---- 0:1*12:0-ARG0 13:0-rel 14:1-ARG1-at
+brown/ck/ck02.mrg 56 1 gold try.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1 11:1-ARGM-MNR
+brown/ck/ck02.mrg 56 4 gold shake.02 i---a 0:1*2:0-ARG0 4:0,5:1-rel 6:2-ARG1 11:1-ARGM-ADV
+brown/ck/ck02.mrg 5 7 gold await.01 p---a 4:1-ARG1 7:0-rel 8:1-ARG2
+brown/ck/ck02.mrg 58 20 gold give.01 vn-3a 18:1*19:0-ARG0 20:0-rel 21:1-ARG2 22:2-ARG1
+brown/ck/ck02.mrg 58 26 gold get.03 i---a 21:1*24:0-ARG1 26:0-rel 27:1-ARG2
+brown/ck/ck02.mrg 58 27 gold settle.03 p---p 21:1*24:0*28:0-ARG1 27:0-rel 29:1-ARGM-LOC
+brown/ck/ck02.mrg 58 2 gold say.01 ppp-a 0:1-ARG0 2:0-rel 3:1-ARG1
+brown/ck/ck02.mrg 58 8 gold bounce.01 p---p 6:0-ARGM-MOD 8:0-rel 4:1*9:0-ARG1 10:1-ARGM-ADV 13:1-ARGM-TMP
+brown/ck/ck02.mrg 59 14 gold get.03 vp--a 11:1-ARG1 13:0-ARGM-NEG 14:0-rel 15:1-ARG2
+brown/ck/ck02.mrg 59 15 gold lose.02 p---p 11:1*16:0-ARG1 13:0-ARGM-NEG 15:0-rel
+brown/ck/ck02.mrg 59 20 gold place.01 ppp-a 0:2-ARGM-ADV 18:1-ARG0 20:0-rel 21:1-ARG1 24:1-ARG2-in 30:1-ARGM-TMP
+brown/ck/ck02.mrg 59 32 gold file.03 vp--a 31:1-ARG0 32:0-rel 33:1-ARGM-DIR
+brown/ck/ck02.mrg 60 12 gold hear.01 ----a 0:2-ARGM-ADV 10:1-ARG0 11:0-ARGM-MOD 12:0-rel 13:1-ARGM-LOC 15:2-ARG1
+brown/ck/ck02.mrg 60 3 gold fix.XX p---p 0:1-ARG1 2:1-ARGM-TMP 3:0-rel 4:1-ARG2-on
+brown/ck/ck02.mrg 6 10 gold stretch.01 vp--a 0:1-ARGM-LOC 10:0-rel 11:2-ARG1
+brown/ck/ck02.mrg 61 3 gold hear.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:1-ARGM-ADV 3:0-rel 4:2-ARG1
+brown/ck/ck02.mrg 61 9 gold see.01 ppp-a 7:1-ARG0 9:0-rel 4:1*6:1*10:0-ARG1 11:1-ARGM-LOC
+brown/ck/ck02.mrg 62 5 gold follow.02 i---a 0:1*3:0-ARG0 5:0-rel 6:1-ARG2 7:1-ARGM-ADV
+brown/ck/ck02.mrg 63 14 gold provide.01 vn-3a 13:1-ARG0 14:0-rel 15:1-ARG1 16:1-ARG2-for
+brown/ck/ck02.mrg 63 8 gold say.01 ppp-a 1:2,9:1,12:0,13:2-ARG1 6:1-ARG0 8:0-rel
+brown/ck/ck02.mrg 64 14 gold glow.01 vp--a 10:1*12:1*13:0-ARG0 14:0-rel 15:1-ARG1-in
+brown/ck/ck02.mrg 64 3 gold pick.09 ppo-a 0:1-ARGM-TMP 1:1-ARG0 3:0-rel 4:1-ARG1 6:1-ARGM-DIR
+brown/ck/ck02.mrg 65 3 gold rise.01 vp--a 0:1*4:0-ARGM-LOC 3:0-rel 5:2-ARG1
+brown/ck/ck02.mrg 65 7 gold cover.02 p---p 5:1*8:0-ARG1 7:0-rel 9:1-ARG2-with
+brown/ck/ck02.mrg 66 10 gold hold.02 vp--a 0:1-ARGM-ADV 8:1-ARG0 10:0,12:1-rel 11:1-ARG1 13:1-ARGM-ADV
+brown/ck/ck02.mrg 66 20 gold meet.01 vp--a 19:1-ARG0 20:0-rel 21:1-ARG1
+brown/ck/ck02.mrg 66 26 gold warn.01 vp--a 18:1-ARGM-ADV 25:1-ARG0 26:0-rel 27:1-ARG2
+brown/ck/ck02.mrg 66 3 gold extend.01 vp--a 1:1-ARG0 3:0-rel 4:1-ARGM-DIR 5:1-ARG2
+brown/ck/ck02.mrg 67 10 gold turn.01 vp--a 8:1-ARGM-TMP 9:1-ARG1 10:0-rel 11:1-ARGM-DIR
+brown/ck/ck02.mrg 67 15 gold climb.01 vp--a 8:1-ARGM-TMP 9:1-ARG0 15:0-rel 16:1-ARG1
+brown/ck/ck02.mrg 67 20 gold walk.01 vp--a 8:1-ARGM-TMP 9:1-ARG0 20:0-rel 21:1-ARGM-DIR 24:1-ARGM-TMP
+brown/ck/ck02.mrg 67 4 gold advance.01 vp--a 2:1-ARGM-MNR 3:1-ARG1 4:0-rel 5:1-ARG4
+brown/ck/ck02.mrg 68 9 gold sigh.02 p---a 7:1-ARG0 9:0-rel 10:1-ARGM-ADV
+brown/ck/ck02.mrg 69 17 gold strip.01 vp--a 0:0-ARGM-DIS 1:1-ARGM-TMP 5:1-ARGM-MNR 15:1-ARG0 17:0-rel 18:1-ARG1 19:1-ARG2-from
+brown/ck/ck02.mrg 70 15 gold feel.01 vp--a 14:1-ARG0 15:0-rel 16:2-ARG1
+brown/ck/ck02.mrg 70 19 gold tremble.01 ----a 16:1-ARG1 19:0-rel 21:2-ARGM-ADV
+brown/ck/ck02.mrg 70 22 gold chill.01 p---p 16:1*21:0*23:0-ARG1 22:0-rel 24:1-ARG0-by
+brown/ck/ck02.mrg 70 6 gold leave.01 vp--a 0:2-ARG0 6:0-rel 7:1-ARG1 8:2-ARG2 13:1-ARGM-TMP
+brown/ck/ck02.mrg 71 16 gold strip.01 ppp-a 13:1-ARG0 16:0-rel 17:1-ARG2 18:1-ARG1-of
+brown/ck/ck02.mrg 71 8 gold lack.01 vp--a 0:2-ARG0 8:0-rel 9:1-ARG1 11:1-ARGM-ADV
+brown/ck/ck02.mrg 72 3 gold move.01 vp--a 0:1-ARG1 3:0-rel 4:1-ARGM-MNR 11:2-ARGM-ADV
+brown/ck/ck02.mrg 7 23 gold stop.01 p---p 19:2,21:0-ARG1 23:0-rel 24:1-ARGM-MNR
+brown/ck/ck02.mrg 7 31 gold await.01 p---a 15:1*30:0-ARG1 31:0-rel 32:2-ARG2 39:2-ARGM-PNC
+brown/ck/ck02.mrg 73 8 gold assume.01 vp--a 0:2-ARG0 8:0-rel 9:1-ARG1
+brown/ck/ck02.mrg 74 10 gold enchain.01 p---p 10:0-rel 11:0-ARG1
+brown/ck/ck02.mrg 74 17 gold tear.01 i---a 8:1*15:0-ARG0 17:0-rel 18:0*23:1-ARG1
+brown/ck/ck02.mrg 7 41 gold start.01 i---a 32:2*39:0-ARG0 41:0-rel 42:2,44:0-ARG1 45:1-ARGM-TMP
+brown/ck/ck02.mrg 74 20 gold gnaw.XX i---a 8:1*15:0-ARG0 20:0-rel 21:1,23:1-ARG1
+brown/ck/ck02.mrg 7 44 gold roll.01 p---a 42:2-ARG1 44:0-rel 45:1-ARGM-TMP
+brown/ck/ck02.mrg 75 12 gold threaten.01 p---a 5:1*11:0-ARG0 12:0-rel 13:2-ARG1
+brown/ck/ck02.mrg 75 15 gold hide.01 p---p 15:0-rel 16:0-ARG1
+brown/ck/ck02.mrg 75 6 gold leer.01 vp--a 0:2-ARGM-ADV 5:1-ARG0 6:0-rel 7:1-ARGM-DIR 8:1-ARG1-at 11:2-ARGM-ADV
+brown/ck/ck02.mrg 76 11 gold slash.01 p---a 9:1-ARG0 11:0-rel 12:1-ARG1
+brown/ck/ck02.mrg 76 6 gold flash.01 vp--a 0:1-ARGM-LOC 4:1-ARG1 6:0-rel 7:1-ARGM-PRD 9:2-ARGM-ADV
+brown/ck/ck02.mrg 77 11 gold reflect.01 pp--p 11:0-rel 0:1*12:0-ARG1 13:1-ARGM-DIR 16:1-ARGM-ADV
+brown/ck/ck02.mrg 77 20 gold diffuse.01 p---p 20:0-rel 21:0-ARG1
+brown/ck/ck02.mrg 77 4 gold absorb.01 pp--p 0:1*5:0-ARG1 4:0-rel 6:1-ARG0-by
+brown/ck/ck02.mrg 78 5 gold have.03 vp--a 0:1-ARGM-LOC 3:1-ARG0 5:0-rel 6:2-ARG1
+brown/ck/ck02.mrg 79 16 gold leave.01 ppp-a 11:1-ARGM-ADV 3:1*9:1*14:0-ARG0 16:0-rel 17:1-ARG1
+brown/ck/ck02.mrg 79 1 gold think.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1-of
+brown/ck/ck02.mrg 79 23 gold work.01 p---a 22:1-ARG0 23:0-rel 24:1-ARGM-ADV
+brown/ck/ck02.mrg 79 28 gold pick.09 ppp-a 11:1-ARGM-MNR 3:1*9:1*14:0-ARG0 22:2-ARGM-ADV 28:0-rel 29:1-ARG1 31:1-ARGM-DIR
+brown/ck/ck02.mrg 7 9 gold stretch.01 vp--a 0:1-ARGM-LOC 5:2,14:1-ARG1 9:0-rel 10:1-ARG2-out
+brown/ck/ck02.mrg 80 31 gold crawl.01 ppo-a 17:1,19:1,21:1,55:1-ARGM-LOC 23:1-ARG0 26:1-ARGM-TMP 30:1-ARGM-MNR 31:0-rel 32:1-ARGM-DIR
+brown/ck/ck02.mrg 80 36 gold sit.01 ppo-a 23:1-ARG1 26:1-ARGM-TMP 30:1-ARGM-MNR 36:0-rel 37:1-ARGM-MNR
+brown/ck/ck02.mrg 80 47 gold shout.01 ppo-a 23:1-ARG0 26:1-ARGM-TMP 47:0-rel 48:1-ARGM-LOC
+brown/ck/ck02.mrg 81 3 gold go.01 vp--a 0:2-ARG1 3:0-rel 4:1-ARGM-DIR
+brown/ck/ck02.mrg 81 7 gold raise.01 vp--a 6:1-ARG0 7:0-rel 8:1-ARG1
+brown/ck/ck02.mrg 82 3 gold stop.01 ppo-a 0:1-ARG1 3:0-rel
+brown/ck/ck02.mrg 83 1 gold come.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARGM-DIR
+brown/ck/ck02.mrg 84 10 gold whisper.01 vp--a 1:2*11:0-ARG1 9:1-ARG0 10:0-rel 13:2-ARGM-ADV
+brown/ck/ck02.mrg 84 14 gold point.01 p---a 9:1*13:0-ARG0 14:0-rel 15:1-ARG2-to
+brown/ck/ck02.mrg 84 2 gold take.01 ----a 1:0-ARG0 2:0-rel 3:2-ARG1
+brown/ck/ck02.mrg 85 2 gold give.01 ----a 1:0-ARG0 2:0-rel 3:1-ARG2 4:1-ARG1
+brown/ck/ck02.mrg 86 1 gold hand.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG2 3:1-ARG1
+brown/ck/ck02.mrg 86 9 gold disappear.01 vp--a 7:1-ARG1 8:1-ARGM-MNR 9:0-rel 10:1-ARGM-DIR
+brown/ck/ck02.mrg 87 11 gold look.01 vp--a 0:2-ARGM-ADV 10:1-ARG0 11:0,12:1-rel
+brown/ck/ck02.mrg 87 1 gold lie.01 p---a 0:0*10:1-ARG1 1:0-rel 2:1,5:1-ARG2
+brown/ck/ck02.mrg 88 4 gold hide.01 ppp-a 0:1-ARG0 2:1-ARGM-DIS 4:0-rel 5:1-ARG1 6:1-ARGM-LOC
+brown/ck/ck02.mrg 8 8 gold hang.01 vp--a 0:1-ARGM-LOC 3:2-ARG1 8:0-rel 9:1-ARG2-on
+brown/ck/ck02.mrg 89 5 gold see.01 ----a 0:1-ARGM-MNR 3:1-ARG0 4:0-ARGM-MOD 5:0-rel 6:1,7:1-ARG1
+brown/ck/ck02.mrg 90 12 gold set.03 p---a 5:1*11:0-ARG0 12:0,13:1-rel 14:1-ARG1 17:1-ARGM-LOC 21:1-ARGM-PNC
+brown/ck/ck02.mrg 90 25 gold fire.01 ----a 23:1-ARG1 24:0-ARGM-MOD 25:0-rel 26:1-ARGM-LOC
+brown/ck/ck02.mrg 91 11 gold sneak.01 vp--a 0:1-ARG0 8:1-ARGM-MNR 10:1-ARGM-MNR 11:0-rel 12:2-ARG3 16:1-ARG2-from
+brown/ck/ck02.mrg 91 1 gold ease.03 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1 6:1-ARG4
+brown/ck/ck02.mrg 91 24 gold mark.XX vp--a 19:1*22:1*23:0-ARG0 24:0-rel 25:2-ARG1 31:1-ARGM-ADV
+brown/ck/ck02.mrg 92 2 gold place.01 vp--a 0:1*3:0-ARG1 1:1-ARG0 2:0-rel 4:1-ARG2-within
+brown/ck/ck02.mrg 93 15 gold cool.01 vp--a 12:1-ARG1 15:0-rel 16:1-ARGM-ADV
+brown/ck/ck02.mrg 93 6 gold serve.01 ppp-a 0:2-ARG0 6:0-rel 7:2-ARG1
+brown/ck/ck02.mrg 93 9 gold overheat.01 i---a 0:2*7:0-ARG0 9:0-rel 10:1-ARG1
+brown/ck/ck02.mrg 94 14 gold feel.01 vp--a 0:1-ARGM-ADV 13:1-ARG0 14:0-rel 15:1-ARG1
+brown/ck/ck02.mrg 94 4 gold fit.01 vp--a 1:1-ARG1 4:0-rel 5:2-ARG1 11:1-ARGM-MNR
+brown/ck/ck02.mrg 95 15 gold see.01 vp--a 11:1-ARGM-LOC 14:1-ARG0 15:0-rel 16:2-ARG1
+brown/ck/ck02.mrg 95 1 gold seem.01 vp--a 0:1,2:2-ARG1 1:0-rel
+brown/ck/ck02.mrg 95 25 gold advance.01 i---a 19:1*20:1*21:0*23:0-ARG1 25:0-rel 28:1-ARGM-ADV
+brown/ck/ck02.mrg 95 31 gold watch.01 vp--a 30:1-ARG0 31:0-rel
+brown/ck/ck02.mrg 95 4 gold crouch.01 i---a 0:1*2:0-ARG0 4:0-rel 5:1-ARGM-LOC
+brown/ck/ck02.mrg 95 7 gold surround.01 p---a 7:0-rel 8:0-ARG1
+brown/ck/ck02.mrg 96 11 gold stare.01 vp--a 0:2-ARGM-ADV 9:1-ARG0 10:1-ARGM-TMP 11:0-rel 12:1-ARGM-MNR 16:2-ARGM-ADV
+brown/ck/ck02.mrg 97 12 gold seek.01 vp--a 10:2-ARG0 12:0-rel 13:1,14:1-ARG1
+brown/ck/ck02.mrg 98 15 gold dilute.01 p---a 2:2*14:0-ARG0 15:0-rel 16:2-ARG1 20:1-ARG4-to
+brown/ck/ck02.mrg 98 3 gold glow.01 p---a 3:0-rel 4:0,5:0,6:1-ARG0
+brown/ck/ck02.mrg 98 9 gold point.01 vp--a 0:1-ARGM-LOC 2:2-ARG1 9:0-rel 10:1-ARG2-at 14:2-ARGM-ADV
+brown/ck/ck02.mrg 99 12 gold shatter.01 p---p 12:0-rel 13:0-ARG1
+brown/ck/ck02.mrg 99 15 gold stand.01 p---a 9:1,11:1-ARG1 15:0-rel 16:1-ARGM-MNR
+brown/ck/ck02.mrg 99 5 gold hold.01 vp--a 1:1*3:1*4:0-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck02.mrg 99 8 gold become.01 vp--a 0:1-ARGM-DIS 1:2-ARG1 8:0-rel 9:2-ARG2
+brown/ck/ck03.mrg 0 1 gold sit.01 vp--a 0:1-ARG1 1:0-rel 2:1-ARG2-over 6:1-ARGM-LOC
+brown/ck/ck03.mrg 100 1 gold observe.01 vp--a 0:1-ARG0 1:0-rel 2:3-ARG1
+brown/ck/ck03.mrg 101 11 gold come.01 vp--a 10:1-ARG1 11:0-rel 12:1-ARG3-from
+brown/ck/ck03.mrg 101 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG2-to 7:2-ARG1
+brown/ck/ck03.mrg 101 8 gold understand.01 vn--a 7:1-ARG0 8:0-rel 9:1-ARG1
+brown/ck/ck03.mrg 10 1 gold mean.01 vp--a 0:1-ARG0 1:0-rel 2:3-ARG1
+brown/ck/ck03.mrg 102 3 gold find.01 vp--a 0:1*7:0-ARGM-MNR 2:1-ARG0 3:0,4:1-rel 5:1-ARG1-about
+brown/ck/ck03.mrg 103 1 gold wave.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARGM-ADV 5:1-ARG2-at
+brown/ck/ck03.mrg 104 8 gold decide.01 vp--a 7:1-ARG0 8:0-rel 0:2*9:1-ARG1
+brown/ck/ck03.mrg 105 10 gold learn.01 i---a 0:1*8:0-ARG0 10:0-rel 4:1*7:0*11:0-ARGM-TMP
+brown/ck/ck03.mrg 105 25 gold find.01 i---a 21:1*23:0-ARG0 25:0,26:1-rel
+brown/ck/ck03.mrg 105 3 gold have.03 vp--a 0:1-ARG0 3:0-rel 4:2-ARG1
+brown/ck/ck03.mrg 106 15 gold learn.01 vp--a 6:2*18:0-ARGM-ADV 14:1-ARG0 15:0-rel 16:1-ARG1
+brown/ck/ck03.mrg 106 4 gold tell.01 vp--a 0:1-ARG0 3:0-ARGM-NEG 4:0-rel 5:1-ARG2 6:3-ARG1
+brown/ck/ck03.mrg 107 11 gold make.01 ----a 5:1-ARG0 8:1-ARGM-TMP 10:0-ARGM-MOD 11:0-rel 12:1-ARG3 13:1-ARG1
+brown/ck/ck03.mrg 107 2 gold say.01 vp--a 0:1-ARG0 1:1-ARGM-ADV 2:0-rel 5:2-ARG1
+brown/ck/ck03.mrg 108 15 gold fix.XX ----a 10:1*12:1*13:0-ARG0 14:0-ARGM-MOD 15:0-rel 16:1-ARG1 17:1-ARGM-MNR 18:1-ARGM-ADV
+brown/ck/ck03.mrg 108 22 gold advertise.01 g---- 21:1-ARG0 22:0-rel 23:1-ARG1
+brown/ck/ck03.mrg 108 25 gold decorate.01 vp--a 24:1-ARG0 25:0-rel 26:2-ARG1
+brown/ck/ck03.mrg 108 33 gold let.01 ----a 32:0-ARG0 33:0-rel 34:2-ARG1
+brown/ck/ck03.mrg 108 35 gold know.01 ----a 34:1-ARG0 35:0-rel
+brown/ck/ck03.mrg 108 3 gold say.01 vp--a 0:1-ARG0 3:0-rel 6:2-ARG1
+brown/ck/ck03.mrg 108 8 gold hear.01 vn--a 7:1-ARG0 8:0-rel 9:1-ARG1-of
+brown/ck/ck03.mrg 109 2 gold do.02 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARG1 4:1-ARG2-with
+brown/ck/ck03.mrg 110 3 gold think.01 vp--a 0:1,8:1-ARG1 2:1-ARG0 3:0-rel 4:2-ARGM-MNR
+brown/ck/ck03.mrg 111 3 gold have.03 vp--a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:2-ARG1
+brown/ck/ck03.mrg 111 9 gold grow.04 i---a 0:1*7:0-ARG1 9:0,10:1-rel 11:1-ARGM-MNR
+brown/ck/ck03.mrg 11 1 gold sit.01 vp--a 0:1-ARG1 1:0-rel 2:2-ARGM-ADV
+brown/ck/ck03.mrg 112 12 gold get.01 i---a 7:1*10:0-ARG0 12:0-rel 5:1*6:0*13:0-ARG1
+brown/ck/ck03.mrg 112 4 gold acquire.01 i---a 0:1*2:0-ARG0 4:0-rel 5:2-ARG1 14:1-ARGM-TMP
+brown/ck/ck03.mrg 1 12 gold fill.01 pp--p 0:2*13:0-ARG1 12:0-rel 14:1-ARG2-with
+brown/ck/ck03.mrg 113 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 3:1-ARGM-LOC
+brown/ck/ck03.mrg 114 16 gold give.01 ----a 9:1*11:1*21:0-ARG1 12:1-ARG0 15:0-ARGM-MOD 16:0-rel 17:2-ARG2
+brown/ck/ck03.mrg 114 1 gold look.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1-at 4:1-ARGM-MNR
+brown/ck/ck03.mrg 114 6 gold search.01 p---a 6:0-rel 7:0-ARG0
+brown/ck/ck03.mrg 116 3 gold break.01 vf--a 1:0-ARGM-MOD 2:1-ARG0 3:0-rel 0:1*4:0-ARGM-LOC
+brown/ck/ck03.mrg 117 3 gold destroy.01 i---a 0:1*6:0-ARGM-MNR 1:1-ARGM-MNR 3:0-rel 4:1-ARG1
+brown/ck/ck03.mrg 118 16 gold love.01 vn-3a 13:1*14:1*15:0-ARG0 16:0-rel 17:1-ARG1 19:2-ARGM-EXT
+brown/ck/ck03.mrg 118 3 gold say.01 vp--a 0:1-ARG0 3:0-rel 4:1-ARGM-MNR 10:2-ARG1
+brown/ck/ck03.mrg 120 12 gold realize.01 i---a 6:0-ARGM-MOD 5:1*7:0-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck03.mrg 120 29 gold understand.01 vn-3a 14:2-ARG0 28:0-ARGM-NEG 29:0-rel 30:2-ARG1
+brown/ck/ck03.mrg 120 9 gold face.01 i---a 5:1*7:0-ARG0 9:0-rel 10:1-ARG1
+brown/ck/ck03.mrg 12 11 gold see.03 vn--a 10:1-ARG0 11:0-rel
+brown/ck/ck03.mrg 121 4 gold know.01 vn-3a 0:1*5:0-ARG1 2:1-ARG0 4:0-rel 6:1-ARG2-about
+brown/ck/ck03.mrg 12 18 gold mean.01 vn--a 17:1-ARG0 18:0-rel 19:2-ARG1
+brown/ck/ck03.mrg 12 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 5:1-ARGM-TMP
+brown/ck/ck03.mrg 122 1 gold listen.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-MNR
+brown/ck/ck03.mrg 123 7 gold protect.01 i---a 4:0-ARGM-MOD 3:1*5:0-ARG0 7:0-rel 8:1-ARG1 11:1-ARGM-ADV
+brown/ck/ck03.mrg 124 4 gold mean.01 vn--a 2:1*5:0-ARG1 3:1-ARG0 4:0-rel
+brown/ck/ck03.mrg 125 9 gold want.01 vn--a 8:1-ARG0 9:0-rel 10:2-ARG1
+brown/ck/ck03.mrg 126 10 gold go.06 ----a 6:1-ARG0 7:1-ARGM-ADV 8:0-ARGM-MOD 9:0-ARGM-NEG 10:0-rel 11:1-ARG2-DIR
+brown/ck/ck03.mrg 126 13 gold disarm.01 ----a 6:1-ARG0 7:1-ARGM-ADV 8:0-ARGM-MOD 9:0-ARGM-NEG 13:0-rel 14:1-ARG1
+brown/ck/ck03.mrg 126 17 gold pull.01 ----a 6:1-ARG0 7:1-ARGM-ADV 8:0-ARGM-MOD 9:0-ARGM-NEG 17:0-rel 18:1-ARG2 19:1-ARG1
+brown/ck/ck03.mrg 126 4 gold say.01 vn--a 3:1-ARG0 4:0-rel 5:1-ARG1 2:1*22:0-ARGM-CAU
+brown/ck/ck03.mrg 127 1 gold let.01 ----a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck03.mrg 127 3 gold tell.01 ----a 2:1-ARG0 3:0-rel 4:1-ARG2 5:2-ARG1
+brown/ck/ck03.mrg 127 7 gold happen.01 vp--a 5:1*6:0-ARG1 7:0-rel 8:1-ARG2-to 10:1-ARGM-TMP
+brown/ck/ck03.mrg 12 7 gold say.01 vp--a 6:1-ARG0 7:0-rel 10:3-ARG1
+brown/ck/ck03.mrg 128 17 gold tell.01 i---a 11:1*15:0-ARG0 17:0-rel 18:1-ARG2 19:1-ARG1
+brown/ck/ck03.mrg 128 24 gold tell.01 vp--a 23:1-ARG0 24:0-rel 25:1-ARG2 28:3-ARG1
+brown/ck/ck03.mrg 128 29 gold love.01 vn--a 28:1-ARG0 29:0-rel 30:1-ARG1 32:1-ARGM-MNR
+brown/ck/ck03.mrg 128 38 gold damn.01 ----a 36:0-ARGM-DIS 37:1-ARG0 38:0-rel 39:1-ARG1
+brown/ck/ck03.mrg 128 3 gold come.01 vp--a 0:2-ARG1 3:0-rel 4:1-ARG4-up
+brown/ck/ck03.mrg 128 43 gold crucify.XX pno3a 37:2-ARGM-DIS 41:1-ARG0 43:0-rel 44:1-ARG1
+brown/ck/ck03.mrg 129 16 gold tune.02 vn--a 14:1-ARG0 16:0,17:1-rel 18:1-ARG2-on 21:1-ARGM-TMP
+brown/ck/ck03.mrg 129 27 gold tell.01 vn-3a 26:1-ARG0 27:0-rel 28:1-ARG2 29:2-ARG1
+brown/ck/ck03.mrg 129 2 gold get.02 vn--a 0:1-ARG0 2:0-rel 3:2-ARG1 9:1-ARGM-LOC
+brown/ck/ck03.mrg 129 31 gold go.02 i---a 28:1*29:0-ARG0 31:0-rel 32:1-ARGM-DIR
+brown/ck/ck03.mrg 129 34 gold piss.01 i---a 28:1*29:0-ARG0 34:0-rel 35:1-ARGM-LOC
+brown/ck/ck03.mrg 129 44 gold do.02 vn--a 43:1-ARG0 44:0-rel 42:1*45:0-ARG1
+brown/ck/ck03.mrg 130 13 gold oppose.01 p---a 8:2,10:1-ARG0 13:0-rel 14:2-ARG1
+brown/ck/ck03.mrg 130 2 gold tell.01 pno3a 0:1-ARG0 2:0-rel 3:1-ARG2 4:1-ARGM-TMP 5:2-ARG1
+brown/ck/ck03.mrg 130 7 gold write.01 i---a 3:1*5:0-ARG0 7:0-rel 8:2,13:1-ARG1 10:1-ARG2-to
+brown/ck/ck03.mrg 131 12 gold look.01 ----a 11:1-ARG0 12:0-rel 13:1-ARGM-DIR
+brown/ck/ck03.mrg 131 24 gold employ.01 vn-3a 17:1*22:0*23:0-ARG0 24:0-rel 25:1-ARG1 28:1-ARG2
+brown/ck/ck03.mrg 131 28 gold make.01 p---a 25:1-ARG0 28:0-rel 29:1-ARG1 30:1-ARG3-for
+brown/ck/ck03.mrg 131 3 gold come.01 vn-3a 1:1-ARG1 3:0-rel 4:1-ARG4-to
+brown/ck/ck03.mrg 131 8 gold say.01 vn-3a 7:1-ARG0 8:0-rel 11:3-ARG1
+brown/ck/ck03.mrg 13 21 gold do.02 i---a 15:1*16:0*22:0-ARG1 17:1*19:0-ARG0 21:0-rel
+brown/ck/ck03.mrg 13 25 gold find.01 ----a 17:1*24:0-ARG0 25:0-rel 26:1-ARG1
+brown/ck/ck03.mrg 13 37 gold appear.01 vf--a 30:1-ARGM-DIS 32:1-ARG1 36:0-ARGM-MOD 37:0-rel
+brown/ck/ck03.mrg 13 6 gold think.01 vn-3a 3:1*4:1*5:0-ARG0 6:0-rel 7:1-ARG1
+brown/ck/ck03.mrg 14 17 gold get.01 vn--a 16:1-ARG0 17:0-rel 18:1-ARG1
+brown/ck/ck03.mrg 14 4 gold focus.01 g---- 3:1-ARG0 4:0-rel 5:1-ARG1
+brown/ck/ck03.mrg 15 1 gold know.01 vn--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck03.mrg 15 5 gold talk.01 pno-a 3:1-ARG0 5:0-rel 2:1*6:1-ARG1
+brown/ck/ck03.mrg 16 13 gold live.01 vn--a 12:1-ARG0 13:0-rel 14:1-ARGM-MNR
+brown/ck/ck03.mrg 16 6 gold feel.01 vn--a 4:1-ARG0 6:0-rel 7:1-ARG1 9:1-ARG2-about 11:1-ARGM-TMP
+brown/ck/ck03.mrg 17 11 gold know.01 vn-3a 1:0-ARGM-DIS 2:2-ARGM-TMP 9:1-ARG0 11:0-rel 12:2-ARG1
+brown/ck/ck03.mrg 17 4 gold come.12 vn-3a 1:0-ARGM-DIS 2:1*7:0-ARGM-TMP 4:0-rel 5:1-ARG1-to
+brown/ck/ck03.mrg 18 2 gold know.01 vn-3a 0:1-ARG0 2:0-rel 3:1-ARG1
+brown/ck/ck03.mrg 18 7 gold get.01 vf--a 4:1-ARG0 6:0-ARGM-MOD 7:0-rel 8:1-ARG1 12:1-ARGM-CAU
+brown/ck/ck03.mrg 19 14 gold invent.01 vp--a 13:1-ARG0 14:0-rel 15:2-ARG1 18:1-ARGM-PNC
+brown/ck/ck03.mrg 19 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 8:1-ARGM-LOC
+brown/ck/ck03.mrg 20 4 gold say.01 i---a 2:0-ARG0 4:0-rel 6:1,7:1-ARG1
+brown/ck/ck03.mrg 2 0 gold hang.01 p---a 0:0-rel 1:1-ARGM-LOC 6:2-ARG1
+brown/ck/ck03.mrg 21 2 gold shoot.02 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARG2-at 5:1-ARGM-ADV
+brown/ck/ck03.mrg 22 20 gold speak.01 vp--a 19:1-ARG0 20:0-rel 21:1-ARGM-MNR
+brown/ck/ck03.mrg 22 28 gold make.04 vn--a 26:1-ARG0 27:1-ARGM-ADV 28:0-rel 29:1-ARG1 30:1-ARG2-of
+brown/ck/ck03.mrg 2 26 gold need.01 vp--a 18:1*24:1*25:0-ARG0 26:0-rel 27:2-ARG1
+brown/ck/ck03.mrg 24 16 gold knock.01 ----a 14:1-ARG0 15:0-ARGM-MOD 16:0-rel 17:1-ARG1 18:2-ARGM-ADV
+brown/ck/ck03.mrg 24 1 gold hear.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1-of
+brown/ck/ck03.mrg 24 6 gold try.01 vp--a 3:1*4:1*5:0-ARG0 6:0-rel 7:1-ARG1 8:2-ARGM-LOC
+brown/ck/ck03.mrg 26 14 gold make.04 vp--a 0:2-ARG0 14:0-rel 15:1-ARG1 16:1-ARG2-of
+brown/ck/ck03.mrg 26 22 gold draw.05 vp--a 0:2-ARG0 22:0-rel 23:1-ARG1
+brown/ck/ck03.mrg 27 15 gold cut.08 pp--p 13:1-ARG1 15:0,16:1-rel 17:1-ARGM-MNR
+brown/ck/ck03.mrg 27 9 gold have.03 vp--a 0:1-ARGM-TMP 6:1-ARG0 9:0-rel 10:1-ARG1
+brown/ck/ck03.mrg 28 13 gold get.04 vp--a 12:1-ARG0 13:0-rel 14:2-ARG1 18:1-ARG2-in
+brown/ck/ck03.mrg 28 1 gold catch.02 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck03.mrg 28 3 gold steal.01 p---a 2:1-ARG0 3:0-rel 4:1-ARG1 5:1-ARG2-from
+brown/ck/ck03.mrg 29 7 gold bother.01 vp--a 0:2-ARG0 4:1-ARGM-ADV 6:0-ARGM-NEG 7:0-rel 8:1-ARG1
+brown/ck/ck03.mrg 3 11 gold call.01 pp--p 0:1-ARG1 11:0-rel 12:2-ARG2
+brown/ck/ck03.mrg 31 2 gold leave.03 pp--p 0:1-ARG1 2:0,3:0-rel 4:1-ARG2-of 6:1-ARGM-TMP
+brown/ck/ck03.mrg 32 4 gold make.06 vp--a 3:1-ARG1 4:0-rel 5:1-ARG2 2:1*9:0-ARGM-CAU
+brown/ck/ck03.mrg 33 12 gold overcome.01 vn-3a 5:1*10:1*11:0-ARG0 12:0-rel 17:3-ARG1
+brown/ck/ck03.mrg 33 14 gold paralyze.01 vn-3a 5:1*10:1*11:0-ARG0 14:0-rel
+brown/ck/ck03.mrg 33 16 gold send.02 vn-3a 5:1*10:1*11:0-ARG0 16:0-rel 17:3-ARG1 24:1-ARG2
+brown/ck/ck03.mrg 33 24 gold run.02 p---a 17:3-ARG0 24:0-rel 25:1-ARGM-MNR
+brown/ck/ck03.mrg 33 3 gold trouble.01 pp--p 0:1-ARG1 2:0-ARGM-NEG 3:0-rel 4:1-ARG2-with
+brown/ck/ck03.mrg 34 11 gold happen.01 ----a 8:2-ARG1 10:0-ARGM-MOD 11:0-rel 12:1-ARG2-to
+brown/ck/ck03.mrg 34 4 gold occur.01 vp--a 3:0-ARGM-NEG 4:0-rel 5:1-ARGM-ADV 7:1-ARG1
+brown/ck/ck03.mrg 35 2 gold get.01 vn--a 1:1-ARG0 2:0-rel 3:2-ARG1
+brown/ck/ck03.mrg 36 1 gold nod.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-ADV
+brown/ck/ck03.mrg 38 14 gold pick.08 ppo-a 12:1-ARG0 14:0,15:1-rel 16:1-ARG1 18:1-ARGM-MNR
+brown/ck/ck03.mrg 39 12 gold suggest.01 vp--a 11:1-ARG0 12:0-rel 15:2-ARG1
+brown/ck/ck03.mrg 39 16 gold ask.02 ----a 15:1-ARG0 16:0-rel 17:1-ARG1-for
+brown/ck/ck03.mrg 39 21 gold promise.01 ----a 15:1-ARG0 21:0-rel 22:2-ARG1 27:2-ARG2
+brown/ck/ck03.mrg 39 21 gold promise.01 ----a 15:1-ARG0 21:0-rel 22:2-ARG1 32:1-ARG2
+brown/ck/ck03.mrg 39 2 gold order.01 vp--a 0:1-ARG0 2:0-rel 3:1-ARG2
+brown/ck/ck03.mrg 39 6 gold wipe.02 p---p 4:1*7:0-ARG1 6:0,8:1-rel
+brown/ck/ck03.mrg 41 10 gold approach.01 vp--a 0:1-ARG1 10:0-rel 11:1-ARG2 12:1-ARGM-ADV
+brown/ck/ck03.mrg 41 15 gold drop.01 vp--a 0:1-ARG1 15:0-rel 16:1-ARGM-DIR 17:1-ARGM-TMP 18:1-ARGM-ADV
+brown/ck/ck03.mrg 41 2 gold snake.01 vp--a 0:1-ARG0 2:0-rel 3:1-ARGM-ADV 4:1-ARG1-in
+brown/ck/ck03.mrg 4 17 gold notice.01 p---a 16:1-ARG0 17:0-rel 18:1-ARG1
+brown/ck/ck03.mrg 42 2 gold hear.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-rel 3:1-ARG1 4:1-ARGM-LOC
+brown/ck/ck03.mrg 4 23 gold come.01 p---a 16:1-ARG1 21:1-ARGM-ADV 23:0-rel 24:1-ARGM-DIR
+brown/ck/ck03.mrg 4 26 gold hang.02 p---a 16:1-ARG1 21:1-ARGM-ADV 26:0-rel 27:1-ARG2
+brown/ck/ck03.mrg 4 29 gold want.01 p---a 16:1-ARG0 29:0-rel 30:2-ARG1
+brown/ck/ck03.mrg 4 32 gold know.01 i---a 16:1*30:0-ARG0 32:0-rel 33:1-ARG1
+brown/ck/ck03.mrg 44 13 gold fire.01 pp--p 13:0-rel 10:1*14:0-ARG1 15:1-ARGM-ADV
+brown/ck/ck03.mrg 44 1 gold know.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 9:1-ARGM-CAU
+brown/ck/ck03.mrg 44 6 gold subdue.01 pp--p 3:1*7:0-ARG1 6:0-rel
+brown/ck/ck03.mrg 45 2 gold hurry.01 vp--a 0:1-ARGM-DIS 1:1-ARG1 2:0-rel 3:1-ARGM-DIR
+brown/ck/ck03.mrg 46 11 gold wound.01 pp--p 8:1*12:0-ARG1 11:0-rel
+brown/ck/ck03.mrg 46 5 gold kill.01 pp--p 0:2*6:0-ARG1 5:0-rel
+brown/ck/ck03.mrg 47 10 gold kill.01 ppp-a 0:2-ARG0 10:0-rel 11:0*18:1-ARG1 20:1-ARG2-by
+brown/ck/ck03.mrg 47 13 gold put.03 ppp-a 0:2-ARG0 13:0-rel 14:1-ARG2-out 17:0*18:1-ARG1 20:1-ARGM-MNR
+brown/ck/ck03.mrg 4 7 gold go.02 ----a 2:1*4:1*36:0-ARGM-LOC 5:1-ARG0 6:0-ARGM-MOD 7:0-rel 8:1-ARGM-PNC 11:1-ARGM-LOC 15:1-ARGM-MNR
+brown/ck/ck03.mrg 48 11 gold quarrel.01 ppo-a 0:2-ARGM-TMP 6:2-ARG0 11:0-rel 12:1-ARG2-over
+brown/ck/ck03.mrg 48 2 gold get.05 vp--a 1:1-ARG1 2:0-rel 3:1-ARG2 0:1*4:0-ARGM-TMP
+brown/ck/ck03.mrg 49 15 gold say.01 vp--a 7:1-ARG0 15:0-rel 18:2-ARG1
+brown/ck/ck03.mrg 49 19 gold give.01 ----a 18:0*24:1-ARG0 19:0-rel 20:1-ARG1 21:1-ARG2-to
+brown/ck/ck03.mrg 49 3 gold have.03 vp--a 0:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck03.mrg 49 8 gold lunge.01 vp--a 7:1-ARG0 8:0-rel 9:1-ARG1-at 11:1-ARGM-ADV
+brown/ck/ck03.mrg 50 16 gold come.01 vn--a 15:1-ARG1 16:0-rel 17:1-ARG3-from
+brown/ck/ck03.mrg 50 3 gold allow.01 vn--a 0:1-ARG0 2:0-ARGM-NEG 3:0-rel 4:2-ARG1 14:2-ARGM-LOC
+brown/ck/ck03.mrg 50 6 gold walk.01 i---a 4:1-ARG0 6:0-rel 7:1-ARGM-LOC 11:1-ARGM-MNR
+brown/ck/ck03.mrg 51 3 gold get.01 vp--a 1:1-ARG0 3:0-rel 4:1-ARG1 7:1-ARGM-LOC 10:1-ARG2-from
+brown/ck/ck03.mrg 52 14 gold ask.01 vp--a 1:2*15:0-ARG1 13:1-ARG0 14:0-rel 16:1-ARGM-MNR
+brown/ck/ck03.mrg 52 5 gold do.02 vp--a 1:1*6:0-ARG1 3:1-ARG0 5:0-rel 7:1-ARG2-about
+brown/ck/ck03.mrg 53 1 gold laugh.01 vp--a 0:1-ARG0 1:0-rel
+brown/ck/ck03.mrg 54 2 gold recommend.01 vp--a 1:1-ARG0 2:0-rel 10:1-ARG1 13:1-ARG3 18:1-ARGM-ADV 20:1-ARGM-CAU
+brown/ck/ck03.mrg 54 2 gold recommend.01 vp--a 1:1-ARG0 2:0-rel 3:2-ARG1 6:1-ARG3-for
+brown/ck/ck03.mrg 55 2 gold see.03 vn--a 1:1-ARG0 2:0-rel
+brown/ck/ck03.mrg 55 5 gold know.01 vn-3a 3:1-ARG0 5:0-rel 6:2-ARG1
+brown/ck/ck03.mrg 57 25 gold tell.01 vp--a 20:2-ARG0 25:0-rel 26:1-ARG2 27:1-ARG1
+brown/ck/ck03.mrg 57 30 gold come.01 ----a 28:1-ARG1 29:0-ARGM-MOD 30:0-rel 31:1-ARGM-DIR 32:1-ARGM-TMP 34:1-ARG4-to
+brown/ck/ck03.mrg 57 38 gold read.01 ----a 28:1-ARG0 29:0-ARGM-MOD 38:0-rel 39:2-ARG1
+brown/ck/ck03.mrg 57 50 gold send.01 vp--a 46:1*48:0*51:0-ARG1 49:1-ARG0 50:0-rel 52:1-ARGM-DIR 53:1-ARGM-ADV
+brown/ck/ck03.mrg 57 57 gold go.02 ----a 28:1-ARG0 29:0-ARGM-MOD 57:0-rel 58:1-ARGM-DIR 59:1-ARGM-MNR
+brown/ck/ck03.mrg 59 15 gold look.01 p---a 0:1*14:0-ARG0 15:0-rel 16:1-ARGM-DIR
+brown/ck/ck03.mrg 60 10 gold watch.01 p---a 0:1*9:0-ARG0 10:0-rel 11:2-ARG1 16:1-ARGM-TMP
+brown/ck/ck03.mrg 60 12 gold wind.01 p---a 12:0-rel 13:0-ARG1
+brown/ck/ck03.mrg 60 18 gold cross.02 vp--a 17:1-ARG0 18:0-rel 19:1-ARG1
+brown/ck/ck03.mrg 60 1 gold have.03 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck03.mrg 60 22 gold spread.02 vp--a 17:1-ARG1 22:0-rel 23:1-ARGM-DIR 24:1-ARGM-MNR
+brown/ck/ck03.mrg 60 4 gold sit.01 vp--a 0:1-ARG1 4:0-rel 5:1-ARGM-LOC 6:1-ARG2-over 9:2-ARGM-ADV
+brown/ck/ck03.mrg 62 10 gold thread.01 p---a 3:1*9:0-ARG0 10:0-rel 11:1-ARG1 13:1-ARGM-DIR 18:1-ARGM-TMP
+brown/ck/ck03.mrg 62 1 gold think.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck03.mrg 62 24 gold enjoy.01 p---a 3:1*9:0-ARG0 24:0-rel 25:3-ARG1
+brown/ck/ck03.mrg 62 40 gold draw.02 p---a 3:1*9:0-ARG0 38:1-ARGM-NEG 39:1-ARGM-ADV 40:0-rel 41:1-ARG1
+brown/ck/ck03.mrg 63 10 gold permit.01 ppp-a 0:2-ARG0 6:1-ARGM-DIS 9:1-ARGM-NEG 10:0-rel 11:1-ARG2-REC 12:2-ARG1
+brown/ck/ck03.mrg 63 18 gold dig.01 vp--a 15:1*16:1*17:0-ARG0 18:0-rel 19:1-ARGM-DIR
+brown/ck/ck03.mrg 65 1 gold impose.01 vn-3a 0:1-ARG0 1:0-rel 2:2-ARG1 6:1-ARG2-on
+brown/ck/ck03.mrg 6 5 gold discover.01 ppp-a 0:1-ARG0 3:0-ARGM-NEG 4:1-ARGM-TMP 5:0-rel 6:1-ARG1
+brown/ck/ck03.mrg 66 10 gold sit.01 i---a 0:1*4:0-ARG1 10:0-rel 11:1-ARG2-in
+brown/ck/ck03.mrg 66 3 gold stop.01 ----a 0:1-ARG1 1:0-ARGM-MOD 2:0-ARGM-NEG 3:0-rel 4:2-ARGM-PNC 17:1-ARGM-LOC
+brown/ck/ck03.mrg 66 6 gold grasp.01 i---a 0:1*4:0-ARG0 6:0-rel
+brown/ck/ck03.mrg 66 8 gold embrace.02 i---a 0:1*4:0-ARG0 8:0-rel 11:1-ARGM-LOC
+brown/ck/ck03.mrg 67 4 gold look.01 ----a 2:1-ARG0 3:0-ARGM-MOD 4:0-rel 5:1-ARGM-DIR
+brown/ck/ck03.mrg 67 9 gold climb.01 ----a 2:1-ARG0 3:0-ARGM-MOD 9:0-rel 10:2-ARG1
+brown/ck/ck03.mrg 68 12 gold think.01 vp--a 10:1-ARGM-ADV 11:1-ARG0 12:0-rel
+brown/ck/ck03.mrg 68 1 gold make.04 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1 4:1-ARGM-MNR
+brown/ck/ck03.mrg 69 6 gold leave.01 ----a 0:1-ARGM-ADV 4:1-ARG0 5:0-ARGM-MOD 6:0-rel 7:2-ARG1
+brown/ck/ck03.mrg 71 11 gold walk.01 i---a 4:1*9:0-ARG0 11:0-rel 12:1-ARGM-TMP 6:1*8:0*20:0-ARGM-TMP
+brown/ck/ck03.mrg 71 5 gold have.03 vp--a 0:1-ARGM-LOC 4:1-ARG0 5:0-rel 6:2-ARG1
+brown/ck/ck03.mrg 72 10 gold see.01 ----a 0:1-ARGM-LOC 3:1-ARG0 4:0-ARGM-MOD 10:0-rel 11:2-ARG1
+brown/ck/ck03.mrg 72 16 gold walk.01 p---a 11:1-ARG0 13:2-ARGM-MNR 16:0-rel 17:1-ARGM-MNR 19:1-ARGM-MNR 21:1-ARGM-DIR
+brown/ck/ck03.mrg 72 28 gold smell.01 ----a 26:1-ARG0 27:0-ARGM-MOD 28:0-rel 29:1-ARG1
+brown/ck/ck03.mrg 72 5 gold look.01 ----a 0:1-ARGM-LOC 3:1-ARG0 4:0-ARGM-MOD 5:0-rel 6:1-ARGM-DIR 7:1-ARGM-TMP
+brown/ck/ck03.mrg 75 4 gold teach.01 i---a 1:0-ARGM-MOD 0:1*2:0-ARG0 4:0-rel 5:1-ARG2-REC 6:1-ARGM-MNR 7:1-ARG1
+brown/ck/ck03.mrg 76 16 gold exist.01 vp--a 13:1*14:1*15:0-ARG1 16:0-rel
+brown/ck/ck03.mrg 76 3 gold pull.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:1-ARGM-MNR 3:0-rel 4:1-ARG1 11:1-ARGM-PNC
+brown/ck/ck03.mrg 76 7 gold close.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:1-ARGM-MNR 7:0-rel 8:1-ARG1 11:1-ARGM-PNC
+brown/ck/ck03.mrg 80 18 gold become.01 vp--a 12:1*16:1*17:0-ARG1 18:0-rel 19:1-ARG2
+brown/ck/ck03.mrg 80 6 gold have.03 ----a 0:1*3:1*4:0-ARG0 5:0-ARGM-MOD 6:0-rel 7:1-ARG1
+brown/ck/ck03.mrg 8 18 gold weigh.01 vp--a 16:1-ARG1 18:0-rel 19:1-ARG3
+brown/ck/ck03.mrg 82 19 gold punish.01 pp--p 17:1*20:0-ARG1 19:0-rel
+brown/ck/ck03.mrg 82 2 gold dare.01 ppp-a 0:1-ARG1 2:0-rel 3:2-ARG2
+brown/ck/ck03.mrg 8 24 gold own.01 vp--a 16:1-ARG0 23:0-ARGM-NEG 24:0-rel 25:1-ARG1
+brown/ck/ck03.mrg 82 5 gold defy.01 i---a 0:1*3:0-ARG0 5:0-rel 6:1-ARG1
+brown/ck/ck03.mrg 82 9 gold turn.01 i---a 0:1*3:0-ARG0 9:0-rel 10:1-ARG1 12:1-ARGM-DIR
+brown/ck/ck03.mrg 83 12 gold have.03 vp--a 0:1-ARGM-MNR 11:1-ARG0 12:0-rel 13:2,17:1-ARG1
+brown/ck/ck03.mrg 83 22 gold spend.02 p---p 18:1*23:0-ARG1 20:1-ARGM-MNR 22:0-rel
+brown/ck/ck03.mrg 84 13 gold gather.01 ----a 13:0-rel 15:1-ARG0 14:0*17:1-ARG1 18:1-ARGM-TMP
+brown/ck/ck03.mrg 84 27 gold smile.01 vn-3a 22:1*25:1*26:0-ARG0 27:0-rel 28:1-ARGM-TMP
+brown/ck/ck03.mrg 84 32 gold die.01 pfo-a 22:2-ARG1 29:1-ARGM-TMP 30:0-ARGM-MOD 32:0-rel
+brown/ck/ck03.mrg 84 3 gold have.03 ppp-a 1:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck03.mrg 84 9 gold tell.01 ----a 0:1-ARGM-ADV 7:1-ARG0 8:0-ARGM-MOD 9:0-rel 10:1-ARG2 13:2,22:3-ARG1
+brown/ck/ck03.mrg 85 5 gold afford.01 ----a 0:1-ARGM-DIS 2:1-ARG0 4:0-ARGM-MOD 5:0-rel 6:1-ARG1
+brown/ck/ck03.mrg 86 2 gold wait.01 ppo-a 0:1-ARG1 2:0-rel 3:1-ARG2-for
+brown/ck/ck03.mrg 8 6 gold realize.01 i---a 0:1*4:0-ARG0 6:0-rel 7:1-ARG1
+brown/ck/ck03.mrg 87 10 gold see.01 ----a 8:1-ARG0 9:0-ARGM-MOD 10:0-rel 11:1-ARG1 13:1-ARGM-LOC
+brown/ck/ck03.mrg 87 4 gold call.02 ppp-a 0:1-ARG0 4:0-rel
+brown/ck/ck03.mrg 87 6 gold ask.02 ppp-a 0:1-ARG0 6:0-rel 7:1-ARG1
+brown/ck/ck03.mrg 88 1 gold say.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARG1
+brown/ck/ck03.mrg 9 10 gold die.01 ppp-a 5:1*7:1*8:0-ARG1 10:0-rel 11:1-ARGM-MNR
+brown/ck/ck03.mrg 91 1 gold suspect.01 vp--a 0:1-ARG0 1:0-rel 2:2-ARG1
+brown/ck/ck03.mrg 9 19 gold find.01 ppp-a 17:1-ARG0 19:0-rel 20:1-ARG2 21:1-ARG1 23:1-ARG3-as
+brown/ck/ck03.mrg 92 12 gold worry.01 vp--a 11:1-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck03.mrg 92 3 gold put.01 ----a 0:1-ARG0 1:0-ARGM-MOD 2:0-ARGM-NEG 3:0-rel 4:1-ARG1 6:1-ARG2-on 8:1-ARGM-ADV
+brown/ck/ck03.mrg 93 11 gold have.03 ----a 0:2-ARGM-TMP 9:1-ARG0 10:0-ARGM-MOD 11:0-rel 12:1-ARG1
+brown/ck/ck03.mrg 93 2 gold dislike.01 vp--a 0:1*7:0-ARGM-TMP 1:1-ARG0 2:0-rel 5:1-ARG1
+brown/ck/ck03.mrg 93 4 gold distrust.01 vp--a 0:1*7:0-ARGM-TMP 1:1-ARG0 4:0-rel 5:1-ARG1
+brown/ck/ck03.mrg 94 11 gold tell.02 ----a 9:1-ARG0 10:0-ARGM-MOD 11:0-rel 12:1-ARG1 16:1-ARGM-MNR
+brown/ck/ck03.mrg 95 12 gold hope.01 p---a 0:1*11:0-ARG0 12:0-rel 13:1-ARG1
+brown/ck/ck03.mrg 95 1 gold stare.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-TMP 4:1-ARG1-at 11:2-ARGM-ADV
+brown/ck/ck03.mrg 95 24 gold appear.01 ----a 14:2-ARG1 23:0-ARGM-MOD 24:0-rel
+brown/ck/ck03.mrg 97 14 gold make.04 ----a 5:1-ARG0 13:0-ARGM-MOD 14:0-rel 15:1-ARG1 17:2-ARGM-PNC
+brown/ck/ck03.mrg 97 19 gold understand.01 i---a 5:1*17:0-ARG0 19:0-rel 22:1-ARG1-with
+brown/ck/ck03.mrg 97 21 gold sympathize.01 i---a 5:1*17:0-ARG0 21:0-rel 22:1-ARG1-with
+brown/ck/ck03.mrg 97 3 gold decide.01 vp--a 0:1-ARGM-DIS 2:1-ARG0 3:0-rel 4:1-ARG1
+brown/ck/ck03.mrg 98 7 gold arrive.01 vp--a 0:2-ARGM-TMP 4:1-ARG1 7:0-rel
+brown/ck/ck03.mrg 99 16 gold store.01 i---a 0:1*12:0*14:0-ARG0 16:0-rel 17:1-ARG1 19:1-ARGM-MNR 20:1-ARGM-LOC
+brown/ck/ck03.mrg 99 1 gold look.01 vp--a 0:1-ARG0 1:0-rel 2:1-ARGM-MNR 4:1-ARG1-at 10:1-ARGM-ADV
