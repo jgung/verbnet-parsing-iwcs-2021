@@ -89,6 +89,7 @@ To train and evaluate the baseline model on PropBank roles, use:
 python tfnlp/trainer.py \
 --config iwcs-2021-config/baseline-config-pb.json \
 --job-dir iwcs-2021/baseline-pb \
+--resources data/ \
 --train semlink1.1/vn.both-train.txt \
 --valid semlink1.1/vn.both-valid.txt \
 --test semlink1.1/vn.both-test-wsj.txt,semlink1.1/vn.both-test-brown.txt
