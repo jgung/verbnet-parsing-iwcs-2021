@@ -1,5 +1,0 @@
-{
-  "encoder": "srl-mlp",
-  "name": "coarse",
-  "type": "srl"
-}

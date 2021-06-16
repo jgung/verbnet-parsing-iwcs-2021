@@ -1,8 +1,0 @@
-{
-  "encoder": "alternating_lstm",
-  "name": "gold",
-  "type": "biaffine-srl",
-  "mlp_dim": 200,
-  "mlp_dropout": 0.1,
-  "label_smoothing": 0.1
-}

@@ -1,6 +1,0 @@
-{
-  "encoder": "bert-no-subtokens",
-  "name": "pos",
-  "type": "tagger",
-  "metric": "Accuracy"
-}

@@ -1,9 +1,0 @@
-{
-  "name": "NE",
-  "key": "gold",
-  "indices": {
-    "O": 0
-  },
-  "unknown_word": "O",
-  "pad_word": "O"
-}

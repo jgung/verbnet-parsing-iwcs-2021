@@ -1,6 +1,0 @@
-{
-  "encoder": "blstm",
-  "name": "NE",
-  "type": "ner",
-  "crf": true
-}

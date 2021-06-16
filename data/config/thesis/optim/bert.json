@@ -1,9 +1,0 @@
-{
-  "name": "bert",
-  "lr": {
-    "name": "bert",
-    "rate": 0.00005,
-    "warmup_proportion": 0.1
-  },
-  "clip": 1.0
-}

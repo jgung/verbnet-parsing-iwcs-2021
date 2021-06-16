@@ -1,6 +1,7 @@
 # Semantic Role Labeling with VerbNet Classes
 
-Code used for experiments for the [IWCS 2021](https://iwcs2021.github.io/index.html) paper *Predicate Representations and Polysemy in VerbNet Semantic Parsing*. This repository is cloned from [https://github.com/jgung/tf-nlp](https://github.com/jgung/tf-nlp).
+Code used for experiments for the [IWCS 2021](https://iwcs2021.github.io/index.html) paper [*Predicate Representations and Polysemy in VerbNet Semantic Parsing*](https://iwcs2021.github.io/proceedings/iwcs/pdf/2021.iwcs-1.6.pdf).
+This repository is cloned from [https://github.com/jgung/tf-nlp](https://github.com/jgung/tf-nlp).
 
 ## Setup
 ### Data

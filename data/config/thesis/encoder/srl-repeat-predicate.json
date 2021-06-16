@@ -1,8 +1,0 @@
-{
-  "name": "predicate",
-  "type": "repeat_token",
-  "inputs": [
-    "srl-blstm"
-  ],
-  "key": "predicate_index"
-}

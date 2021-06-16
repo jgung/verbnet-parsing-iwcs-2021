@@ -1,9 +1,0 @@
-{
-  "name": "gold",
-  "key": "gold",
-  "indices": {
-    "FW": 0
-  },
-  "unknown_word": "FW",
-  "pad_word": "FW"
-}
